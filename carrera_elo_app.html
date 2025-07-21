@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrera ELO Racing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .nav {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .nav-btn {
+            background: rgba(255,255,255,0.9);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .nav-btn:hover, .nav-btn.active {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        
+        .section {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .section.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            background: #fafafa;
+            transition: all 0.3s ease;
+        }
+        
+        .list-item:hover {
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+        
+        .elo-score {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+        
+        .race-entry {
+            display: flex;
+            gap: 15px;
+            align-items: end;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .race-entry select {
+            min-width: 120px;
+        }
+        
+        .race-history-item {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .race-date {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .race-results {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .position {
+            font-weight: bold;
+            margin-right: 15px;
+            color: #667eea;
+        }
+        
+        .elo-changes {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .elo-change {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .elo-up { color: #27ae60; }
+        .elo-down { color: #e74c3c; }
+        
+        .ranking-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .podium {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .podium-item {
+            text-align: center;
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            position: relative;
+        }
+        
+        .podium-item.first {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+        
+        .podium-item.second {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+        }
+        
+        .podium-item.third {
+            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+        }
+        
+        .podium-position {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .podium-name {
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+        
+        .podium-elo {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        @media (max-width: 600px) {
+            .race-entry {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .nav {
+                flex-direction: column;
+            }
+            
+            .nav-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏎️ Carrera ELO Racing</h1>
+            <p>Professionelle Wertung für deine Rennen</p>
+        </div>
+        
+        <div class="nav">
+            <button class="nav-btn active" onclick="showSection('drivers')">👨‍🏁 Fahrer</button>
+            <button class="nav-btn" onclick="showSection('cars')">🏎️ Fahrzeuge</button>
+            <button class="nav-btn" onclick="showSection('race')">🏁 Neues Rennen</button>
+            <button class="nav-btn" onclick="showSection('rankings')">🏆 Ranglisten</button>
+            <button class="nav-btn" onclick="showSection('history')">📊 Historie</button>
+        </div>
+        
+        <!-- Fahrer Section -->
+        <div id="drivers" class="section active">
+            <h2>👨‍🏁 Fahrer verwalten</h2>
+            <div class="form-group">
+                <label>Neuer Fahrer:</label>
+                <input type="text" id="newDriverName" placeholder="Name eingeben...">
+                <button class="btn" onclick="addDriver()">Fahrer hinzufügen</button>
+            </div>
+            <div id="driversList"></div>
+        </div>
+        
+        <!-- Fahrzeuge Section -->
+        <div id="cars" class="section">
+            <h2>🏎️ Fahrzeuge verwalten</h2>
+            <div class="form-group">
+                <label>Neues Fahrzeug:</label>
+                <input type="text" id="newCarName" placeholder="Fahrzeugname eingeben...">
+                <button class="btn" onclick="addCar()">Fahrzeug hinzufügen</button>
+            </div>
+            <div id="carsList"></div>
+        </div>
+        
+        <!-- Rennen Section -->
+        <div id="race" class="section">
+            <h2>🏁 Neues Rennen eingeben</h2>
+            <p>Trage die Ergebnisse ein (1. Platz bis letzter Platz):</p>
+            <div id="raceEntries"></div>
+            <button class="btn" onclick="addRaceEntry()">+ Teilnehmer hinzufügen</button>
+            <button class="btn" onclick="calculateRace()" style="margin-left: 20px;">🏆 Rennen auswerten</button>
+        </div>
+        
+        <!-- Rankings Section -->
+        <div id="rankings" class="section">
+            <div class="ranking-header">🏆 Fahrer-Rangliste</div>
+            <div id="driverPodium" class="podium"></div>
+            <div id="driversRanking"></div>
+            
+            <div class="ranking-header" style="margin-top: 40px;">🏎️ Fahrzeug-Rangliste</div>
+            <div id="carPodium" class="podium"></div>
+            <div id="carsRanking"></div>
+        </div>
+        
+        <!-- Historie Section -->
+        <div id="history" class="section">
+            <h2>📊 Renn-Historie</h2>
+            <div id="raceHistory"></div>
+        </div>
+    </div>
+
+    <script>
+        // Datenstrukturen
+        let drivers = JSON.parse(localStorage.getItem('carrera_drivers')) || [];
+        let cars = JSON.parse(localStorage.getItem('carrera_cars')) || [];
+        let races = JSON.parse(localStorage.getItem('carrera_races')) || [];
+        let raceCounter = 0;
+
+        // Navigation
+        function showSection(sectionName) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(sectionName).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (sectionName === 'rankings') {
+                updateRankings();
+            } else if (sectionName === 'history') {
+                updateHistory();
+            } else if (sectionName === 'race') {
+                updateRaceForm();
+            }
+        }
+
+        // Fahrer Management
+        function addDriver() {
+            const name = document.getElementById('newDriverName').value.trim();
+            if (!name) {
+                alert('Bitte einen Namen eingeben!');
+                return;
+            }
+            
+            if (drivers.some(d => d.name.toLowerCase() === name.toLowerCase())) {
+                alert('Fahrer existiert bereits!');
+                return;
+            }
+            
+            drivers.push({
+                id: Date.now(),
+                name: name,
+                elo: 1000,
+                races: 0
+            });
+            
+            document.getElementById('newDriverName').value = '';
+            saveData();
+            updateDriversList();
+            updateRaceForm();
+        }
+
+        function deleteDriver(id) {
+            if (confirm('Fahrer wirklich löschen? Alle Renndaten gehen verloren!')) {
+                drivers = drivers.filter(d => d.id !== id);
+                // Rennen mit diesem Fahrer entfernen
+                races = races.filter(race => !race.results.some(r => r.driverId === id));
+                saveData();
+                updateDriversList();
+                updateRaceForm();
+            }
+        }
+
+        function updateDriversList() {
+            const list = document.getElementById('driversList');
+            list.innerHTML = drivers.map(driver => `
+                <div class="list-item">
+                    <div>
+                        <strong>${driver.name}</strong>
+                        <div style="font-size: 0.9em; color: #666;">
+                            ${driver.races} Rennen
+                        </div>
+                    </div>
+                    <div>
+                        <span class="elo-score">${driver.elo}</span>
+                        <button class="btn btn-danger" onclick="deleteDriver(${driver.id})">Löschen</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Fahrzeug Management
+        function addCar() {
+            const name = document.getElementById('newCarName').value.trim();
+            if (!name) {
+                alert('Bitte einen Namen eingeben!');
+                return;
+            }
+            
+            if (cars.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+                alert('Fahrzeug existiert bereits!');
+                return;
+            }
+            
+            cars.push({
+                id: Date.now(),
+                name: name,
+                elo: 1000,
+                races: 0
+            });
+            
+            document.getElementById('newCarName').value = '';
+            saveData();
+            updateCarsList();
+            updateRaceForm();
+        }
+
+        function deleteCar(id) {
+            if (confirm('Fahrzeug wirklich löschen? Alle Renndaten gehen verloren!')) {
+                cars = cars.filter(c => c.id !== id);
+                // Rennen mit diesem Fahrzeug entfernen
+                races = races.filter(race => !race.results.some(r => r.carId === id));
+                saveData();
+                updateCarsList();
+                updateRaceForm();
+            }
+        }
+
+        function updateCarsList() {
+            const list = document.getElementById('carsList');
+            list.innerHTML = cars.map(car => `
+                <div class="list-item">
+                    <div>
+                        <strong>${car.name}</strong>
+                        <div style="font-size: 0.9em; color: #666;">
+                            ${car.races} Rennen
+                        </div>
+                    </div>
+                    <div>
+                        <span class="elo-score">${car.elo}</span>
+                        <button class="btn btn-danger" onclick="deleteCar(${car.id})">Löschen</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Renn-Management
+        function updateRaceForm() {
+            const container = document.getElementById('raceEntries');
+            if (raceCounter === 0) {
+                addRaceEntry();
+                addRaceEntry();
+            }
+        }
+
+        function addRaceEntry() {
+            raceCounter++;
+            const container = document.getElementById('raceEntries');
+            const entry = document.createElement('div');
+            entry.className = 'race-entry';
+            entry.innerHTML = `
+                <div class="form-group" style="margin: 0;">
+                    <label>Platz ${raceCounter}:</label>
+                    <select class="driver-select" onchange="updateCarOptions(this)">
+                        <option value="">Fahrer wählen...</option>
+                        ${drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label>Fahrzeug:</label>
+                    <select class="car-select">
+                        <option value="">Fahrzeug wählen...</option>
+                        ${cars.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                    </select>
+                </div>
+                <button class="btn btn-danger" onclick="removeRaceEntry(this)">Entfernen</button>
+            `;
+            container.appendChild(entry);
+        }
+
+        function removeRaceEntry(button) {
+            if (document.querySelectorAll('.race-entry').length <= 2) {
+                alert('Mindestens 2 Teilnehmer erforderlich!');
+                return;
+            }
+            button.parentElement.remove();
+            updateRacePositions();
+        }
+
+        function updateRacePositions() {
+            const entries = document.querySelectorAll('.race-entry');
+            entries.forEach((entry, index) => {
+                entry.querySelector('label').textContent = `Platz ${index + 1}:`;
+            });
+            raceCounter = entries.length;
+        }
+
+        function updateCarOptions(driverSelect) {
+            // Für Zukunft: Hier könnte man Fahrzeug-Empfehlungen basierend auf vorherigen Kombinationen machen
+        }
+
+        // ELO Berechnung (Multiplayer)
+        function calculateExpectedScore(playerElo, opponentElos) {
+            let expectedScore = 0;
+            opponentElos.forEach(opponentElo => {
+                expectedScore += 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400));
+            });
+            return expectedScore / opponentElos.length;
+        }
+
+        function calculateActualScore(position, totalPlayers) {
+            // Scoring: 1. Platz = 1.0, letzter Platz = 0.0
+            return (totalPlayers - position) / (totalPlayers - 1);
+        }
+
+        function calculateKFactor(totalPlayers) {
+            // Dynamischer K-Faktor: weniger Teilnehmer = höherer Faktor
+            const baseK = 32;
+            return Math.max(16, baseK - (totalPlayers - 2) * 4);
+        }
+
+        function calculateRace() {
+            const entries = document.querySelectorAll('.race-entry');
+            const results = [];
+            
+            // Validierung
+            for (let i = 0; i < entries.length; i++) {
+                const driverId = entries[i].querySelector('.driver-select').value;
+                const carId = entries[i].querySelector('.car-select').value;
+                
+                if (!driverId || !carId) {
+                    alert(`Bitte Fahrer und Fahrzeug für Platz ${i + 1} auswählen!`);
+                    return;
+                }
+                
+                // Doppelte Fahrer/Fahrzeuge prüfen
+                if (results.some(r => r.driverId == driverId)) {
+                    alert(`Fahrer kann nicht mehrmals teilnehmen!`);
+                    return;
+                }
+                if (results.some(r => r.carId == carId)) {
+                    alert(`Fahrzeug kann nicht mehrmals verwendet werden!`);
+                    return;
+                }
+                
+                const driver = drivers.find(d => d.id == driverId);
+                const car = cars.find(c => c.id == carId);
+                
+                results.push({
+                    position: i + 1,
+                    driverId: parseInt(driverId),
+                    carId: parseInt(carId),
+                    driverName: driver.name,
+                    carName: car.name,
+                    oldDriverElo: driver.elo,
+                    oldCarElo: car.elo,
+                    combinedElo: (driver.elo + car.elo) / 2
+                });
+            }
+            
+            const totalPlayers = results.length;
+            const kFactor = calculateKFactor(totalPlayers);
+            
+            // ELO für jeden Teilnehmer berechnen
+            results.forEach(result => {
+                const otherCombinedElos = results
+                    .filter(r => r !== result)
+                    .map(r => r.combinedElo);
+                
+                const expectedScore = calculateExpectedScore(result.combinedElo, otherCombinedElos);
+                const actualScore = calculateActualScore(result.position, totalPlayers);
+                
+                const eloChange = Math.round(kFactor * (actualScore - expectedScore));
+                
+                // ELO Updates
+                const driver = drivers.find(d => d.id === result.driverId);
+                const car = cars.find(c => c.id === result.carId);
+                
+                driver.elo = Math.max(100, driver.elo + eloChange);
+                car.elo = Math.max(100, car.elo + eloChange);
+                driver.races++;
+                car.races++;
+                
+                result.newDriverElo = driver.elo;
+                result.newCarElo = car.elo;
+                result.eloChange = eloChange;
+            });
+            
+            // Rennen speichern
+            races.unshift({
+                id: Date.now(),
+                date: new Date().toLocaleString('de-DE'),
+                results: results
+            });
+            
+            saveData();
+            
+            // Form zurücksetzen
+            document.getElementById('raceEntries').innerHTML = '';
+            raceCounter = 0;
+            updateRaceForm();
+            
+            alert(`Rennen erfolgreich ausgewertet! K-Faktor: ${kFactor}`);
+        }
+
+        // Rankings
+        function updateRankings() {
+            updateDriverRanking();
+            updateCarRanking();
+        }
+
+        function updateDriverRanking() {
+            const sortedDrivers = [...drivers].sort((a, b) => b.elo - a.elo);
+            
+            // Podium
+            const podiumContainer = document.getElementById('driverPodium');
+            const podium = sortedDrivers.slice(0, 3);
+            podiumContainer.innerHTML = podium.map((driver, index) => {
+                const positions = ['first', 'second', 'third'];
+                const medals = ['🥇', '🥈', '🥉'];
+                return `
+                    <div class="podium-item ${positions[index]}">
+                        <div class="podium-position">${medals[index]}</div>
+                        <div class="podium-name">${driver.name}</div>
+                        <div class="podium-elo">${driver.elo} ELO</div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Vollständige Rangliste
+            const rankingContainer = document.getElementById('driversRanking');
+            rankingContainer.innerHTML = sortedDrivers.map((driver, index) => `
+                <div class="list-item">
+                    <div>
+                        <strong>#${index + 1} ${driver.name}</strong>
+                        <div style="font-size: 0.9em; color: #666;">
+                            ${driver.races} Rennen gefahren
+                        </div>
+                    </div>
+                    <span class="elo-score">${driver.elo}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateCarRanking() {
+            const sortedCars = [...cars].sort((a, b) => b.elo - a.elo);
+            
+            // Podium
+            const podiumContainer = document.getElementById('carPodium');
+            const podium = sortedCars.slice(0, 3);
+            podiumContainer.innerHTML = podium.map((car, index) => {
+                const positions = ['first', 'second', 'third'];
+                const medals = ['🥇', '🥈', '🥉'];
+                return `
+                    <div class="podium-item ${positions[index]}">
+                        <div class="podium-position">${medals[index]}</div>
+                        <div class="podium-name">${car.name}</div>
+                        <div class="podium-elo">${car.elo} ELO</div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Vollständige Rangliste
+            const rankingContainer = document.getElementById('carsRanking');
+            rankingContainer.innerHTML = sortedCars.map((car, index) => `
+                <div class="list-item">
+                    <div>
+                        <strong>#${index + 1} ${car.name}</strong>
+                        <div style="font-size: 0.9em; color: #666;">
+                            ${car.races} Rennen gefahren
+                        </div>
+                    </div>
+                    <span class="elo-score">${car.elo}</span>
+                </div>
+            `).join('');
+        }
+
+        // Historie
+        function updateHistory() {
+            const historyContainer = document.getElementById('raceHistory');
+            
+            if (races.length === 0) {
+                historyContainer.innerHTML = '<p style="text-align: center; color: #666;">Noch keine Rennen gefahren.</p>';
+                return;
+            }
+            
+            historyContainer.innerHTML = races.map(race => `
+                <div class="race-history-item">
+                    <div class="race-date">📅 ${race.date}</div>
+                    <div class="race-results">
+                        ${race.results.map(result => `
+                            <div class="result-item">
+                                <div>
+                                    <span class="position">${result.position}.</span>
+                                    <strong>${result.driverName}</strong> (${result.carName})
+                                </div>
+                                <div class="elo-changes">
+                                    <div class="elo-change">
+                                        👨‍🏁 ${result.oldDriverElo} → 
+                                        <span class="${result.eloChange >= 0 ? 'elo-up' : 'elo-down'}">
+                                            ${result.newDriverElo} (${result.eloChange >= 0 ? '+' : ''}${result.eloChange})
+                                        </span>
+                                    </div>
+                                    <div class="elo-change">
+                                        🏎️ ${result.oldCarElo} → 
+                                        <span class="${result.eloChange >= 0 ? 'elo-up' : 'elo-down'}">
+                                            ${result.newCarElo} (${result.eloChange >= 0 ? '+' : ''}${result.eloChange})
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Datenspeicherung
+        function saveData() {
+            localStorage.setItem('carrera_drivers', JSON.stringify(drivers));
+            localStorage.setItem('carrera_cars', JSON.stringify(cars));
+            localStorage.setItem('carrera_races', JSON.stringify(races));
+        }
+
+        // Initialisierung
+        function init() {
+            updateDriversList();
+            updateCarsList();
+            updateRaceForm();
+        }
+
+        // App starten
+        init();
+    </script>
+</body>
+</html>
