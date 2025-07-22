@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>G!Racing ELO-Rangliste</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>G!Racing ELO-Rangliste</h1>
+            <p id="tagline">Kannst Du mit Christian L. mithalten?</p>
+            <button id="authBtn" class="auth-btn">🔐</button>
+        </div>
+        
+        <div class="nav">
+            <button class="nav-btn active" data-section="rankings">🏆 Ranglisten</button>
+            <button class="nav-btn" data-section="history">📊 Historie</button>
+            <button class="nav-btn admin-only" data-section="race">🏁 Neues Rennen</button>
+            <button class="nav-btn admin-only" data-section="drivers">😎 Fahrer</button>
+            <button class="nav-btn admin-only" data-section="cars">🏎️ Fahrzeuge</button>
+        </div>
+
+        <!-- Sub navigation for Rankings -->
+        <div id="rankSubNav" class="sub-nav hidden">
+            <button class="sub-tab active" data-rank="drivers">😎 Fahrer</button>
+            <button class="sub-tab" data-rank="cars">🏎️ Fahrzeuge</button>
+        </div>
+        
+        <!-- Fahrer Section -->
+        <div id="drivers" class="section">
+            <h2>😎 Fahrer verwalten</h2>
+            <div class="form-group">
+                <label>Neuer Fahrer:</label>
+                <div class="input-button-group">
+                    <input type="text" id="newDriverName" placeholder="Name eingeben...">
+                    <button class="btn" id="addDriverBtn">Hinzufügen</button>
+                </div>
+            </div>
+            <div id="driversList"></div>
+        </div>
+        
+        <!-- Fahrzeuge Section -->
+        <div id="cars" class="section">
+            <h2>🏎️ Fahrzeuge verwalten</h2>
+            <div class="form-group">
+                <label>Neues Fahrzeug:</label>
+                <div class="input-button-group">
+                    <input type="text" id="newCarName" placeholder="Fahrzeugname eingeben...">
+                    <button class="btn" id="addCarBtn">Hinzufügen</button>
+                </div>
+            </div>
+            <div id="carsList"></div>
+        </div>
+        
+        <!-- Rennen Section -->
+        <div id="race" class="section">
+            <h2>🏁 Neues Rennen eingeben</h2>
+            
+            <div class="race-meta-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Datum:</label>
+                    <input type="date" id="raceDate">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Uhrzeit:</label>
+                    <input type="time" id="raceTime">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Anzahl Runden:</label>
+                    <input type="number" id="raceRounds" min="1" max="999" placeholder="z.B. 50">
+                </div>
+            </div>
+            
+            <p>Trage die Ergebnisse ein (1. Platz bis letzter Platz):</p>
+            <div id="raceEntries"></div>
+            <button class="btn" id="addRaceEntryBtn">+ Teilnehmer hinzufügen</button>
+            <button class="btn" id="calculateRaceBtn" style="margin-left: 20px;">🏆 Rennen auswerten</button>
+        </div>
+        
+        <!-- Rankings Section -->
+        <div id="rankings" class="section active">
+            <div style="display:flex;gap:10px;justify-content:center;margin-bottom:15px;">
+                <button class="btn rank-sub-btn active" data-rank="drivers">😎 Fahrer</button>
+                <button class="btn rank-sub-btn" data-rank="cars">🏎️ Fahrzeuge</button>
+            </div>
+            <div id="driversRankWrapper">
+                <div class="ranking-header">🏆 Fahrer-Rangliste</div>
+                <div id="driverPodium" class="podium"></div>
+                <div id="driversRanking"></div>
+            </div>
+
+            <div id="carsRankWrapper" class="hidden">
+                <div class="ranking-header" style="margin-top: 20px;">🏎️ Fahrzeug-Rangliste</div>
+                <div id="carPodium" class="podium"></div>
+                <div id="carsRanking"></div>
+            </div>
+        </div>
+        
+        <!-- Historie Section -->
+        <div id="history" class="section">
+            <div class="flex justify-between items-center" style="margin-bottom:10px;">
+                <h2>📊 Renn-Historie</h2>
+                <button class="btn" id="historyFilterBtn" style="padding:6px 12px;font-size:14px;">🔍 Filter</button>
+            </div>
+            <div id="raceHistory"></div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal hidden">
+        <div class="modal-content">
+            <h3 style="margin-bottom:10px;">Login</h3>
+            <input type="email" id="loginEmail" placeholder="E-Mail" class="modal-input">
+            <input type="password" id="loginPassword" placeholder="Passwort" class="modal-input">
+            <div style="margin-top:15px;text-align:right;">
+                <button class="btn" id="loginSubmitBtn">Login</button>
+                <button class="btn btn-danger" id="loginCancelBtn">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Filter Modal -->
+    <div id="filterModal" class="modal hidden">
+        <div class="modal-content" style="max-width:340px;">
+            <h3 style="margin-bottom:10px;">Fahrer filtern</h3>
+            <div id="filterDriverList" style="max-height:300px;overflow:auto;margin-bottom:10px;"></div>
+            <div style="text-align:right;margin-top:15px;">
+                <button class="btn" id="filterApplyBtn">Anwenden</button>
+                <button class="btn btn-danger" id="filterCancelBtn">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="site-footer">
+        <p>Version 1.0 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
+        <p>Contact &amp; Donations (via Paypal): rennstall@saeuferleber.de</p>
+    </footer>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <!-- Projekt-eigene Firebase-Initialisierung -->
+    <script src="firebase.js"></script>
+
+    <!-- Storage-Wrapper (Firestore CRUD) -->
+    <script src="storage.js"></script>
+
+    <!-- Haupt-App-Logik -->
+    <script src="app.js" defer></script>
+</body>
+</html>
