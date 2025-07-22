@@ -603,6 +603,8 @@ function updateHistory() {
         return;
     }
 
+    const filterActive = Array.isArray(historyFilter) && historyFilter.length > 0;
+
     historyContainer.innerHTML = appData.races.filter(r=>{
         if(!filterActive) return true;
         const ids=r.results.map(x=>x.driverId);
