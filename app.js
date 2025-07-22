@@ -439,7 +439,8 @@ function calculateRace() {
     });
 
     const formattedDate = new Date(raceDate).toLocaleDateString('de-DE');
-    const raceTime = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    const raceTimeInput = document.getElementById('raceTime');
+    const raceTime = (raceTimeInput && raceTimeInput.value) ? raceTimeInput.value : new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 
     appData.races.unshift({
         id: Date.now(),
@@ -473,7 +474,7 @@ function deleteRace(raceId) {
         return;
     }
 
-    const raceInfo = `${race.date}${race.time ? ` um ${race.time}` : ''}`;
+    const raceInfo = `${race.date} um ${race.time || ''}`;
     if (!confirm(`Rennen vom ${raceInfo} wirklich löschen?\n${race.rounds || 50} Runden, ${race.results.length} Teilnehmer\n\nAlle ELO-Änderungen werden rückgängig gemacht!`)) {
         return;
     }
