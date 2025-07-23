@@ -114,6 +114,18 @@
             </div>
             <div id="raceHistory"></div>
         </div>
+
+        <!-- ELO Chart Modal -->
+        <div id="eloModal" class="modal hidden">
+            <div class="modal-content" style="max-width:600px;">
+                <h3 id="eloModalTitle" style="margin-bottom:10px;"></h3>
+                <canvas id="eloChart" width="560" height="320"></canvas>
+                <div style="text-align:right;margin-top:15px;">
+                    <button class="btn btn-danger" id="eloModalClose">Schließen</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Login Modal -->
@@ -147,7 +159,7 @@
                 </div>
 
     <footer class="site-footer">
-        <p>Version 2.0 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
+        <p>Version 2.1 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
         <p>Contact &amp; Donations (Paypal): rennstall@saeuferleber.de</p>
     </footer>
 
@@ -155,6 +167,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <!-- Chart.js für Graphen -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <!-- Projekt-eigene Firebase-Initialisierung -->
     <script src="firebase.js"></script>

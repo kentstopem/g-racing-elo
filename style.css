@@ -154,6 +154,7 @@ body {
     margin-bottom: 10px;
     background: #fafafa;
     transition: all 0.3s ease;
+    cursor: pointer;
 }
 
 .list-item:hover {
@@ -263,6 +264,7 @@ body {
     color: #fff;
     width: 180px;
     white-space: normal;
+    cursor: pointer;
 }
 
 .podium-item.first {

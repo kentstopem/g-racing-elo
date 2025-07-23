@@ -27,6 +27,85 @@ function showToast(message,duration=2500){
     },duration);
 }
 
+// Chart handling
+let eloChartInstance=null;
+
+function tsForRace(r){
+    const dateStr=r.date||'01.01.1970';
+    const dParts=dateStr.split('.');
+    const iso=dParts.length===3?`${dParts[2]}-${dParts[1].padStart(2,'0')}-${dParts[0].padStart(2,'0')}`:dateStr;
+    const timeStr=(r.time||'00:00').replace(/[^0-9:]/g,'');
+    return new Date(`${iso}T${timeStr}:00`).getTime();
+}
+
+function openEloModal(type,id){
+    const modal=document.getElementById('eloModal');
+    const titleEl=document.getElementById('eloModalTitle');
+    const canvas=document.getElementById('eloChart');
+    if(!modal||!titleEl||!canvas) return;
+
+    // Daten sammeln
+    const ordered=[...appData.races].sort((a,b)=>tsForRace(a)-tsForRace(b));
+    let labels=[];
+    let data=[];
+    if(type==='driver'){
+        const driver=appData.drivers.find(d=>d.id==id);
+        if(!driver){showToast('Fahrer nicht gefunden');return;}
+        titleEl.textContent=`ELO-Verlauf: ${driver.name}`;
+        let cnt=0;
+        ordered.forEach(r=>{
+            const res=r.results.find(x=>x.driverId==id);
+            if(res){
+                cnt++;
+                labels.push(cnt.toString()); // Nummer des Rennens des Fahrers
+                data.push(res.newDriverElo);
+            }
+        });
+    } else if(type==='car'){
+        const car=appData.cars.find(c=>c.id==id);
+        if(!car){showToast('Fahrzeug nicht gefunden');return;}
+        titleEl.textContent=`ELO-Verlauf: ${car.name}`;
+        let cnt=0;
+        ordered.forEach(r=>{
+            const res=r.results.find(x=>x.carId==id);
+            if(res){
+                cnt++;
+                labels.push(cnt.toString());
+                data.push(res.newCarElo);
+            }
+        });
+    }
+
+    if(!labels.length){showToast('Keine Daten vorhanden');return;}
+
+    // Chart zeichnen
+    if(eloChartInstance){eloChartInstance.destroy();}
+    eloChartInstance=new Chart(canvas.getContext('2d'),{
+        type:'line',
+        data:{
+            labels,
+            datasets:[{
+                label:'ELO',
+                data,
+                borderColor:'#007bff',
+                backgroundColor:'rgba(0,123,255,0.1)',
+                tension:0.2,
+                pointRadius:3
+            }]
+        },
+        options:{
+            scales:{
+                x:{title:{display:true,text:'Rennen'}},
+                y:{title:{display:true,text:'ELO'},beginAtZero:false}
+            },
+            responsive:true,
+            plugins:{legend:{display:false}}
+        }
+    });
+
+    modal.classList.remove('hidden');
+}
+
 // Daten laden (Firestore)
 async function loadData() {
     try {
@@ -551,7 +630,7 @@ function updateDriverRanking() {
             const classes=['second','first','third'];
             const medals=['🥈','🥇','🥉'];
             podiumContainer.innerHTML = order.map(idx=>sortedDrivers[idx]).filter(Boolean).map((driver,i)=>`
-                <div class="podium-item ${classes[i]}">
+                <div class="podium-item ${classes[i]}" data-driver-id="${driver.id}" onclick="openEloModal('driver',${driver.id})">
                     <div class="podium-position">${medals[i]}</div>
                     <div class="podium-name">${driver.name}</div>
                     <div class="podium-elo">${driver.elo} ELO</div>
@@ -567,7 +646,7 @@ function updateDriverRanking() {
             rankingContainer.innerHTML = '<p style="text-align: center; color: #666;">Noch keine Fahrer vorhanden.</p>';
         } else {
             rankingContainer.innerHTML = sortedDrivers.slice(3).map((driver, index) => `
-                <div class="list-item">
+                <div class="list-item" data-driver-id="${driver.id}" onclick="openEloModal('driver',${driver.id})">
                     <div>
                         <strong>#${index + 4} ${driver.name}</strong>
                         <div style="font-size: 0.9em; color: #666;">${driver.races} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Runden</div>
@@ -593,7 +672,7 @@ function updateCarRanking() {
             const classes=['second','first','third'];
             const medals=['🥈','🥇','🥉'];
             podiumContainer.innerHTML = order.map(idx=>sortedCars[idx]).filter(Boolean).map((car,i)=>`
-                <div class="podium-item ${classes[i]}">
+                <div class="podium-item ${classes[i]}" data-car-id="${car.id}" onclick="openEloModal('car',${car.id})">
                     <div class="podium-position">${medals[i]}</div>
                     <div class="podium-name">${car.name}</div>
                     <div class="podium-elo">${car.elo} ELO</div>
@@ -609,7 +688,7 @@ function updateCarRanking() {
             rankingContainer.innerHTML = '<p style="text-align: center; color: #666;">Noch keine Fahrzeuge vorhanden.</p>';
         } else {
             rankingContainer.innerHTML = sortedCars.slice(3).map((car, index) => `
-                <div class="list-item">
+                <div class="list-item" data-car-id="${car.id}" onclick="openEloModal('car',${car.id})">
                     <div>
                         <strong>#${index + 4} ${car.name}</strong>
                         <div style="font-size: 0.9em; color: #666;">${car.races} Rennen · ${car.wins||0} Siege · ${car.totalRounds||0} Runden</div>
@@ -749,6 +828,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // sub navigation logic for rankings
+    // Close ELO modal
+    document.getElementById('eloModalClose')?.addEventListener('click',()=>{
+        document.getElementById('eloModal')?.classList.add('hidden');
+    });
+
     document.querySelectorAll('.sub-tab').forEach(btn=>{
         btn.addEventListener('click',()=>{
             document.querySelectorAll('.sub-tab').forEach(b=>b.classList.remove('active'));
