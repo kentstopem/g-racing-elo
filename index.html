@@ -91,23 +91,26 @@
                 <button class="btn rank-sub-btn" data-rank="cars">🏎️ Fahrzeuge</button>
             </div>
             <div id="driversRankWrapper">
-                <div class="ranking-header">🏆 Fahrer-Rangliste</div>
-                <div id="driverPodium" class="podium"></div>
-                <div id="driversRanking"></div>
+            <div class="ranking-header">🏆 Fahrer-Rangliste</div>
+            <div id="driverPodium" class="podium"></div>
+            <div id="driversRanking"></div>
             </div>
-
+            
             <div id="carsRankWrapper" class="hidden">
                 <div class="ranking-header" style="margin-top: 20px;">🏎️ Fahrzeug-Rangliste</div>
-                <div id="carPodium" class="podium"></div>
-                <div id="carsRanking"></div>
+            <div id="carPodium" class="podium"></div>
+            <div id="carsRanking"></div>
             </div>
         </div>
         
         <!-- Historie Section -->
         <div id="history" class="section">
             <div class="flex justify-between items-center" style="margin-bottom:10px;">
-                <h2>📊 Renn-Historie</h2>
-                <button class="btn" id="historyFilterBtn" style="padding:6px 12px;font-size:14px;">🔍 Filter</button>
+            <h2>📊 Renn-Historie</h2>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn" id="historyFilterBtn" style="padding:6px 12px;font-size:14px;">🔍 Filter</button>
+                    <button class="btn btn-danger admin-only" id="rebuildEloBtn" style="padding:6px 12px;font-size:14px;">🔄 ELO neu berechnen</button>
+                </div>
             </div>
             <div id="raceHistory"></div>
         </div>
@@ -122,21 +125,26 @@
             <div style="margin-top:15px;text-align:right;">
                 <button class="btn" id="loginSubmitBtn">Login</button>
                 <button class="btn btn-danger" id="loginCancelBtn">Abbrechen</button>
-            </div>
-        </div>
-    </div>
+                        </div>
+                    </div>
+                </div>
 
     <!-- History Filter Modal -->
     <div id="filterModal" class="modal hidden">
-        <div class="modal-content" style="max-width:340px;">
-            <h3 style="margin-bottom:10px;">Fahrer filtern</h3>
-            <div id="filterDriverList" style="max-height:300px;overflow:auto;margin-bottom:10px;"></div>
+        <div class="modal-content" style="max-width:420px;">
+            <h3 style="margin-bottom:10px;">Filter</h3>
+            <div style="max-height:320px;overflow:auto;margin-bottom:10px;">
+                <strong style="display:block;margin-bottom:6px;">Fahrer</strong>
+                <div id="filterDriverList" style="margin-bottom:12px;"></div>
+                <strong style="display:block;margin-bottom:6px;">Fahrzeuge</strong>
+                <div id="filterCarList"></div>
+            </div>
             <div style="text-align:right;margin-top:15px;">
                 <button class="btn" id="filterApplyBtn">Anwenden</button>
                 <button class="btn btn-danger" id="filterCancelBtn">Abbrechen</button>
-            </div>
-        </div>
-    </div>
+                        </div>
+                    </div>
+                </div>
 
     <footer class="site-footer">
         <p>Version 1.0 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>

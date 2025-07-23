@@ -10,7 +10,22 @@ let appData = {
 };
 
 let currentSection = 'rankings';
-let historyFilter=[];
+let historyFilter=[]; // Fahrer-IDs
+let carFilter=[];     // Fahrzeug-IDs
+
+// Toast Helper
+function showToast(message,duration=2500){
+    const t=document.createElement('div');
+    t.className='toast';
+    t.textContent=message;
+    document.body.appendChild(t);
+    // small delay to allow insertion
+    setTimeout(()=>t.classList.add('show'),10);
+    setTimeout(()=>{
+        t.classList.remove('show');
+        setTimeout(()=>t.remove(),300);
+    },duration);
+}
 
 // Daten laden (Firestore)
 async function loadData() {
@@ -99,12 +114,12 @@ function addDriver() {
     const name = input.value.trim();
 
     if (!name) {
-        alert('Bitte einen Namen eingeben!');
+        showToast('Bitte einen Namen eingeben!');
         return;
     }
 
     if (appData.drivers.some(d => d.name.toLowerCase() === name.toLowerCase())) {
-        alert('Fahrer existiert bereits!');
+        showToast('Fahrer existiert bereits!');
         return;
     }
 
@@ -178,12 +193,12 @@ function addCar() {
     const name = input.value.trim();
 
     if (!name) {
-        alert('Bitte einen Namen eingeben!');
+        showToast('Bitte einen Namen eingeben!');
         return;
     }
 
     if (appData.cars.some(c => c.name.toLowerCase() === name.toLowerCase())) {
-        alert('Fahrzeug existiert bereits!');
+        showToast('Fahrzeug existiert bereits!');
         return;
     }
 
@@ -300,7 +315,7 @@ function addRaceEntry() {
 function removeRaceEntry(button) {
     const container = document.getElementById('raceEntries');
     if (container.children.length <= 2) {
-        alert('Mindestens 2 Teilnehmer erforderlich!');
+        showToast('Mindestens 2 Teilnehmer erforderlich!');
         return;
     }
     button.parentElement.remove();
@@ -349,7 +364,7 @@ function calculateRace() {
     const rounds = parseInt(raceRoundsInput.value) || 50;
 
     if (rounds < 1 || rounds > 999) {
-        alert('Rundenzahl muss zwischen 1 und 999 liegen!');
+        showToast('Rundenzahl muss zwischen 1 und 999 liegen!');
         return;
     }
 
@@ -369,29 +384,29 @@ function calculateRace() {
                 return d && c;
             });
             if (laterFilled) {
-                alert('Plätze müssen ohne Lücke ausgefüllt werden!');
+                showToast('Plätze müssen ohne Lücke ausgefüllt werden!');
                 return;
             }
             continue;
         }
         if (foundGap) {
-            alert('Plätze müssen ohne Lücke ausgefüllt werden!');
+            showToast('Plätze müssen ohne Lücke ausgefüllt werden!');
             return;
         }
 
         if (results.some(r => r.driverId == driverId)) {
-            alert('Fahrer kann nicht mehrmals teilnehmen!');
+            showToast('Fahrer kann nicht mehrmals teilnehmen!');
             return;
         }
         if (results.some(r => r.carId == carId)) {
-            alert('Fahrzeug kann nicht mehrmals verwendet werden!');
+            showToast('Fahrzeug kann nicht mehrmals verwendet werden!');
             return;
         }
 
         const driver = appData.drivers.find(d => d.id == driverId);
         const car = appData.cars.find(c => c.id == carId);
         if (!driver || !car) {
-            alert('Fehler beim Finden von Fahrer oder Fahrzeug!');
+            showToast('Fehler beim Finden von Fahrer oder Fahrzeug!');
             return;
         }
 
@@ -402,39 +417,50 @@ function calculateRace() {
             driverName: driver.name,
             carName: car.name,
             oldDriverElo: driver.elo,
-            oldCarElo: car.elo,
-            combinedElo: (driver.elo + car.elo) / 2
+            oldCarElo: car.elo
         });
     }
 
     const totalPlayers = results.length;
     const kFactor = calculateKFactor(totalPlayers, rounds);
 
-    results.forEach(result => {
-        const otherCombinedElos = results.filter(r => r !== result).map(r => r.combinedElo);
-        const expectedScore = calculateExpectedScore(result.combinedElo, otherCombinedElos);
-        const actualScore = calculateActualScore(result.position, totalPlayers);
-        const eloChange = Math.round(kFactor * (actualScore - expectedScore));
+    results.forEach(res => {
+        // Erwartungswerte separat für Fahrer & Fahrzeuge berechnen
+        const otherDriverElos = results.filter(r => r !== res).map(r => r.oldDriverElo);
+        const otherCarElos    = results.filter(r => r !== res).map(r => r.oldCarElo);
 
-        const driver = appData.drivers.find(d => d.id === result.driverId);
-        const car = appData.cars.find(c => c.id === result.carId);
+        const expectedDriver = calculateExpectedScore(res.oldDriverElo, otherDriverElos);
+        const expectedCar    = calculateExpectedScore(res.oldCarElo,  otherCarElos);
+
+        const actualScore = calculateActualScore(res.position, totalPlayers);
+
+        const driverEloChange = Math.round(kFactor * (actualScore - expectedDriver));
+        const carEloChange    = Math.round(kFactor * (actualScore - expectedCar));
+
+        const driver = appData.drivers.find(d => d.id === res.driverId);
+        const car    = appData.cars.find(c => c.id === res.carId);
         if (driver && car) {
-            driver.elo = Math.max(100, driver.elo + eloChange);
-            car.elo = Math.max(100, car.elo + eloChange);
+            driver.elo = Math.max(100, driver.elo + driverEloChange);
+            car.elo    = Math.max(100, car.elo + carEloChange);
+
             driver.races++;
             car.races++;
 
             // Siege & Runden
-            if (result.position === 1) {
+            if (res.position === 1) {
                 driver.wins = (driver.wins || 0) + 1;
                 car.wins    = (car.wins || 0) + 1;
             }
             driver.totalRounds = (driver.totalRounds || 0) + rounds;
             car.totalRounds    = (car.totalRounds || 0) + rounds;
 
-            result.newDriverElo = driver.elo;
-            result.newCarElo = car.elo;
-            result.eloChange = eloChange;
+            res.newDriverElo    = driver.elo;
+            res.newCarElo       = car.elo;
+            res.driverEloChange = driverEloChange;
+            res.carEloChange    = carEloChange;
+
+            // Kompatibilität: alter Schlüssel
+            res.eloChange = driverEloChange;
         }
     });
 
@@ -462,7 +488,7 @@ function calculateRace() {
     raceDateInput.value = '';
     raceRoundsInput.value = '';
 
-    alert(`Rennen erfolgreich ausgewertet!\nRunden: ${rounds}\nK-Faktor: ${kFactor}`);
+    showToast(`Rennen erfolgreich ausgewertet!\nRunden: ${rounds}\nK-Faktor: ${kFactor}`);
     updateDriversList();
     updateCarsList();
 }
@@ -470,7 +496,7 @@ function calculateRace() {
 function deleteRace(raceId) {
     const race = appData.races.find(r => r.id === raceId);
     if (!race) {
-        alert('Rennen nicht gefunden!');
+        showToast('Rennen nicht gefunden!');
         return;
     }
 
@@ -479,16 +505,16 @@ function deleteRace(raceId) {
         return;
     }
 
-    race.results.forEach(result => {
-        const driver = appData.drivers.find(d => d.id === result.driverId);
-        const car = appData.cars.find(c => c.id === result.carId);
+    race.results.forEach(res => {
+        const driver = appData.drivers.find(d => d.id === res.driverId);
+        const car = appData.cars.find(c => c.id === res.carId);
         if (driver && car) {
-            driver.elo = result.oldDriverElo;
-            car.elo = result.oldCarElo;
+            driver.elo = res.oldDriverElo;
+            car.elo = res.oldCarElo;
             driver.races = Math.max(0, driver.races - 1);
             car.races = Math.max(0, car.races - 1);
             // Siege & Runden zurück
-            if (result.position === 1) {
+            if (res.position === 1) {
                 driver.wins = Math.max(0, (driver.wins||0) - 1);
                 car.wins    = Math.max(0, (car.wins||0) - 1);
             }
@@ -506,7 +532,7 @@ function deleteRace(raceId) {
     updateDriversList();
     updateCarsList();
 
-    alert('Rennen erfolgreich gelöscht und ELO-Werte zurückgesetzt!');
+    showToast('Rennen erfolgreich gelöscht und ELO-Werte zurückgesetzt!');
 }
 
 function updateRankings() {
@@ -604,22 +630,49 @@ function updateHistory() {
         return;
     }
 
-    const filterActive = Array.isArray(historyFilter) && historyFilter.length > 0;
+    const driverFilterActive = Array.isArray(historyFilter) && historyFilter.length > 0;
+    const carFilterActive = Array.isArray(carFilter) && carFilter.length > 0;
 
-    historyContainer.innerHTML = appData.races.filter(r=>{
-        if(!filterActive) return true;
-        const ids=r.results.map(x=>x.driverId);
-        return historyFilter.every(id=>ids.includes(id));
-    }).map(race => {
+    const ts=r=>{
+        const dateStr=r.date||'01.01.1970';
+        const dParts=dateStr.split('.');
+        const iso=dParts.length===3?`${dParts[2]}-${dParts[1].padStart(2,'0')}-${dParts[0].padStart(2,'0')}`:dateStr;
+        const timeStr=(r.time||'00:00').replace(/[^0-9:]/g,'');
+        return new Date(`${iso}T${timeStr}:00`).getTime();
+    };
+
+    historyContainer.innerHTML = [...appData.races]
+        .sort((a,b)=>ts(b)-ts(a)) // neueste zuerst
+        .filter(r=>{
+            // Wenn keine Filter aktiv → alles zulassen
+            if(!driverFilterActive && !carFilterActive) return true;
+
+            const drvIds=r.results.map(x=>x.driverId);
+            const carIds=r.results.map(x=>x.carId);
+
+            // Fall 1: Kombination (genau 1 Fahrer & 1 Fahrzeug gewählt) → beide müssen im selben Ergebnis-Datensatz vorkommen
+            if(driverFilterActive && carFilterActive && historyFilter.length===1 && carFilter.length===1){
+                return r.results.some(res=>res.driverId===historyFilter[0] && res.carId===carFilter[0]);
+            }
+
+            // Fall 2: Standard-Logik (jede Liste einzeln prüfen)
+            if(driverFilterActive && !historyFilter.every(id=>drvIds.includes(id))) return false;
+            if(carFilterActive    && !carFilter.every(id=>carIds.includes(id)))   return false;
+
+            return true;
+        })
+        .map(race => {
         const header = `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
             <div class="race-date">📅 ${race.date} – ${race.time || ''} – ${race.rounds} Rd.</div>
             ${window.isAdmin ? `<button class="btn btn-danger" style="padding:6px 12px;font-size:12px;" onclick="deleteRace(${race.id})">Löschen</button>` : ''}
         </div>`;
 
         const rows = race.results.map(res => {
-            const drvChange = res.eloChange;
-            const drvColor = drvChange >=0 ? 'elo-up':'elo-down';
-            const carColor = drvColor;
+            const drvChange = (res.driverEloChange !== undefined) ? res.driverEloChange : res.eloChange;
+            const carChange = (res.carEloChange   !== undefined) ? res.carEloChange   : drvChange;
+
+            const drvColor = drvChange >= 0 ? 'elo-up' : 'elo-down';
+            const carColor = carChange >= 0 ? 'elo-up' : 'elo-down';
             return `
                 <tr>
                     <td class="pos">${res.position}.</td>
@@ -629,7 +682,7 @@ function updateHistory() {
                 <tr class="sub">
                     <td></td>
                     <td>${res.carName}</td>
-                    <td>${res.oldCarElo} → <span class="${carColor}">${res.newCarElo} (${drvChange>=0?'+':''}${drvChange})</span></td>
+                    <td>${res.oldCarElo} → <span class="${carColor}">${res.newCarElo} (${carChange>=0?'+':''}${carChange})</span></td>
                 </tr>`;
         }).join('');
 
@@ -688,10 +741,10 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.addEventListener('click', () => {
             const mail = emailInput.value.trim();
             const pw   = pwInput.value;
-            if (!mail || !pw) { alert('Bitte E-Mail und Passwort eingeben'); return; }
+            if (!mail || !pw) { showToast('Bitte E-Mail und Passwort eingeben'); return; }
             window.login(mail, pw)
                 .then(closeModal)
-                .catch(err => alert('Login fehlgeschlagen: '+err.message));
+                .catch(err => showToast('Login fehlgeschlagen: '+err.message));
         });
     }
 
@@ -710,11 +763,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterBtn=document.getElementById('historyFilterBtn');
     const filterModal=document.getElementById('filterModal');
     const filterList=document.getElementById('filterDriverList');
+    const filterCarList=document.getElementById('filterCarList');
     const filterApply=document.getElementById('filterApplyBtn');
     const filterCancel=document.getElementById('filterCancelBtn');
 
     function openFilter(){
-        filterList.innerHTML=[...appData.drivers].sort((a,b)=>a.name.localeCompare(b.name)).map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${historyFilter.includes(d.id)?'checked':''}>${d.name}</label>`).join('');
+        // Fahrer-Liste
+        filterList.innerHTML=[...appData.drivers]
+            .sort((a,b)=>a.name.localeCompare(b.name))
+            .map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${historyFilter.includes(d.id)?'checked':''}>${d.name}</label>`)
+            .join('');
+        // Fahrzeug-Liste
+        if(filterCarList){
+            filterCarList.innerHTML=[...appData.cars]
+                .sort((a,b)=>a.name.localeCompare(b.name))
+                .map(c=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${c.id}' ${carFilter.includes(c.id)?'checked':''}>${c.name}</label>`)
+                .join('');
+        }
         filterModal.classList.remove('hidden');
     }
     function closeFilter(){filterModal.classList.add('hidden');}
@@ -723,9 +788,129 @@ document.addEventListener('DOMContentLoaded', () => {
     if(filterCancel){filterCancel.addEventListener('click',closeFilter);} 
     if(filterApply){filterApply.addEventListener('click',()=>{
         historyFilter=[...filterList.querySelectorAll('input:checked')].map(i=>parseInt(i.value));
+        if(filterCarList){ carFilter=[...filterCarList.querySelectorAll('input:checked')].map(i=>parseInt(i.value)); }
         closeFilter();
+
+        // Treffer zählen mit derselben Logik wie in updateHistory()
+        const driverActive = Array.isArray(historyFilter) && historyFilter.length > 0;
+        const carActive    = Array.isArray(carFilter)    && carFilter.length > 0;
+
+        const matches = appData.races.filter(r=>{
+            if(!driverActive && !carActive) return true;
+
+            const drvIds=r.results.map(x=>x.driverId);
+            const carIds=r.results.map(x=>x.carId);
+
+            // Kombination exakt 1+1
+            if(driverActive && carActive && historyFilter.length===1 && carFilter.length===1){
+                return r.results.some(res=>res.driverId===historyFilter[0] && res.carId===carFilter[0]);
+            }
+
+            if(driverActive && !historyFilter.every(id=>drvIds.includes(id))) return false;
+            if(carActive    && !carFilter.every(id=>carIds.includes(id)))   return false;
+
+            return true;
+        }).length;
+
         updateHistory();
+        showToast(`${matches} Rennen gefunden`);
     });}
+
+    function rebuildElo(){
+        console.log('Rebuild Elo triggered');
+        if(!window.isAdmin){showToast('Nur Admin');return;}
+        if(!confirm('Alle ELO-Werte neu berechnen?')) return;
+        // Alle Fahrer und Fahrzeuge auf 1000 zurücksetzen
+        appData.drivers.forEach(driver => {
+            driver.elo = 1000;
+            driver.races = 0;
+            driver.wins = 0;
+            driver.totalRounds = 0;
+        });
+        appData.cars.forEach(car => {
+            car.elo = 1000;
+            car.races = 0;
+            car.wins = 0;
+            car.totalRounds = 0;
+        });
+
+        // Rennen nach Datum+Zeit sortieren (chronologisch)
+        const ordered = [...appData.races].sort((a, b) => {
+            const ts = r => {
+                const dateStr = r.date || '01.01.1970'; // dd.mm.yyyy
+                const timeStr = (r.time || '00:00').replace(/[^0-9:]/g,''); // HH:MM
+                const parts = dateStr.split('.');
+                const iso = (parts.length===3) ? `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}` : dateStr;
+                return new Date(`${iso}T${timeStr}:00`).getTime();
+            };
+            return ts(a) - ts(b);
+        });
+
+        // Alle Rennen chronologisch neu berechnen
+        ordered.forEach(race => {
+            const totalPlayers = race.results.length;
+            const kFactor = calculateKFactor(totalPlayers, race.rounds);
+
+            // aktuelle Elo-Listen nach Reset / vorherigen Rennen
+            const currDriverElos = race.results.map(res=>{
+                const d=appData.drivers.find(x=>x.id===res.driverId);return d?d.elo:1000;});
+            const currCarElos = race.results.map(res=>{
+                const c=appData.cars.find(x=>x.id===res.carId);return c?c.elo:1000;});
+
+            race.results.forEach((res,idx) => {
+                const driverObj = appData.drivers.find(d => d.id === res.driverId);
+                const carObj    = appData.cars.find(c => c.id === res.carId);
+                if(!(driverObj&&carObj)) return;
+
+                // save old ELO before update
+                res.oldDriverElo = driverObj.elo;
+                res.oldCarElo    = carObj.elo;
+
+                const otherDriverElos = currDriverElos.filter((_,i)=>i!==idx);
+                const otherCarElos    = currCarElos.filter((_,i)=>i!==idx);
+
+                const expectedDriver = calculateExpectedScore(driverObj.elo, otherDriverElos);
+                const expectedCar    = calculateExpectedScore(carObj.elo,    otherCarElos);
+
+                const actualScore = calculateActualScore(res.position, totalPlayers);
+
+                const driverEloChange = Math.round(kFactor * (actualScore - expectedDriver));
+                const carEloChange    = Math.round(kFactor * (actualScore - expectedCar));
+
+                const driver = appData.drivers.find(d => d.id === res.driverId);
+                const car    = appData.cars.find(c => c.id === res.carId);
+                if (driver && car) {
+                    driverObj.elo = Math.max(100, driverObj.elo + driverEloChange);
+                    carObj.elo    = Math.max(100, carObj.elo + carEloChange);
+
+                    driverObj.races++;
+                    carObj.races++;
+
+                    // Siege & Runden
+                    if (res.position === 1) {
+                        driverObj.wins = (driverObj.wins || 0) + 1;
+                        carObj.wins    = (carObj.wins || 0) + 1;
+                    }
+                    driverObj.totalRounds = (driverObj.totalRounds || 0) + race.rounds;
+                    carObj.totalRounds    = (carObj.totalRounds || 0) + race.rounds;
+
+                    res.newDriverElo    = driverObj.elo;
+                    res.newCarElo       = carObj.elo;
+                    res.driverEloChange = driverEloChange;
+                    res.carEloChange    = carEloChange;
+
+                    // Kompatibilität: alter Schlüssel
+                    res.eloChange = driverEloChange;
+                }
+            });
+        });
+
+        saveData();
+        updateRankings();
+        showToast('Alle ELO-Werte wurden neu berechnet und gespeichert!');
+    }
+
+    document.getElementById('rebuildEloBtn')?.addEventListener('click',rebuildElo);
 });
 
 // App Initialisierung
@@ -745,7 +930,7 @@ async function init() {
         console.log('App erfolgreich initialisiert');
     } catch (error) {
         console.error('Fehler bei der Initialisierung:', error);
-        alert('Fehler beim Starten der App. Bitte Seite neu laden.');
+        showToast('Fehler beim Starten der App. Bitte Seite neu laden.');
     }
 }
 

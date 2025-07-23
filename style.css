@@ -444,3 +444,7 @@ body {
 
 /* Footer */
 .site-footer{text-align:center;font-size:13px;color:#666;margin:40px 0 20px;line-height:1.4;} 
+
+/* Toast notifications */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 16px;border-radius:4px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9999;}
+.toast.show{opacity:0.9;} 
