@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>G!Racing ELO-Rangliste</title>
+    <title>G!lashammer Racing Points</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>G!Racing ELO-Rangliste</h1>
+            <h1>G!lashammer Racing Points</h1>
             <p id="tagline">Kannst Du mit Christian L. mithalten?</p>
             <button id="authBtn" class="auth-btn">🔐</button>
         </div>
@@ -78,10 +78,12 @@
                 </div>
             </div>
             
-            <p>Trage die Ergebnisse ein (1. Platz bis letzter Platz):</p>
+            <div style="display:flex;gap:10px;margin-bottom:12px;">
+               <button class="btn" id="setupRaceBtn">⚙️ Auto-Setup</button>
+               <button class="btn" id="calculateRaceBtn">🏆 Rennen auswerten</button>
+            </div>
+            <h3 id="raceEntriesHeader" style="margin-top:0;margin-bottom:8px;">Rennen manuell eingeben (Platz 1 bis 6):</h3>
             <div id="raceEntries"></div>
-            <button class="btn" id="addRaceEntryBtn">+ Teilnehmer hinzufügen</button>
-            <button class="btn" id="calculateRaceBtn" style="margin-left: 20px;">🏆 Rennen auswerten</button>
         </div>
         
         <!-- Rankings Section -->
@@ -92,12 +94,20 @@
             </div>
             <div id="driversRankWrapper">
             <div class="ranking-header">🏆 Fahrer-Rangliste</div>
+            <div class="flex justify-between items-center" style="margin-bottom:10px;">
+                <div></div>
+                <button class="ranking-filter-btn">🔍 Filter</button>
+            </div>
             <div id="driverPodium" class="podium"></div>
             <div id="driversRanking"></div>
             </div>
             
             <div id="carsRankWrapper" class="hidden">
                 <div class="ranking-header" style="margin-top: 20px;">🏎️ Fahrzeug-Rangliste</div>
+                <div class="flex justify-between items-center" style="margin-bottom:10px;">
+                    <div></div>
+                    <button class="ranking-filter-btn">🔍 Filter</button>
+                  </div>
             <div id="carPodium" class="podium"></div>
             <div id="carsRanking"></div>
             </div>
@@ -108,17 +118,23 @@
             <div class="flex justify-between items-center" style="margin-bottom:10px;">
             <h2>📊 Renn-Historie</h2>
                 <div style="display:flex;gap:8px;">
-                    <button class="btn" id="historyFilterBtn" style="padding:6px 12px;font-size:14px;">🔍 Filter</button>
-                    <button class="btn btn-danger admin-only" id="rebuildEloBtn" style="padding:6px 12px;font-size:14px;">🔄 ELO neu berechnen</button>
+                    <button class="ranking-filter-btn" id="historyFilterBtn">🔍 Filter</button>
+                    <button class="btn btn-danger admin-only" id="rebuildEloBtn">🔄 G!RP neu berechnen</button>
                 </div>
             </div>
             <div id="raceHistory"></div>
         </div>
 
-        <!-- ELO Chart Modal -->
+        <!-- G!RP Chart Modal -->
         <div id="eloModal" class="modal hidden">
             <div class="modal-content" style="max-width:600px;">
-                <h3 id="eloModalTitle" style="margin-bottom:10px;"></h3>
+                <div class="modal-header">
+                    <h3 id="eloModalTitle" style="margin:0;"></h3>
+                    <div style="display:flex;gap:6px;">
+                        <button class="mode-tab" id="modeEloBtn">G!RP</button>
+                        <button class="mode-tab" id="modePosBtn">Rang</button>
+                    </div>
+                </div>
                 <canvas id="eloChart" width="560" height="320"></canvas>
                 <div style="text-align:right;margin-top:15px;">
                     <button class="btn btn-danger" id="eloModalClose">Schließen</button>
@@ -158,8 +174,56 @@
                     </div>
                 </div>
 
+    <!-- Ranking Filter Modal -->
+    <div id="rankingFilterModal" class="modal hidden">
+        <div class="modal-content" style="max-width:460px;">
+            <h3 style="margin-bottom:10px;">Ranglisten-Filter</h3>
+            <div style="margin-bottom:14px;">
+                <strong style="display:block;margin-bottom:6px;">Mind. Rennen: <span id="minRacesVal">5</span></strong>
+                <input type="range" id="minRacesSlider" min="1" max="15" step="1" value="5" list="ticks">
+                <datalist id="ticks">
+                    <option value="1"></option>
+                    <option value="3"></option>
+                    <option value="5"></option>
+                    <option value="8"></option>
+                    <option value="10"></option>
+                    <option value="15"></option>
+                </datalist>
+            </div>
+            <div id="rankingFilterList" style="max-height:300px;overflow:auto;margin-bottom:10px;"></div>
+            <div style="text-align:right;margin-top:15px;display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-modal" id="rankingFilterApply">Anwenden</button>
+                <button class="btn btn-modal" id="rankingFilterReset">Zurücksetzen</button>
+                <button class="btn btn-danger btn-modal" id="rankingFilterCancel">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Race Setup Modal -->
+    <div id="raceSetupModal" class="modal hidden">
+      <div class="modal-content" style="max-width:480px;">
+        <div id="setupStep1">
+          <h3 style="margin-bottom:10px;">Schritt 1: Fahrer wählen</h3>
+          <div id="setupDriverList" style="max-height:320px;overflow:auto;margin-bottom:10px;"></div>
+          <div style="text-align:right;margin-top:15px;display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn" id="setupNextBtn" disabled>Weiter</button>
+            <button class="btn btn-danger" id="setupCancelBtn">Abbrechen</button>
+          </div>
+        </div>
+        <div id="setupStep2" class="hidden">
+          <h3 style="margin-bottom:10px;">Schritt 2: Fahrzeuge wählen</h3>
+          <div id="setupCarList" style="max-height:320px;overflow:auto;margin-bottom:10px;"></div>
+          <div style="text-align:right;margin-top:15px;display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn" id="setupBackBtn">Zurück</button>
+            <button class="btn" id="setupFinishBtn" disabled>Fertig</button>
+            <button class="btn btn-danger" id="setupCancelBtn2">Abbrechen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <footer class="site-footer">
-        <p>Version 2.1 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
+        <p>Version 1.3.0 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
         <p>Contact &amp; Donations (Paypal): rennstall@saeuferleber.de</p>
     </footer>
 
@@ -177,7 +241,14 @@
     <!-- Storage-Wrapper (Firestore CRUD) -->
     <script src="storage.js"></script>
 
+    <!-- Hilfs-Module -->
+    <script src="helpers.js"></script>
+    <script src="elo.js"></script>
+
     <!-- Haupt-App-Logik -->
     <script src="app.js" defer></script>
+    <script src="ranking.js" defer></script>
+    <script src="race.js" defer></script>
+    <script src="history.js" defer></script>
 </body>
 </html>

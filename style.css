@@ -119,16 +119,19 @@ body {
 .btn {
     background: #667eea;
     color: #fff;
-    border: none;
-    padding: 12px 25px;
-    border-radius: 25px;
+    border: 1px solid #536ad4; /* leichte dunklere Kontur */
+    padding: 6px 12px;
+    border-radius: 6px;        /* statt 25px – rechteckiger Look */
     cursor: pointer;
     font-weight: 600;
     margin: 10px 5px;
-    transition: all 0.3s ease;
+    transition: background 0.2s ease, filter 0.2s ease;
     box-shadow: none;
-    font-size: 16px;
-    min-height: 44px;
+    font-size: 14px;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;             /* Icon + Text Abstand */
+    line-height:1;       /* verhindert zusätzliche Höhe durch Schriftlinie */
 }
 
 .btn:active {
@@ -139,8 +142,12 @@ body {
     filter: brightness(1.05);
 }
 
+/* Gefährliche Aktionen */
 .btn-danger {
-    background: #e74c3c;
+    background: #dc3545;       /* Bootstrap-Rot */
+    border: 1px solid #b52a37; /* dunklere Kontur */
+    color: #fff;
+    border-radius: 6px;        /* gleiches eckiges Design */
 }
 
 /* Lists */
@@ -407,6 +414,11 @@ body {
     border-color: #667eea;
 }
 
+/* Modal Header */
+.modal-header{background:#667eea;display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:6px 6px 0 0;color:#fff;margin:-20px -20px 10px -20px;}
+.mode-tab{background:none;border:none;padding:6px 12px;font-size:14px;color:#fff;opacity:.8;cursor:pointer;border-bottom:2px solid transparent;}
+.mode-tab.active,.mode-tab:hover{opacity:1;border-bottom:2px solid #fff;}
+
 /* desktop podium order */
 @media(min-width:601px){
  .podium-item.first{order:2;transform:translateY(0);} 
@@ -450,3 +462,29 @@ body {
 /* Toast notifications */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 16px;border-radius:4px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9999;}
 .toast.show{opacity:0.9;} 
+
+/* kleine Buttonvariante */
+.btn-small{padding:4px 8px;font-size:12px;} 
+
+/* Slider */
+input[type=range]{width:100%;}
+
+/* Status line for inactive */
+.status-inactive{color:#888;font-style:italic;font-size:0.8em;} 
+
+/* Modal buttons */
+.btn-modal{padding:6px 18px;font-size:14px;font-weight:500;} 
+
+/* Ranking filter button style aligned with history */
+.ranking-filter-btn{
+    background:#eee;border:1px solid #ccc;border-radius:6px;padding:4px 12px;font-size:14px;font-weight:500;cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    line-height:1;
+    margin:10px 5px;
+}
+.ranking-filter-btn:hover{background:#e2e2e2;} 
+
+/* Ranking-Filter im Rankings-Tab ausblenden – History-Filter bleibt */
+#rankings .ranking-filter-btn{display:none !important;} 
