@@ -488,3 +488,8 @@ input[type=range]{width:100%;}
 
 /* Ranking-Filter im Rankings-Tab ausblenden – History-Filter bleibt */
 #rankings .ranking-filter-btn{display:none !important;} 
+
+/* --- Prognose-Anzeige unter Fahrer/Fahrzeug im Rennen-Formular --- */
+.pred{font-size:0.75rem;margin-top:2px;white-space:nowrap;color:#666;line-height:1;}
+.pred.posChange{color:#089406;font-weight:400;}
+.pred.negChange{color:#cc0000;font-weight:400;} 

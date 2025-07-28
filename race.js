@@ -17,6 +17,7 @@
           <option value="">Fahrer wählen...</option>
           ${[...window.appData.drivers].sort((a,b)=>a.name.localeCompare(b.name)).map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}
         </select>
+        <div class="pred driver-pred"></div>
       </div>
       <div class="form-group flex-1" style="margin:0;">
         <label>Fahrzeug:</label>
@@ -24,6 +25,7 @@
           <option value="">Fahrzeug wählen...</option>
           ${[...window.appData.cars].sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
         </select>
+        <div class="pred car-pred"></div>
       </div>
       <button class="btn btn-danger" onclick="removeRaceEntry(this)">Entfernen</button>`;
     container.appendChild(entry);
@@ -56,6 +58,70 @@
     if(container.children.length===0){for(let i=0;i<6;i++) addRaceEntry();}
     const headerEl=document.getElementById('raceEntriesHeader');
     if(headerEl) headerEl.textContent='Rennen manuell eingeben (Platz 1 bis 6):';
+  }
+
+  // ---- Prognosen & Summen -------------------------------------------
+  function updatePredictions(){
+    const entries=[...document.querySelectorAll('.race-entry')];
+    if(entries.length===0) return;
+    // Runden für K-Faktor (Default 50, wie in calculateRace)
+    const rounds=parseInt(document.getElementById('raceRounds')?.value)||50;
+    const totalPlayers=entries.filter(e=>e.querySelector('.driver-select').value && e.querySelector('.car-select').value).length;
+    if(totalPlayers<2) return; // keine sinnvolle Prognose
+    const k=calculateKFactor(totalPlayers, rounds);
+
+    // Sammeln Basisdaten
+    const pairs=entries.map((e,idx)=>{
+      const driverId=e.querySelector('.driver-select').value;
+      const carId   =e.querySelector('.car-select').value;
+      const placeSel=e.querySelector('.place-select');
+      const place   =placeSel?parseInt(placeSel.value):idx+1;
+      const driver  =window.appData.drivers.find(d=>d.id==driverId);
+      const car     =window.appData.cars.find(c=>c.id==carId);
+      return {e, driver, car, place};
+    });
+
+    pairs.forEach(pair=>{
+      const {e, driver, car, place}=pair;
+      const drvDiv=e.querySelector('.driver-pred');
+      const carDiv=e.querySelector('.car-pred');
+      const combDiv=e.querySelector('.combined-pred');
+
+      if(!(driver&&car)){
+        if(drvDiv) drvDiv.textContent='';
+        if(carDiv) carDiv.textContent='';
+        if(combDiv) combDiv.textContent='';
+        return;
+      }
+
+      // ELO-Summen
+      const combined=driver.elo+car.elo;
+      if(combDiv){combDiv.textContent=`Σ ${combined} G!RP`;}
+
+      // Δ-Prognosen
+      const otherDrvElos=pairs.filter(p=>p!==pair&&p.driver).map(p=>p.driver.elo);
+      const otherCarElos=pairs.filter(p=>p!==pair&&p.car).map(p=>p.car.elo);
+      if(otherDrvElos.length!==totalPlayers-1){return;} // warten bis alle gewählt
+
+      const expDrv=calculateExpectedScore(driver.elo, otherDrvElos);
+      const expCar=calculateExpectedScore(car.elo,    otherCarElos);
+      const act   =calculateActualScore(place, totalPlayers);
+      const dΔ=Math.round(k*(act-expDrv));
+      const cΔ=Math.round(k*(act-expCar));
+
+      if(drvDiv){
+        const sign=dΔ>0?'+':'';
+        drvDiv.textContent=`${driver.elo} → ${sign}${dΔ} G!RP`;
+        drvDiv.classList.toggle('posChange',dΔ>0);
+        drvDiv.classList.toggle('negChange',dΔ<0);
+      }
+      if(carDiv){
+        const sign=cΔ>0?'+':'';
+        carDiv.textContent=`${car.elo} → ${sign}${cΔ} G!RP`;
+        carDiv.classList.toggle('posChange',cΔ>0);
+        carDiv.classList.toggle('negChange',cΔ<0);
+      }
+    });
   }
 
   // -------------------- Berechnung --------------------
@@ -318,14 +384,15 @@
     // Build pairing
     const drvs=selectedDrivers.map(id=>window.appData.drivers.find(d=>d.id===id));
     const cars=selectedCars.map(id=>window.appData.cars.find(c=>c.id===id));
-    const driversSorted=[...drvs].sort((a,b)=>{
-      const k1=strengthKeyDriver(a);const k2=strengthKeyDriver(b);
-      return k1<k2?-1:1;
-    });
-    const carsSorted=[...cars].sort((a,b)=>{
-      const k1=strengthKeyCar(a);const k2=strengthKeyCar(b);
-      return k1<k2?-1:1;
-    });
+    function cmpArrays(arr1,arr2){
+      for(let i=0;i<Math.min(arr1.length,arr2.length);i++){
+        if(arr1[i]<arr2[i]) return -1;
+        if(arr1[i]>arr2[i]) return 1;
+      }
+      return 0;
+    }
+    const driversSorted=[...drvs].sort((a,b)=>cmpArrays(strengthKeyDriver(a),strengthKeyDriver(b)));
+    const carsSorted=[...cars].sort((a,b)=>cmpArrays(strengthKeyCar(a),strengthKeyCar(b)));
     // Clear existing entries
     const container=document.getElementById('raceEntries');
     if(container){container.innerHTML='';window.appData.raceCounter=0;}
@@ -357,11 +424,13 @@
        const lbl=document.createElement('label');lbl.textContent='Platz:';
        wrapper.appendChild(lbl);
        wrapper.appendChild(sel);
+       const comb=document.createElement('div');comb.className='pred combined-pred';wrapper.appendChild(comb);
        entry.appendChild(wrapper);
     });
     const headerEl=document.getElementById('raceEntriesHeader');
     if(headerEl) headerEl.textContent='Bitte Platzierungen angeben und Rennen auswerten:';
     setupModal.classList.add('hidden');
+    updatePredictions();
   });
 
   function closeSetup(){setupModal.classList.add('hidden');}
@@ -376,6 +445,10 @@
     if(calcBtn) calcBtn.addEventListener('click', calculateRace);
     document.getElementById('rebuildEloBtn')?.addEventListener('click', rebuildElo);
     // Erst nach dem Laden der Daten wird das Formular aufgebaut
+    // Live-Updates der Prognosen
+    document.getElementById('raceEntries')?.addEventListener('change',e=>{
+      if(e.target.matches('.driver-select, .car-select, .place-select')) updatePredictions();
+    });
   }
 
   window.RaceUI={ init, updateForm:updateRaceForm };
