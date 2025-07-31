@@ -227,6 +227,9 @@ function showSection(sectionName) {
             carFilter
         );
         document.getElementById('rankSubNav').classList.add('hidden');
+    } else if (sectionName==='records'){
+        if(window.RecordsUI?.reload) window.RecordsUI.reload();
+        document.getElementById('rankSubNav').classList.add('hidden');
     } else {
         document.getElementById('rankSubNav').classList.add('hidden');
     }

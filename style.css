@@ -442,6 +442,11 @@ body {
 .gap-12{gap:12px;}
 .flex-1{flex:1;}
 
+/* Record-Table */
+.record-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:0.9em;}
+.record-table th,.record-table td{padding:6px 8px;border-bottom:1px solid #eee;text-align:left;}
+.record-table th{background:#f7f7f7;font-weight:600;}
+
 /* Race delete button */
 .race-del-btn{padding:6px 12px;font-size:12px;} 
 
