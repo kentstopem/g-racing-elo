@@ -203,6 +203,10 @@ function showSection(sectionName) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
 
+    // Default: beide Sub-Navigations ausblenden
+    document.getElementById('rankSubNav')?.classList.add('hidden');
+    document.getElementById('recordSubNav')?.classList.add('hidden');
+
     const section = document.getElementById(sectionName);
     if (section) section.classList.add('active');
 
@@ -216,7 +220,7 @@ function showSection(sectionName) {
         document.getElementById('rankSubNav').classList.remove('hidden');
     } else if (sectionName === 'history') {
         HistoryUI.update();
-        document.getElementById('rankSubNav').classList.add('hidden');
+        // rankSubNav bleibt versteckt
     } else if (sectionName === 'race') {
         RaceUI.updateForm(
             appData.raceCounter,
@@ -226,12 +230,13 @@ function showSection(sectionName) {
             historyFilter,
             carFilter
         );
-        document.getElementById('rankSubNav').classList.add('hidden');
+        // rankSubNav bleibt versteckt
     } else if (sectionName==='records'){
         if(window.RecordsUI?.reload) window.RecordsUI.reload();
-        document.getElementById('rankSubNav').classList.add('hidden');
+        document.getElementById('recordSubNav').classList.remove('hidden');
     } else {
         document.getElementById('rankSubNav').classList.add('hidden');
+        document.getElementById('recordSubNav').classList.add('hidden');
     }
 }
 

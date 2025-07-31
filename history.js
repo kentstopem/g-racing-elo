@@ -38,7 +38,8 @@
               ${window.isAdmin?`<button class="btn btn-danger btn-small" onclick="deleteRace(${race.id})">Löschen</button>`:''}
           </div>`;
 
-          const rows=race.results.map(res=>{
+          const sortedRes=[...race.results].sort((a,b)=>a.position-b.position);
+          const rows=sortedRes.map(res=>{
               const drvChange=(res.driverEloChange!==undefined)?res.driverEloChange:res.eloChange;
               const carChange=(res.carEloChange!==undefined)?res.carEloChange:drvChange;
               const drvColor=drvChange>=0?'elo-up':'elo-down';

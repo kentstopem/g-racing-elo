@@ -23,7 +23,7 @@
         <div class="nav">
             <button class="nav-btn active" data-section="rankings">🏆 Ranglisten</button>
             <button class="nav-btn" data-section="history">📊 Historie</button>
-            <button class="nav-btn" data-section="records">🏅 Rekorde</button>
+            <button class="nav-btn" data-section="records">🏅 Hall of Fame</button>
             <button class="nav-btn admin-only" data-section="race">🏁 Neues Rennen</button>
             <button class="nav-btn admin-only" data-section="drivers">😎 Fahrer</button>
             <button class="nav-btn admin-only" data-section="cars">🏎️ Fahrzeuge</button>
@@ -33,6 +33,11 @@
         <div id="rankSubNav" class="sub-nav hidden">
             <button class="sub-tab active" data-rank="drivers">😎 Fahrer</button>
             <button class="sub-tab" data-rank="cars">🏎️ Fahrzeuge</button>
+        </div>
+        <!-- Sub navigation for Records -->
+        <div id="recordSubNav" class="sub-nav hidden">
+            <button class="sub-tab active" data-record="drivers">😎 Fahrer</button>
+            <button class="sub-tab" data-record="cars">🏎️ Fahrzeuge</button>
         </div>
         
         <!-- Fahrer Section -->
@@ -117,7 +122,7 @@
 
         <!-- Rekorde Section -->
         <div id="records" class="section">
-            <h2>🏅 Fahrzeug-Rekorde</h2>
+            <div id="recordsHeader" class="ranking-header">🏅 Fahrzeug-Rekorde</div>
 
             <div id="recordForm" class="card admin-only" style="margin-bottom:20px;">
                 <div class="form-group">
@@ -139,8 +144,10 @@
                 <button class="btn" id="saveRecordBtn">Speichern</button>
             </div>
 
+            <div id="recordPodium" class="podium"></div>
+
             <table class="record-table">
-                <thead><tr><th>Fahrzeug</th><th>Bestzeit</th><th>Datum</th><th>Fahrer</th></tr></thead>
+                <thead><tr id="recordsHead"></tr></thead>
                 <tbody id="recordsBody"></tbody>
             </table>
         </div>
@@ -255,7 +262,7 @@
     </div>
 
     <footer class="site-footer">
-        <p>Version 1.4.0 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
+        <p>Version 1.4.2 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
         <p>Contact &amp; Donations (Paypal): rennstall@saeuferleber.de</p>
     </footer>
 

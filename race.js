@@ -3,6 +3,54 @@
   const { calculateExpectedScore, calculateActualScore, calculateKFactor } = window.Elo;
   const MIN_RACES_FOR_RANK = 5; // ab so vielen Rennen gilt ein Fahrer/Fahrzeug als „aktiv“
 
+  // ---- Draft Speicher --------------------------------------------------
+  const DRAFT_KEY='raceDraft';
+
+  function persistRaceDraft(){
+    const entries=[...document.querySelectorAll('.race-entry')].map(e=>({
+      driverId:+e.querySelector('.driver-select')?.value||null,
+      carId:+e.querySelector('.car-select')?.value||null,
+      place:+(e.querySelector('.place-select')?.value||0)
+    }));
+    const draft={
+      date:document.getElementById('raceDate')?.value||'',
+      time:document.getElementById('raceTime')?.value||'',
+      rounds:document.getElementById('raceRounds')?.value||'',
+      entries
+    };
+    localStorage.setItem(DRAFT_KEY,JSON.stringify(draft));
+  }
+
+  function loadRaceDraft(){
+    try{
+      const raw=localStorage.getItem(DRAFT_KEY);
+      if(!raw) return;
+      const draft=JSON.parse(raw);
+      if(!draft||!Array.isArray(draft.entries)) return;
+      // Set Meta
+      if(draft.date) document.getElementById('raceDate').value=draft.date;
+      if(draft.time) document.getElementById('raceTime').value=draft.time;
+      if(draft.rounds) document.getElementById('raceRounds').value=draft.rounds;
+
+      // Ensure correct amount of entries
+      const container=document.getElementById('raceEntries');
+      if(container){container.innerHTML='';window.appData.raceCounter=0;}
+      draft.entries.forEach(()=>addRaceEntry());
+      const entriesDOM=[...document.querySelectorAll('.race-entry')];
+      draft.entries.forEach((d,idx)=>{
+        const entry=entriesDOM[idx];
+        if(!entry) return;
+        if(d.driverId) entry.querySelector('.driver-select').value=d.driverId;
+        if(d.carId)    entry.querySelector('.car-select').value=d.carId;
+        const placeSel=entry.querySelector('.place-select');
+        if(placeSel && d.place) placeSel.value=d.place;
+      });
+      updateRacePositions();
+      updatePredictions();
+    }catch(e){console.error('Draft load error',e);}
+  }
+
+  function clearRaceDraft(){ localStorage.removeItem(DRAFT_KEY);}
   // -------------------- Formular & DOM --------------------
   function addRaceEntry(){
     window.appData.raceCounter++;
@@ -58,6 +106,8 @@
     if(container.children.length===0){for(let i=0;i<6;i++) addRaceEntry();}
     const headerEl=document.getElementById('raceEntriesHeader');
     if(headerEl) headerEl.textContent='Rennen manuell eingeben (Platz 1 bis 6):';
+    // Draft laden, falls vorhanden
+    loadRaceDraft();
   }
 
   // ---- Prognosen & Summen -------------------------------------------
@@ -198,6 +248,9 @@
       }
     });
 
+    // Ergebnisse nach Platzierung sortieren, damit History korrekt angezeigt wird
+    results.sort((a,b)=>a.position-b.position);
+
     // Platzierungen im Gesamtclassement nach diesem Rennen speichern (nur aktive Fahrer/Fahrzeuge)
     const activeDrivers=[...window.appData.drivers].filter(d=>d.races>=MIN_RACES_FOR_RANK).sort((a,b)=>b.elo-a.elo);
     const activeCars   =[...window.appData.cars   ].filter(c=>c.races>=MIN_RACES_FOR_RANK && !c.hideFromRanking).sort((a,b)=>b.elo-a.elo);
@@ -228,6 +281,7 @@
     });
 
     // UI auffrischen
+    clearRaceDraft();
     const container=document.getElementById('raceEntries');
     if(container){container.innerHTML='';window.appData.raceCounter=0;updateRaceForm();}
     raceDateInput.value='';raceRoundsInput.value='';
@@ -269,7 +323,10 @@
     window.appData.cars.forEach(c=>{c.elo=1000;c.races=c.wins=c.totalRounds=0;});
     // chronologisch sortiert
     const ordered=[...window.appData.races].sort((a,b)=>window.Helpers.tsForRace(a)-window.Helpers.tsForRace(b));
-    ordered.forEach(r=>{r.results.forEach(res=>{
+    ordered.forEach(r=>{
+      // Reihenfolge sicherstellen (Platz 1,2,3 ...)
+      r.results.sort((a,b)=>a.position-b.position);
+      r.results.forEach(res=>{
         const driver=window.appData.drivers.find(d=>d.id===res.driverId);
         const car   =window.appData.cars.find(c=>c.id===res.carId);
         if(!(driver&&car))return;
@@ -322,6 +379,7 @@
 
   function openSetupModal(){
     if(!setupModal)return;
+    clearRaceDraft();
     selectedDrivers=[];selectedCars=[];
     // Build driver checklist (alphabetisch)
     driverListDiv.innerHTML=[...window.appData.drivers]
@@ -431,6 +489,7 @@
     if(headerEl) headerEl.textContent='Bitte Platzierungen angeben und Rennen auswerten:';
     setupModal.classList.add('hidden');
     updatePredictions();
+    persistRaceDraft();
   });
 
   function closeSetup(){setupModal.classList.add('hidden');}
@@ -447,8 +506,15 @@
     // Erst nach dem Laden der Daten wird das Formular aufgebaut
     // Live-Updates der Prognosen
     document.getElementById('raceEntries')?.addEventListener('change',e=>{
-      if(e.target.matches('.driver-select, .car-select, .place-select')) updatePredictions();
+      if(e.target.matches('.driver-select, .car-select, .place-select')){
+         updatePredictions();
+         persistRaceDraft();
+      }
     });
+    // Draft speichern beim Ändern des Formulars
+    document.getElementById('raceDate')?.addEventListener('change', persistRaceDraft);
+    document.getElementById('raceTime')?.addEventListener('change', persistRaceDraft);
+    document.getElementById('raceRounds')?.addEventListener('change', persistRaceDraft);
   }
 
   window.RaceUI={ init, updateForm:updateRaceForm };
