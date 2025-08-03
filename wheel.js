@@ -7,6 +7,9 @@
   let segments=[],totalWeight=0,targetCount=0,callback=null,angle=0,animId=null,spinning=false;
   let imgMap={};
   // Ton deaktiviert
+  const powerWrap=document.getElementById('powerBarWrap');
+  const powerBar=document.getElementById('powerBar');
+  let pressStart=0,holdTimer=null;
 
   /* playTick entfernt */
 
@@ -58,32 +61,7 @@
     });
   }
 
-  function spin(){
-    if(spinning||segments.length===0) return;
-
-    spinning=true;
-    spinBtn.disabled=true;
-    let lastTick=-1;
-    const duration=3000; // 3s
-    const rotations=4+Math.random()*2; // 4-6 Umdrehungen
-    const start=performance.now();
-    const startAngle=angle;
-    const targetAngle=startAngle+rotations*2*Math.PI;
-    function frame(t){
-      const p=Math.min(1,(t-start)/duration);
-      const ease=1-Math.pow(1-p,3); // cubic ease-out
-      angle=startAngle+ease*(targetAngle-startAngle);
-      drawWheel();
-      // kein Sound mehr
-      if(p<1){animId=requestAnimationFrame(frame);}else{
-        spinning=false;
-        spinBtn.disabled=false;
-        angle%=2*Math.PI;
-        pickResult();
-      }
-    }
-    animId=requestAnimationFrame(frame);
-  }
+  function spin(){startSpin(4+Math.random()*2);}
 
   function pickResult(){
     // 0 ° soll jetzt exakt unter dem Zeiger (oben) liegen
@@ -150,6 +128,49 @@
   function close(){
     cancelAnimationFrame(animId);
     modal.classList.add('hidden');
+  }
+  spinBtn.addEventListener('mousedown',()=>{
+      if(spinning) return;
+      pressStart=performance.now();
+      powerBar.style.width='0';
+      holdTimer=setInterval(()=>{
+         const dur=Math.min(4000,performance.now()-pressStart);
+         const pct=dur/4000*100;
+         powerBar.style.width=pct+'%';
+      },16);
+  });
+
+  function releaseSpin(){
+      if(!pressStart) return;
+      clearInterval(holdTimer);
+      const dur=Math.min(4000,performance.now()-pressStart);
+      pressStart=0;
+      powerBar.style.width='0';
+      const rotations=3+5*(dur/4000)+Math.random()*0.5;
+      startSpin(rotations);
+  }
+
+  spinBtn.addEventListener('mouseup',releaseSpin);
+  spinBtn.addEventListener('mouseleave',releaseSpin);
+  spinBtn.addEventListener('touchend',releaseSpin);
+
+  function startSpin(rot){
+    if(spinning||segments.length===0) return;
+    spinning=true;
+    spinBtn.disabled=true;
+    const duration=3000;
+    const rotations=rot;
+    const start=performance.now();
+    const startAngle=angle;
+    const targetAngle=startAngle+rotations*2*Math.PI;
+    function frame(t){
+       const p=Math.min(1,(t-start)/duration);
+       const ease=1-Math.pow(1-p,3);
+       angle=startAngle+ease*(targetAngle-startAngle);
+       drawWheel();
+       if(p<1){animId=requestAnimationFrame(frame);}else{spinning=false;spinBtn.disabled=false;angle%=2*Math.PI;pickResult();}
+    }
+    animId=requestAnimationFrame(frame);
   }
   spinBtn.addEventListener('click',spin);
   closeBtn.addEventListener('click',close);

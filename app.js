@@ -31,7 +31,7 @@ function renderChart(mode){
   if(!canvas||!currentEntityType) return;
   const ordered=[...appData.races].sort((a,b)=>tsForRace(a)-tsForRace(b));
   const numMap=new Map();ordered.forEach((r,i)=>numMap.set(r.id,i+1));
-  const labels=[];const data=[];const dateArr=[];const posArr=[];const totalArr=[];const raceNrArr=[];
+  const labels=[];const data=[];const dateArr=[];const posArr=[];const totalArr=[];const raceNrArr=[];const partnerArr=[];
   if(currentEntityType==='driver'){
     const driver=appData.drivers.find(d=>d.id==currentEntityId);
     if(!driver) return;
@@ -49,6 +49,7 @@ function renderChart(mode){
         posArr.push(res.position);
         totalArr.push(r.results.length);
         raceNrArr.push(numMap.get(r.id));
+        partnerArr.push(res.carName);
       }
     });
   }else{
@@ -68,6 +69,7 @@ function renderChart(mode){
         posArr.push(res.position);
         totalArr.push(r.results.length);
         raceNrArr.push(numMap.get(r.id));
+        partnerArr.push(res.driverName);
       }
     });
   }
@@ -123,7 +125,11 @@ function renderChart(mode){
           callbacks:{
             title:(ctx)=>`Rang: ${data[ctx[0].dataIndex]}`,
             label:(ctx)=>`#${raceNrArr[ctx.dataIndex]} – ${dateArr[ctx.dataIndex]}`,
-            afterLabel:(ctx)=>`${posArr[ctx.dataIndex]}. von ${totalArr[ctx.dataIndex]} ${currentEntityType==='driver'?'Fahrern':'Fahrzeugen'}`
+            afterLabel:(ctx)=>{
+                const part = partnerArr[ctx.dataIndex];
+                const line1 = `${posArr[ctx.dataIndex]}. von ${totalArr[ctx.dataIndex]} ${currentEntityType==='driver'?'Fahrern':'Fahrzeugen'}`;
+                return [line1,part];
+            }
           }
         }
       }

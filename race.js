@@ -46,7 +46,28 @@
         if(placeSel && d.place) placeSel.value=d.place;
       });
       updateRacePositions();
+      // Ensure place-select exists and remove remove-buttons (auto-setup style)
+      entriesDOM.forEach((entry,idx)=>{
+         if(!entry.querySelector('.place-select')){
+            entry.querySelector('button.btn-danger')?.remove();
+            const sel=document.createElement('select');
+            sel.className='place-select';
+            for(let i=1;i<=draft.entries.length;i++){
+               const opt=document.createElement('option');opt.value=i;opt.textContent=`Platz ${i}`;sel.appendChild(opt);
+            }
+            sel.value=draft.entries[idx].place||idx+1;
+            const wrap=document.createElement('div');wrap.className='form-group';wrap.style.margin='0';
+            const lbl=document.createElement('label');lbl.textContent='Platz:';wrap.appendChild(lbl);wrap.appendChild(sel);
+            const comb=document.createElement('div');comb.className='pred combined-pred';wrap.appendChild(comb);
+            entry.appendChild(wrap);
+            // Label von Platz -> Fahrer
+            const firstLbl=entry.querySelector('label');if(firstLbl) firstLbl.textContent=`Fahrer ${idx+1}:`;
+         }
+      });
+      const headerEl=document.getElementById('raceEntriesHeader');
+      if(headerEl) headerEl.textContent='Bitte Platzierungen angeben und Rennen auswerten:';
       updatePredictions();
+      setTimeout(updatePredictions,0);
     }catch(e){console.error('Draft load error',e);}
   }
 
