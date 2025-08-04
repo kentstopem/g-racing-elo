@@ -504,4 +504,9 @@ input[type=range]{width:100%;}
 #wheelModal .modal-content::after{content:"";position:absolute;top:70px;left:50%;width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:24px solid #e63946;transform:translateX(-50%);filter:drop-shadow(0 0 2px rgba(0,0,0,0.4));z-index:10;} 
 
 #powerBarWrap.power-wrap{background:#eee;height:8px;border-radius:4px;margin:10px 0;width:100%;}
+<<<<<<< HEAD
 #powerBar.power-bar{background:#4caf50;height:100%;width:0;border-radius:4px;transition:width .05s;} 
+=======
+#powerBar.power-bar{background:#4caf50;height:100%;width:0;border-radius:4px;transition:width .05s;} 
+#spinBtn{user-select:none;-webkit-user-select:none;touch-action:none;} 
+>>>>>>> 1b08c32 (v1.5.2 baseline - before RaceCore refactor)

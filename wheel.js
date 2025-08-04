@@ -129,8 +129,14 @@
     cancelAnimationFrame(animId);
     modal.classList.add('hidden');
   }
+<<<<<<< HEAD
   spinBtn.addEventListener('mousedown',()=>{
       if(spinning) return;
+=======
+  function pressStartHandler(e){
+      if(spinning) return;
+      e.preventDefault();
+>>>>>>> 1b08c32 (v1.5.2 baseline - before RaceCore refactor)
       pressStart=performance.now();
       powerBar.style.width='0';
       holdTimer=setInterval(()=>{
@@ -138,7 +144,13 @@
          const pct=dur/4000*100;
          powerBar.style.width=pct+'%';
       },16);
+<<<<<<< HEAD
   });
+=======
+  }
+  spinBtn.addEventListener('mousedown',pressStartHandler);
+  spinBtn.addEventListener('touchstart',pressStartHandler,{passive:false});
+>>>>>>> 1b08c32 (v1.5.2 baseline - before RaceCore refactor)
 
   function releaseSpin(){
       if(!pressStart) return;

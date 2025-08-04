@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Backups
+backups/
+
+# Logs / Temp
+*.log
+*.tmp
+
+# Node / Build
+node_modules/
+dist/
+build/

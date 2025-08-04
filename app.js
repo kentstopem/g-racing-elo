@@ -114,9 +114,16 @@ function renderChart(mode){
         })();
   eloChartInstance=new Chart(canvas.getContext('2d'),{
     type:'line',
+<<<<<<< HEAD
     data:{labels,datasets:[{label:mode==='elo'?'G!RP':'Rang',data,borderColor:'#007bff',backgroundColor:'rgba(0,123,255,0.1)',tension:0.2,pointRadius:3}]},
     options:{
       scales:{y:yOpts},
+=======
+    data:{labels,datasets:[{label:mode==='elo'?'G!RP':'Rang',data,borderColor:'#007bff',backgroundColor:'rgba(0,123,255,0.1)',tension:0.2,pointRadius:10,pointHoverRadius:12}]},
+    options:{
+      scales:{y:yOpts},
+      interaction:{mode:'index',intersect:false},
+>>>>>>> 1b08c32 (v1.5.2 baseline - before RaceCore refactor)
       responsive:true,
       plugins:{
         legend:{display:false},
