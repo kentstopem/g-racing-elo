@@ -150,18 +150,19 @@
       pressStart=0;
       powerBar.style.width='0';
       const rotations=3+5*(dur/4000)+Math.random()*0.5;
-      startSpin(rotations);
+      // Animationsdauer abhängig von der Haltezeit: 2 – 5 s
+      const animDuration = 2000 + (dur/4000)*5000; // 0 ms→2 s, 4 s→7 s
+      startSpin(rotations, animDuration);
   }
 
   spinBtn.addEventListener('mouseup',releaseSpin);
   spinBtn.addEventListener('mouseleave',releaseSpin);
   spinBtn.addEventListener('touchend',releaseSpin);
 
-  function startSpin(rot){
+  function startSpin(rot, duration=3000){
     if(spinning||segments.length===0) return;
     spinning=true;
     spinBtn.disabled=true;
-    const duration=3000;
     const rotations=rot;
     const start=performance.now();
     const startAngle=angle;
