@@ -124,7 +124,7 @@ function renderChart(mode){
         tooltip:{
           displayColors:false,
           callbacks:{
-            title:(ctx)=>`Rang: ${data[ctx[0].dataIndex]}`,
+            title:(ctx)=>`${mode==='elo'?'GRP':'Rang'}: ${data[ctx[0].dataIndex]}`,
             label:(ctx)=>`#${raceNrArr[ctx.dataIndex]} – ${dateArr[ctx.dataIndex]}`,
             afterLabel:(ctx)=>{
                 const part = partnerArr[ctx.dataIndex];
