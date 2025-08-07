@@ -73,7 +73,15 @@ function renderChart(mode){
       }
     });
   }
-  if(!labels.length){showToast('Keine Daten');return;}
+  if(!labels.length){
+    if(eloChartInstance){eloChartInstance.destroy(); eloChartInstance=null;}
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#666';ctx.textAlign='center';ctx.font='16px sans-serif';
+    const msg=mode==='pos'?'Rang erst nach dem 5. Rennen':'Noch keine G!RP-Daten';
+    ctx.fillText(msg, canvas.width/2, canvas.height/2);
+    return;
+  }
 
   // ▼ Synthetischer Schluss-Punkt (heutiger Rang)
   if(mode==='pos'){
@@ -125,11 +133,14 @@ function renderChart(mode){
           displayColors:false,
           callbacks:{
             title:(ctx)=>`${mode==='elo'?'GRP':'Rang'}: ${data[ctx[0].dataIndex]}`,
-            label:(ctx)=>`#${raceNrArr[ctx.dataIndex]} – ${dateArr[ctx.dataIndex]}`,
+            label:(ctx)=>{
+              const idx=ctx.dataIndex;
+              return raceNrArr[idx]==='-' ? `${dateArr[idx]}` : `#${raceNrArr[idx]} – ${dateArr[idx]}`;
+            },
             afterLabel:(ctx)=>{
                 const part = partnerArr[ctx.dataIndex];
                 const line1 = `${posArr[ctx.dataIndex]}. von ${totalArr[ctx.dataIndex]} ${currentEntityType==='driver'?'Fahrern':'Fahrzeugen'}`;
-                return [line1,part];
+                return part? [line1, part] : [line1];
             }
           }
         }
