@@ -396,6 +396,7 @@
   const cancelBtn1=document.getElementById('setupCancelBtn');
   const cancelBtn2=document.getElementById('setupCancelBtn2');
   const wheelBtn=document.getElementById('setupLuckyWheelBtn');
+  const slotBtn=document.getElementById('setupSlotBtn');
   let selectedDrivers=[];let selectedCars=[];
   let prevSelectedDrivers=[];
 
@@ -458,6 +459,20 @@
         // trigger change to update selection
         carListDiv.dispatchEvent(new Event('change'));
      }):null;
+  });
+
+  slotBtn?.addEventListener('click',()=>{
+     const available=[...carListDiv.querySelectorAll('input:not(:checked)')].map(i=>parseInt(i.value));
+     const need=selectedDrivers.length;
+     if(need===0){showToast('Bitte erst Fahrer wählen');return;}
+     Slot.open(available,need,(list)=>{
+        carListDiv.querySelectorAll('input').forEach(i=>{i.checked=false;});
+        list.forEach(id=>{
+           const box=carListDiv.querySelector(`input[value="${id}"]`);
+           if(box) box.checked=true;
+        });
+        carListDiv.dispatchEvent(new Event('change'));
+     });
   });
 
   backBtn?.addEventListener('click',()=>{

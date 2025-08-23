@@ -506,3 +506,19 @@ input[type=range]{width:100%;}
 #powerBarWrap.power-wrap{background:#eee;height:8px;border-radius:4px;margin:10px 0;width:100%;}
 #powerBar.power-bar{background:#4caf50;height:100%;width:0;border-radius:4px;transition:width .05s;} 
 #spinBtn{user-select:none;-webkit-user-select:none;touch-action:none;} 
+
+/* Slotmachine */
+.reel-wrap{display:flex;flex-direction:column;align-items:center;}
+.reel{position:relative;overflow:hidden;}
+.reel-track{position:absolute;top:0;left:0;width:100%;}
+.reel{width:120px;height:360px;overflow:hidden;border:2px solid #aaa;border-radius:6px;position:relative;background:#000;color:#fff;font-size:14px;text-align:center;}
+.reel-item{display:flex;align-items:center;justify-content:center;border-bottom:2px solid #666;color:#fff;font-size:12px;padding:6px 4px;text-align:center;}
+.reel-item:nth-child(odd){background:#0d0d0d;}
+.reel-item:nth-child(even){background:#fff;}
+.reel-start-btn,.reel-stop-btn{margin:4px 0;} 
+.reel-img{max-width:90%;max-height:90%;object-fit:contain;} 
+#slotReels{position:relative;}
+#slotSelectLine{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:2px;background:#c00;z-index:20;pointer-events:none;} 
+
+/* Slotmachine */
+.reel-track.snap{animation:snapBounce 0.6s cubic-bezier(.25,.7,.3,1) forwards;} 

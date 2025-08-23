@@ -205,13 +205,13 @@
                 <div id="filterDriverList" style="margin-bottom:12px;"></div>
                 <strong style="display:block;margin-bottom:6px;">Fahrzeuge</strong>
                 <div id="filterCarList"></div>
-            </div>
+                </div>
             <div style="text-align:right;margin-top:15px;">
                 <button class="btn" id="filterApplyBtn">Anwenden</button>
                 <button class="btn btn-danger" id="filterCancelBtn">Abbrechen</button>
                         </div>
-                    </div>
-                </div>
+                                </div>
+                            </div>
 
     <!-- Ranking Filter Modal -->
     <div id="rankingFilterModal" class="modal hidden">
@@ -228,15 +228,15 @@
                     <option value="10"></option>
                     <option value="15"></option>
                 </datalist>
-            </div>
+                        </div>
             <div id="rankingFilterList" style="max-height:300px;overflow:auto;margin-bottom:10px;"></div>
             <div style="text-align:right;margin-top:15px;display:flex;gap:8px;justify-content:flex-end;">
                 <button class="btn btn-modal" id="rankingFilterApply">Anwenden</button>
                 <button class="btn btn-modal" id="rankingFilterReset">Zurücksetzen</button>
                 <button class="btn btn-danger btn-modal" id="rankingFilterCancel">Abbrechen</button>
-            </div>
-        </div>
-    </div>
+                                </div>
+                            </div>
+                        </div>
 
     <!-- Race Setup Modal -->
     <div id="raceSetupModal" class="modal hidden">
@@ -248,19 +248,25 @@
             <button class="btn" id="setupNextBtn" disabled>Weiter</button>
             <button class="btn btn-danger" id="setupCancelBtn">Abbrechen</button>
           </div>
-        </div>
+                                </div>
         <div id="setupStep2" class="hidden">
           <h3 style="margin-bottom:10px;">Schritt 2: Fahrzeuge wählen</h3>
           <div id="setupCarList" style="max-height:320px;overflow:auto;margin-bottom:10px;"></div>
-          <div style="text-align:right;margin-top:15px;display:flex;gap:8px;justify-content:flex-end;">
-            <button class="btn" id="setupBackBtn">Zurück</button>
-            <button class="btn" id="setupFinishBtn" disabled>Fertig</button>
-            <button class="btn btn-danger" id="setupCancelBtn2">Abbrechen</button>
-            <button class="btn" id="setupLuckyWheelBtn">🎰 Glücksrad</button>
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:15px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;justify-content:center;width:100%;">
+              <button class="btn" id="setupLuckyWheelBtn">🎰 Glücksrad</button>
+              <button class="btn" id="setupSlotBtn">🎰 Slotmachine</button>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:center;width:100%;margin-top:6px;">
+              <button class="btn" id="setupBackBtn">Zurück</button>
+              <button class="btn" id="setupFinishBtn" disabled>Fertig</button>
+              <button class="btn btn-danger" id="setupCancelBtn2">Abbrechen</button>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+                                    </div>
+                                    </div>
+                                </div>
+                            </div>
 
     <!-- Glücksrad Modal -->
     <div id="wheelModal" class="modal hidden">
@@ -272,11 +278,25 @@
                 <button class="btn" id="spinBtn">Drehen</button>
                 <button class="btn btn-danger" id="wheelCloseBtn">Abbrechen</button>
             </div>
+                    </div>
+                </div>
+
+    <!-- Slotmachine Modal -->
+    <div id="slotModal" class="modal hidden">
+        <div class="modal-content" style="text-align:center;max-width:420px;">
+            <h3 style="margin-top:0;">🎰 Fahrzeug-Slotmachine</h3>
+            <div id="slotReels" style="display:flex;gap:12px;justify-content:center;margin:12px 0;position:relative;">
+              <div id="slotSelectLine"></div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
+                <button class="btn" id="slotConfirmBtn" disabled>Fertig</button>
+                <button class="btn btn-danger" id="slotCloseBtn">Abbrechen</button>
+            </div>
         </div>
     </div>
 
     <footer class="site-footer">
-        <p>Version 1.5.5 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
+        <p>Version 1.6.0 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
         <p>Contact &amp; Donations (Paypal): rennstall@saeuferleber.de</p>
     </footer>
 
@@ -305,5 +325,6 @@
     <script src="history.js" defer></script>
     <script src="records.js" defer></script>
     <script src="wheel.js" defer></script>
+    <script src="slot.js"  defer></script>
 </body>
 </html>

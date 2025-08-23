@@ -73,6 +73,22 @@ function renderChart(mode){
       }
     });
   }
+  if(!labels.length && mode==='pos'){
+    // versuche, nur den heutigen Rang zu zeigen, falls vorhanden
+    const MIN_RACES_FOR_RANK=5;
+    const active = currentEntityType==='driver'
+        ? [...appData.drivers].filter(d=>d.races>=MIN_RACES_FOR_RANK)
+        : [...appData.cars   ].filter(c=>c.races>=MIN_RACES_FOR_RANK && !c.hideFromRanking);
+    const idx = active.findIndex(x=>x.id===currentEntityId);
+    if(idx!==-1){
+      labels.push('heute');
+      data.push(idx+1);
+      dateArr.push(new Date().toLocaleDateString('de-DE'));
+      posArr.push(idx+1);
+      totalArr.push(active.length);
+      raceNrArr.push('-');
+    }
+  }
   if(!labels.length){
     if(eloChartInstance){eloChartInstance.destroy(); eloChartInstance=null;}
     const ctx=canvas.getContext('2d');
@@ -89,7 +105,7 @@ function renderChart(mode){
     if(currentEntityType==='driver'){
       const active=[...appData.drivers].filter(d=>d.races>=MIN_RACES_FOR_RANK).sort((a,b)=>b.elo-a.elo);
       const idx=active.findIndex(d=>d.id===currentEntityId);
-      if(idx!==-1){
+      if(idx!==-1 && (raceNrArr[raceNrArr.length-1]!=='-')){
         labels.push('heute');
         data.push(idx+1);
         dateArr.push(new Date().toLocaleDateString('de-DE'));
@@ -100,7 +116,7 @@ function renderChart(mode){
     }else{
       const active=[...appData.cars].filter(c=>c.races>=MIN_RACES_FOR_RANK && !c.hideFromRanking).sort((a,b)=>b.elo-a.elo);
       const idx=active.findIndex(c=>c.id===currentEntityId);
-      if(idx!==-1){
+      if(idx!==-1 && (raceNrArr[raceNrArr.length-1]!=='-')){
         labels.push('heute');
         data.push(idx+1);
         dateArr.push(new Date().toLocaleDateString('de-DE'));
