@@ -118,7 +118,8 @@
     }
     snap(){
       // find item at center
-      const viewCenter=180; // px
+      const lineEl=document.getElementById('slotSelectLine');
+      const viewCenter=lineEl.getBoundingClientRect().top - this.reel.getBoundingClientRect().top;
       const relative=(this.offset+viewCenter)%this.totalHeight;
       let acc=0;let chosenEl=null;
       for(const el of this.track.children){
