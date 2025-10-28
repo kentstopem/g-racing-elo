@@ -24,6 +24,7 @@
             <button class="nav-btn active" data-section="rankings">🏆 Ranglisten</button>
             <button class="nav-btn" data-section="history">📊 Historie</button>
             <button class="nav-btn" data-section="records">🏅 Hall of Fame</button>
+            <button class="nav-btn" data-section="stats">📈 Statistik</button>
             <button class="nav-btn admin-only" data-section="race">🏁 Neues Rennen</button>
             <button class="nav-btn admin-only" data-section="drivers">😎 Fahrer</button>
             <button class="nav-btn admin-only" data-section="cars">🏎️ Fahrzeuge</button>
@@ -172,9 +173,13 @@
                     <div style="display:flex;gap:6px;">
                         <button class="mode-tab" id="modeEloBtn">G!RP</button>
                         <button class="mode-tab" id="modePosBtn">Rang</button>
+                        <button class="mode-tab" id="modeDetailsBtn">Details</button>
                     </div>
                 </div>
                 <canvas id="eloChart" width="560" height="320"></canvas>
+                <div id="detailsContent" class="hidden" style="max-width:520px;margin:0 auto;">
+                    <!-- dynamisch gefüllt -->
+                </div>
                 <div style="text-align:right;margin-top:15px;">
                     <button class="btn btn-danger" id="eloModalClose">Schließen</button>
                 </div>
@@ -251,7 +256,8 @@
                                 </div>
         <div id="setupStep2" class="hidden">
           <h3 style="margin-bottom:10px;">Schritt 2: Fahrzeuge wählen</h3>
-          <div id="setupCarList" style="max-height:320px;overflow:auto;margin-bottom:10px;"></div>
+          <div id="pairTable" style="margin-bottom:10px;"></div>
+          <div id="setupCarList" class="hidden"></div>
           <div style="display:flex;gap:8px;justify-content:center;margin-top:15px;flex-wrap:wrap;">
             <div style="display:flex;gap:8px;justify-content:center;width:100%;">
               <button class="btn" id="setupLuckyWheelBtn">🎰 Glücksrad</button>
@@ -295,8 +301,21 @@
         </div>
     </div>
 
+    <!-- Statistik Section -->
+    <div id="stats" class="section">
+        <div id="statsSubNav" class="sub-nav">
+            <button class="sub-tab active" id="statsDriversBtn">😎 Fahrer</button>
+            <button class="sub-tab" id="statsCarsBtn">🏎️ Fahrzeuge</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div></div>
+            <button class="ranking-filter-btn admin-only" id="statsFilterBtn">🔍 Filter</button>
+        </div>
+        <div id="statsTableWrap"></div>
+    </div>
+
     <footer class="site-footer">
-        <p>Version 1.6.1 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
+        <p>Version 1.7.0 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
         <p>Contact &amp; Donations (Paypal): rennstall@saeuferleber.de</p>
     </footer>
 
@@ -324,7 +343,19 @@
     <script src="race.js" defer></script>
     <script src="history.js" defer></script>
     <script src="records.js" defer></script>
+    <script src="statistics.js" defer></script>
     <script src="wheel.js" defer></script>
     <script src="slot.js"  defer></script>
+    <!-- Stats Filter Modal -->
+    <div id="statsFilterModal" class="modal hidden">
+      <div class="modal-content" style="max-width:420px;">
+         <h3 style="margin-bottom:10px;">Statistik-Filter</h3>
+         <div id="statsFilterList" style="max-height:320px;overflow:auto;margin-bottom:10px;"></div>
+         <div style="text-align:right;margin-top:15px;">
+            <button class="btn" id="statsFilterSaveBtn">Speichern</button>
+            <button class="btn btn-danger" id="statsFilterCancelBtn">Abbrechen</button>
+         </div>
+      </div>
+    </div>
 </body>
 </html>

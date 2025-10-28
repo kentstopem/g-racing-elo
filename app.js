@@ -166,7 +166,7 @@ function renderChart(mode){
 }
 
 function openEloModal(type,id){
-    currentEntityType=type;currentEntityId=id;currentChartType='pos';
+    currentEntityType=type;currentEntityId=id;currentChartType='elo';
     const modal=document.getElementById('eloModal');
     const titleEl=document.getElementById('eloModalTitle');
     if(!modal||!titleEl) return;
@@ -177,18 +177,82 @@ function openEloModal(type,id){
       const c=appData.cars.find(x=>x.id==id);if(!c){showToast('Fahrzeug nicht gefunden');return;}
       titleEl.textContent=`Verlauf: ${c.name}`;
     }
-    renderChart('pos');
+    renderChart('elo');
     const eloBtn=document.getElementById('modeEloBtn');
     const posBtn=document.getElementById('modePosBtn');
-    eloBtn?.classList.remove('active');
-    posBtn?.classList.add('active');
+    const detBtn=document.getElementById('modeDetailsBtn');
+    eloBtn?.classList.add('active');
+    posBtn?.classList.remove('active');
+    detBtn?.classList.remove('active');
+    renderView();
     modal.classList.remove('hidden');
 }
 
 const eloBtn=document.getElementById('modeEloBtn');
 const posBtn=document.getElementById('modePosBtn');
-eloBtn?.addEventListener('click',()=>{currentChartType='elo';eloBtn.classList.add('active');posBtn.classList.remove('active');renderChart('elo');});
-posBtn?.addEventListener('click',()=>{currentChartType='pos';posBtn.classList.add('active');eloBtn.classList.remove('active');renderChart('pos');});
+const detBtn=document.getElementById('modeDetailsBtn');
+eloBtn?.addEventListener('click',()=>{currentChartType='elo';eloBtn.classList.add('active');posBtn.classList.remove('active');detBtn?.classList.remove('active');renderView();});
+posBtn?.addEventListener('click',()=>{currentChartType='pos';posBtn.classList.add('active');eloBtn.classList.remove('active');detBtn?.classList.remove('active');renderView();});
+detBtn?.addEventListener('click',()=>{currentChartType='details';detBtn.classList.add('active');eloBtn.classList.remove('active');posBtn.classList.remove('active');renderView();});
+
+function renderView(){
+  const canvas=document.getElementById('eloChart');
+  const detailsDiv=document.getElementById('detailsContent');
+  if(currentChartType==='details'){
+     canvas.classList.add('hidden');
+     detailsDiv.classList.remove('hidden');
+     renderDetails();
+  }else{
+     detailsDiv.classList.add('hidden');
+     canvas.classList.remove('hidden');
+     renderChart(currentChartType);
+  }
+}
+
+function renderDetails(){
+    const div=document.getElementById('detailsContent'); if(!div) return;
+    let stats={races:0,wins:0,rounds:0,dates:[]};
+    const races=appData.races||[];
+    races.forEach(r=>{
+        const res=r.results||[];
+        res.forEach(entry=>{
+            if((currentEntityType==='driver'&&entry.driverId==currentEntityId)||
+               (currentEntityType==='car'&&entry.carId==currentEntityId)){
+                 stats.races++;
+                 if(entry.position===1) stats.wins++;
+                 stats.rounds+=r.rounds||0;
+                 if(r.date) stats.dates.push(r.date);
+            }
+        });
+    });
+    stats.dates.sort((a,b)=>{
+        const pa = a.split('.').reverse().join('-');
+        const pb = b.split('.').reverse().join('-');
+        return new Date(pa)-new Date(pb);
+    });
+    const firstDate=stats.dates[0]||'-';
+    const lastDate=stats.dates[stats.dates.length-1]||'-';
+    let imgHTML='';
+    if(currentEntityType==='car'){
+        const car=appData.cars.find(c=>c.id==currentEntityId);
+        if(car){
+           const num=/^\((\d+)\)/.exec(car.name||'')?.[1];
+           if(num){
+               const src=`assets/cars/${String(num).padStart(2,'0')}.png`;
+               imgHTML=`<div style="flex:0 0 200px;text-align:center;"><img src="${src}" alt="${car.name}" class="stats-img"></div>`;
+           }
+        }
+    }
+    const listHTML=`<ul style="list-style:none;padding-left:0;font-size:14px;line-height:1.6;">
+        <li>Rennen: <strong>${stats.races}</strong></li>
+        <li>Siege: <strong>${stats.wins}</strong></li>
+        <li>Siegquote: <strong>${stats.races?((stats.wins/stats.races*100).toFixed(1)):0}%</strong></li>
+        <li>Runden: <strong>${stats.rounds}</strong></li>
+        <li>Erstes Rennen: <strong>${firstDate}</strong></li>
+        <li>Letztes Rennen: <strong>${lastDate}</strong></li>
+    </ul>`;
+    div.innerHTML=`<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">${listHTML}${imgHTML}</div>`;
+}
 
 // Daten laden (Firestore)
 async function loadData() {

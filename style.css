@@ -179,7 +179,7 @@ body {
 .race-entry {
     display: flex;
     gap: 15px;
-    align-items: end;
+    align-items: center;
     margin-bottom: 15px;
     padding: 15px;
     background: #f9f9f9;
@@ -522,3 +522,12 @@ input[type=range]{width:100%;}
 
 /* Slotmachine */
 .reel-track.snap{animation:snapBounce 0.6s cubic-bezier(.25,.7,.3,1) forwards;} 
+
+/* --- Statistik-Details Fahrzeugbild --- */
+.stats-img{max-width:200px;max-height:200px;object-fit:contain;} 
+
+/* Statistik Table width */
+#statsTableWrap{max-width:90%;margin:0 auto;} 
+
+/* Pair delete icon */
+.pair-del-btn{background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;color:#cc0000;margin-left:auto;align-self:center;order:99;} 

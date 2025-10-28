@@ -5,20 +5,37 @@
 
   // ---- Draft Speicher --------------------------------------------------
   const DRAFT_KEY='raceDraft';
+  let draftLoading=false;
 
-  function persistRaceDraft(){
-    const entries=[...document.querySelectorAll('.race-entry')].map(e=>({
-      driverId:+e.querySelector('.driver-select')?.value||null,
-      carId:+e.querySelector('.car-select')?.value||null,
-      place:+(e.querySelector('.place-select')?.value||0)
-    }));
-    const draft={
-      date:document.getElementById('raceDate')?.value||'',
-      time:document.getElementById('raceTime')?.value||'',
-      rounds:document.getElementById('raceRounds')?.value||'',
+  function persistRaceDraft() {
+    if(draftLoading) return;
+    const rows = [...document.getElementById('raceEntries').children]
+                 .filter(r => r.classList.contains('race-entry'));
+    // only persist if at least one complete row exists
+    const hasComplete = rows.some(r=>{
+        const d=r.querySelector('.driver-select')?.value;
+        const c=r.querySelector('.car-select')?.value;
+        return d&&c;
+    });
+    if(!hasComplete) return;
+  
+    const entries = rows
+      .map((e, idx) => {
+        const drv = e.querySelector('.driver-select')?.value;
+        const car = e.querySelector('.car-select')?.value;
+        if (!drv || !car) return null;                // überspringen
+        const plc = e.querySelector('.place-select')?.value || idx + 1;
+        return { driverId: +drv, carId: +car, place: +plc };
+      })
+      .filter(Boolean);                               // nur vollständige Zeilen
+  
+    const draft = {
+      date  : document.getElementById('raceDate')?.value || '',
+      time  : document.getElementById('raceTime')?.value || '',
+      rounds: document.getElementById('raceRounds')?.value || '',
       entries
     };
-    localStorage.setItem(DRAFT_KEY,JSON.stringify(draft));
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   }
 
   function loadRaceDraft(){
@@ -49,19 +66,17 @@
       // Ensure place-select exists and remove remove-buttons (auto-setup style)
       entriesDOM.forEach((entry,idx)=>{
          if(!entry.querySelector('.place-select')){
-            entry.querySelector('button.btn-danger')?.remove();
-            const sel=document.createElement('select');
-            sel.className='place-select';
-            for(let i=1;i<=draft.entries.length;i++){
-               const opt=document.createElement('option');opt.value=i;opt.textContent=`Platz ${i}`;sel.appendChild(opt);
+            let delBtn=entry.querySelector('button.btn-danger');
+            if(!delBtn){
+               delBtn=document.createElement('button');
+               delBtn.className='btn btn-danger';
+               entry.appendChild(delBtn);
             }
-            sel.value=draft.entries[idx].place||idx+1;
-            const wrap=document.createElement('div');wrap.className='form-group';wrap.style.margin='0';
-            const lbl=document.createElement('label');lbl.textContent='Platz:';wrap.appendChild(lbl);wrap.appendChild(sel);
-            const comb=document.createElement('div');comb.className='pred combined-pred';wrap.appendChild(comb);
-            entry.appendChild(wrap);
-            // Label von Platz -> Fahrer
-            const firstLbl=entry.querySelector('label');if(firstLbl) firstLbl.textContent=`Fahrer ${idx+1}:`;
+            delBtn.classList.add('pair-del-btn');
+            delBtn.textContent='🗑️';
+            delBtn.onclick=function(){removeRaceEntry(delBtn);}
+            // add place-select only if not present
+            const selExists=false; // placeholder
          }
       });
       const headerEl=document.getElementById('raceEntriesHeader');
@@ -96,8 +111,10 @@
         </select>
         <div class="pred car-pred"></div>
       </div>
-      <button class="btn btn-danger" onclick="removeRaceEntry(this)">Entfernen</button>`;
+      <button class="btn btn-danger pair-del-btn" onclick="removeRaceEntry(this)">🗑️</button>`;
     container.appendChild(entry);
+    updateRacePositions();
+    persistRaceDraft();
   }
 
   function removeRaceEntry(btn){
@@ -105,14 +122,26 @@
     if(container.children.length<=2){showToast('Mindestens 2 Teilnehmer erforderlich!');return;}
     btn.parentElement.remove();
     updateRacePositions();
+    if(typeof persistRaceDraft==='function') persistRaceDraft();
   }
 
   function updateRacePositions(){
-    document.querySelectorAll('.race-entry').forEach((e,i)=>{
+    const rows=[...document.getElementById('raceEntries').children].filter(r=>r.classList.contains('race-entry'));
+    rows.forEach((e,i)=>{
       const lbl=e.querySelector('label');
       if(lbl) lbl.textContent=`Platz ${i+1}:`;
+      // create place-select if missing
+      if(!e.querySelector('.place-select')){
+        const sel=document.createElement('select');sel.className='place-select';
+        for(let p=1;p<=rows.length;p++){const opt=document.createElement('option');opt.value=p;opt.textContent=`Platz ${p}`;sel.appendChild(opt);} 
+        sel.value=i+1;
+        const wrap=document.createElement('div');wrap.className='form-group';wrap.style.margin='0';
+        const lbl2=document.createElement('label');lbl2.textContent='Platz:';wrap.appendChild(lbl2);wrap.appendChild(sel);
+        const comb=document.createElement('div');comb.className='pred combined-pred';wrap.appendChild(comb);
+        e.appendChild(wrap);
+      }
     });
-    window.appData.raceCounter=document.querySelectorAll('.race-entry').length;
+    window.appData.raceCounter=rows.length;
   }
 
   function updateRaceForm(){
@@ -124,11 +153,25 @@
     if(roundsInput&&!roundsInput.value){roundsInput.value='60';}
     const timeInput=document.getElementById('raceTime');
     if(timeInput&&!timeInput.value){timeInput.value=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});}
-    if(container.children.length===0){for(let i=0;i<6;i++) addRaceEntry();}
+    if(!localStorage.getItem(DRAFT_KEY)){
+      if(container.children.length===0){
+        for(let i=0;i<6;i++) addRaceEntry();
+      }
+    }
     const headerEl=document.getElementById('raceEntriesHeader');
     if(headerEl) headerEl.textContent='Rennen manuell eingeben (Platz 1 bis 6):';
-    // Draft laden, falls vorhanden
+    draftLoading=true;
     loadRaceDraft();
+    updateRacePositions();
+    // remove empty rows (no driver & no car)
+    [...document.querySelectorAll('.race-entry')].forEach(e=>{
+        const drv=e.querySelector('.driver-select')?.value;
+        const car=e.querySelector('.car-select')?.value;
+        if(!drv && !car) e.remove();
+    });
+    updateRacePositions();
+    renderAddEntryButton();
+    draftLoading=false;
   }
 
   // ---- Prognosen & Summen -------------------------------------------
@@ -146,7 +189,7 @@
       const driverId=e.querySelector('.driver-select').value;
       const carId   =e.querySelector('.car-select').value;
       const placeSel=e.querySelector('.place-select');
-      const place   =placeSel?parseInt(placeSel.value):idx+1;
+      const place   =placeSel && placeSel.value?parseInt(placeSel.value):idx+1;
       const driver  =window.appData.drivers.find(d=>d.id==driverId);
       const car     =window.appData.cars.find(c=>c.id==carId);
       return {e, driver, car, place};
@@ -397,6 +440,7 @@
   const cancelBtn2=document.getElementById('setupCancelBtn2');
   const wheelBtn=document.getElementById('setupLuckyWheelBtn');
   const slotBtn=document.getElementById('setupSlotBtn');
+  const pairTableDiv=document.getElementById('pairTable');
   let selectedDrivers=[];let selectedCars=[];
   let prevSelectedDrivers=[];
 
@@ -427,6 +471,7 @@
     if(selectedDrivers.length<2||selectedDrivers.length>6){showToast('Bitte 2 bis 6 Fahrer auswählen');return;}
     prevSelectedDrivers=[...selectedDrivers];
     // Build car checklist (alphabetisch, nur im Ranking)
+    carListDiv.classList.remove('hidden');
     carListDiv.innerHTML=[...window.appData.cars].filter(c=>!c.hideFromRanking)
       .sort((a,b)=>a.name.localeCompare(b.name))
       .map(c=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${c.id}'>${c.name}</label>`)
@@ -520,25 +565,7 @@
        const lbl=e.querySelector('label');
        if(lbl) lbl.textContent=`Fahrer ${i+1}:`;
     });
-    // Platzierungs-Dropdowns anlegen & Entfernen-Buttons ausblenden
-    const entries=document.querySelectorAll('.race-entry');
-    entries.forEach((entry,idx)=>{
-       entry.querySelector('button.btn-danger')?.remove();
-       const sel=document.createElement('select');
-       sel.className='place-select';
-       for(let i=1;i<=entries.length;i++){
-          const opt=document.createElement('option');opt.value=i;opt.textContent=`Platz ${i}`;sel.appendChild(opt);
-       }
-       sel.value=idx+1;
-       const wrapper=document.createElement('div');
-       wrapper.className='form-group';
-       wrapper.style.margin='0';
-       const lbl=document.createElement('label');lbl.textContent='Platz:';
-       wrapper.appendChild(lbl);
-       wrapper.appendChild(sel);
-       const comb=document.createElement('div');comb.className='pred combined-pred';wrapper.appendChild(comb);
-       entry.appendChild(wrapper);
-    });
+    // Platzierungs-Dropdowns werden nun zentral in updateRacePositions() erzeugt
     const headerEl=document.getElementById('raceEntriesHeader');
     if(headerEl) headerEl.textContent='Bitte Platzierungen angeben und Rennen auswerten:';
     setupModal.classList.add('hidden');
@@ -549,6 +576,60 @@
   function closeSetup(){setupModal.classList.add('hidden');}
   cancelBtn1?.addEventListener('click',closeSetup);
   cancelBtn2?.addEventListener('click',closeSetup);
+
+  function renderPairTable(){
+    if(!pairTableDiv) return;
+    const allCars=[...window.appData.cars].filter(c=>!c.hideFromRanking);
+    let html='<table class="record-table"><thead><tr><th>Fahrer</th><th>Fahrzeug</th><th></th></tr></thead><tbody>';
+    selectedDrivers.forEach((dId,idx)=>{
+      const driver=window.appData.drivers.find(d=>d.id===dId);
+      const carId=selectedCars[idx]||'';
+      html+=`<tr><td>${driver?.name||'-'}</td><td><select data-idx="${idx}">`;
+      allCars.forEach(c=>{
+        const taken=selectedCars.includes(c.id)&&c.id!==carId;
+        if(taken) return;
+        html+=`<option value="${c.id}" ${c.id===carId?'selected':''}>${c.name}</option>`;
+      });
+      html+='</select></td>';
+      html+=`<td><button class="btn-small" data-del="${idx}">🗑️</button></td></tr>`;
+    });
+    html+='</tbody></table>';
+    pairTableDiv.innerHTML=html;
+    // listeners
+    pairTableDiv.querySelectorAll('select').forEach(sel=>{
+      sel.addEventListener('change',e=>{
+        const i=parseInt(e.target.dataset.idx);
+        selectedCars[i]=parseInt(e.target.value);
+        finishBtn.disabled=selectedCars.length!==selectedDrivers.length;
+      });
+    });
+    pairTableDiv.querySelectorAll('button[data-del]').forEach(btn=>{
+      btn.addEventListener('click',e=>{
+        const i=parseInt(btn.dataset.del);
+        selectedDrivers.splice(i,1);
+        selectedCars.splice(i,1);
+        renderPairTable();
+        finishBtn.disabled=selectedCars.length!==selectedDrivers.length||selectedDrivers.length<2;
+      });
+    });
+  }
+
+  function renderAddEntryButton(){
+    const container=document.getElementById('raceEntries');
+    if(!container) return;
+    let btnRow=document.getElementById('addEntryRow');
+    if(container.children.length>=6){ btnRow?.remove(); return; }
+    if(!btnRow){
+       btnRow=document.createElement('div');
+       btnRow.id='addEntryRow';
+       btnRow.style.width='100%';btnRow.style.display='flex';btnRow.style.justifyContent='center';
+       const btn=document.createElement('button');btn.className='btn';btn.textContent='➕ Paarung hinzufügen';
+       btn.onclick=()=>{ addRaceEntry(); renderAddEntryButton(); persistRaceDraft?.(); };
+       btnRow.appendChild(btn);
+       btnRow.style.width='100%';btnRow.style.display='flex';btnRow.style.justifyContent='center';
+       container.parentElement.insertBefore(btnRow, container.nextSibling);
+    }
+  }
 
   // -------------------- Init --------------------
   function init(){
