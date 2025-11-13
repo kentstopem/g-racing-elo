@@ -172,10 +172,10 @@ function openEloModal(type,id){
     if(!modal||!titleEl) return;
     if(type==='driver'){
       const d=appData.drivers.find(x=>x.id==id);if(!d){showToast('Fahrer nicht gefunden');return;}
-      titleEl.textContent=`Verlauf: ${d.name}`;
+      titleEl.textContent=`${d.name}`;
     }else{
       const c=appData.cars.find(x=>x.id==id);if(!c){showToast('Fahrzeug nicht gefunden');return;}
-      titleEl.textContent=`Verlauf: ${c.name}`;
+      titleEl.textContent=`${c.name}`;
     }
     renderChart('elo');
     const eloBtn=document.getElementById('modeEloBtn');
@@ -226,9 +226,14 @@ function renderDetails(){
         });
     });
     stats.dates.sort((a,b)=>{
-        const pa = a.split('.').reverse().join('-');
-        const pb = b.split('.').reverse().join('-');
-        return new Date(pa)-new Date(pb);
+        const partsA=a.split(/[.\-]/);
+        const partsB=b.split(/[.\-]/);
+        if(partsA.length===3&&partsB.length===3){
+            const [d1,m1,y1]=partsA.map(Number);
+            const [d2,m2,y2]=partsB.map(Number);
+            return y1-y2 || m1-m2 || d1-d2;
+        }
+        return a.localeCompare(b);
     });
     const firstDate=stats.dates[0]||'-';
     const lastDate=stats.dates[stats.dates.length-1]||'-';
@@ -243,11 +248,30 @@ function renderDetails(){
            }
         }
     }
+    // Bestzeit ermitteln
+    let bestLine='Bestzeit: <strong>-</strong>';
+    const recs=[...(window.appData.driverRecords||[]),...(window.appData.carRecords||[])];
+    if(recs.length){
+        if(currentEntityType==='driver'){
+            const rec=[...recs].filter(r=>r.driverId==currentEntityId).sort((a,b)=>a.time-b.time)[0];
+            if(rec){
+               const car=appData.cars.find(c=>c.id===rec.carId)?.name||'?';
+               bestLine=`Bestzeit: <strong>${rec.time.toFixed(3)} Sek.</strong> – ${car}`;
+            }
+        }else{
+            const rec=[...recs].filter(r=>r.carId==currentEntityId).sort((a,b)=>a.time-b.time)[0];
+            if(rec){
+               const drv=appData.drivers.find(d=>d.id===rec.driverId)?.name||'?';
+               bestLine=`Bestzeit: <strong>${rec.time.toFixed(3)} Sek.</strong> – ${drv}`;
+            }
+        }
+    }
     const listHTML=`<ul style="list-style:none;padding-left:0;font-size:14px;line-height:1.6;">
         <li>Rennen: <strong>${stats.races}</strong></li>
         <li>Siege: <strong>${stats.wins}</strong></li>
         <li>Siegquote: <strong>${stats.races?((stats.wins/stats.races*100).toFixed(1)):0}%</strong></li>
         <li>Runden: <strong>${stats.rounds}</strong></li>
+        <li>${bestLine}</li>
         <li>Erstes Rennen: <strong>${firstDate}</strong></li>
         <li>Letztes Rennen: <strong>${lastDate}</strong></li>
     </ul>`;
@@ -261,6 +285,17 @@ async function loadData() {
         appData.drivers = data.drivers || [];
         appData.cars    = data.cars    || [];
         appData.races   = data.races   || [];
+
+        // Rekorde gleichzeitig laden
+        try{
+          const db=firebase.firestore();
+          const [drvSnap,carSnap]=await Promise.all([
+              db.collection('driverRecords').get(),
+              db.collection('carRecords').get()
+          ]);
+          appData.driverRecords = drvSnap.docs.map(d=>({id:d.id,...d.data()}));
+          appData.carRecords    = carSnap.docs.map(d=>({id:d.id,...d.data()}));
+        }catch(e){console.error('Rekord-Daten konnten nicht geladen werden:',e);}
     } catch (e) {
         console.error('Fehler beim Laden der Daten aus Firestore:', e);
     }
@@ -401,7 +436,8 @@ function updateDriversList() {
         return;
     }
 
-    list.innerHTML = appData.drivers.map(driver => `
+    const sortedDrivers=[...appData.drivers].sort((a,b)=>a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
+    list.innerHTML = sortedDrivers.map(driver => `
         <div class="list-item" data-id="${driver.id}">
             <div>
                 <strong>${driver.name}</strong>
@@ -493,7 +529,8 @@ function updateCarsList() {
         return;
     }
 
-    list.innerHTML = appData.cars.map(car => `
+    const sortedCars=[...appData.cars].sort((a,b)=>a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
+    list.innerHTML = sortedCars.map(car => `
         <div class="list-item" data-id="${car.id}">
             <div>
                 <strong>${car.name}</strong>

@@ -131,15 +131,23 @@
       const lbl=e.querySelector('label');
       if(lbl) lbl.textContent=`Platz ${i+1}:`;
       // create place-select if missing
-      if(!e.querySelector('.place-select')){
-        const sel=document.createElement('select');sel.className='place-select';
-        for(let p=1;p<=rows.length;p++){const opt=document.createElement('option');opt.value=p;opt.textContent=`Platz ${p}`;sel.appendChild(opt);} 
-        sel.value=i+1;
+      let sel=e.querySelector('.place-select');
+      const total=rows.length;
+      if(!sel){
+        sel=document.createElement('select');sel.className='place-select';
         const wrap=document.createElement('div');wrap.className='form-group';wrap.style.margin='0';
         const lbl2=document.createElement('label');lbl2.textContent='Platz:';wrap.appendChild(lbl2);wrap.appendChild(sel);
         const comb=document.createElement('div');comb.className='pred combined-pred';wrap.appendChild(comb);
         e.appendChild(wrap);
       }
+      // rebuild options if count mismatch
+      if(sel.options.length!==total){
+        sel.innerHTML='';
+        for(let p=1;p<=total;p++){
+          const opt=document.createElement('option');opt.value=p;opt.textContent=`Platz ${p}`;sel.appendChild(opt);
+        }
+      }
+      if(!sel.value || sel.value>total){sel.value=i+1;}
     });
     window.appData.raceCounter=rows.length;
   }
