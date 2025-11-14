@@ -187,6 +187,7 @@ function openEloModal(type,id){
     renderView();
     modal.classList.remove('hidden');
 }
+window.openEloModal=openEloModal;
 
 const eloBtn=document.getElementById('modeEloBtn');
 const posBtn=document.getElementById('modePosBtn');

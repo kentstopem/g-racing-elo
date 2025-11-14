@@ -132,6 +132,26 @@
         if(e.target.matches('.sub-tab')) switchMode(e.target.getAttribute('data-record'));
       });
     }
+    const tableClickHandler=(e)=>{
+      const tr=e.target.closest('tr'); if(!tr) return;
+      const idx=[...tbody.children].indexOf(tr);
+      const sorted=[...window.appData.recordData].sort((a,b)=>a.time-b.time);
+      const rec=sorted[idx]; if(!rec) return;
+      if(currentMode==='drivers'){ window.openEloModal?.('driver',rec.driverId); }
+      else{ window.openEloModal?.('car',rec.carId); }
+    };
+
+    const podiumClickHandler=(e)=>{
+      const item=e.target.closest('.podium-item'); if(!item) return;
+      const idx=[...podiumDiv.querySelectorAll('.podium-item')].indexOf(item);
+      const sorted=[...window.appData.recordData].sort((a,b)=>a.time-b.time);
+      const rec=sorted[idx]; if(!rec) return;
+      if(currentMode==='drivers'){ window.openEloModal?.('driver',rec.driverId); }
+      else{ window.openEloModal?.('car',rec.carId); }
+    };
+
+    tbody?.addEventListener('click',tableClickHandler);
+    podiumDiv?.addEventListener('click',podiumClickHandler);
     initWorkflow();
   }
 
