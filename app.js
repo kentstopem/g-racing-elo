@@ -290,13 +290,9 @@ async function loadData() {
         // Rekorde gleichzeitig laden
         try{
           const db=firebase.firestore();
-          const [drvSnap,carSnap]=await Promise.all([
-              db.collection('driverRecords').get(),
-              db.collection('carRecords').get()
-          ]);
-          appData.driverRecords = drvSnap.docs.map(d=>({id:d.id,...d.data()}));
-          appData.carRecords    = carSnap.docs.map(d=>({id:d.id,...d.data()}));
-        }catch(e){console.error('Rekord-Daten konnten nicht geladen werden:',e);}
+          const snap=await db.collection('lapRecords').get();
+          appData.lapRecords = snap.docs.map(d=>({id:d.id,...d.data()}));
+        }catch(e){console.error('lapRecords konnten nicht geladen werden',e);}
     } catch (e) {
         console.error('Fehler beim Laden der Daten aus Firestore:', e);
     }

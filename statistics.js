@@ -28,11 +28,29 @@
            dObj.races++;cObj.races++;
            if(res.position===1){dObj.wins++;cObj.wins++;}
            dObj.rounds+=r.rounds;cObj.rounds+=r.rounds;
+           // track dates
+           const dt=r.date;
+           if(dt){
+             if(!dObj.firstDate||compareDate(dt,dObj.firstDate)<0) dObj.firstDate=dt;
+             if(!dObj.lastDate ||compareDate(dt,dObj.lastDate)>0) dObj.lastDate =dt;
+             if(!cObj.firstDate||compareDate(dt,cObj.firstDate)<0) cObj.firstDate=dt;
+             if(!cObj.lastDate ||compareDate(dt,cObj.lastDate)>0) cObj.lastDate =dt;
+           }
         });
      });
      // add names + elo
      appData.drivers.forEach(d=>{const o=statsMap.driver[d.id];if(o){o.name=d.name;o.elo=d.elo;}});
      appData.cars.forEach(c=>{const o=statsMap.car[c.id];if(o){o.name=c.name;o.elo=c.elo;}});
+     // Bestzeiten
+     if(appData.lapRecords){
+       const bestDrv={};const bestCar={};
+       appData.lapRecords.forEach(r=>{
+          if(!bestDrv[r.driverId]||r.time<bestDrv[r.driverId]) bestDrv[r.driverId]=r.time;
+          if(!bestCar[r.carId]   ||r.time<bestCar[r.carId])    bestCar[r.carId] =r.time;
+       });
+       Object.entries(statsMap.driver).forEach(([id,o])=>{ if(bestDrv[id]) o.best=bestDrv[id]; });
+       Object.entries(statsMap.car).forEach(([id,o])=>{ if(bestCar[id]) o.best=bestCar[id]; });
+     }
      return statsMap;
   }
 
@@ -51,7 +69,15 @@
      rows.sort((a,b)=>{
         const av=a[sortKey], bv=b[sortKey];
         if(av==bv) return 0;
-        return (av>bv?1:-1)*sortDir;
+        let cmp;
+        if(sortKey==='firstDate'||sortKey==='lastDate'){
+           if(!av) cmp=1; else if(!bv) cmp=-1; else cmp=compareDate(av,bv);
+        }else if(sortKey==='name'){
+           cmp=av.localeCompare(bv);
+        }else{
+           cmp=(av>bv?1:-1);
+        }
+        return cmp*sortDir;
      });
      const headers=[
         {key:'name',label:'Name'},
@@ -59,6 +85,9 @@
         {key:'wins',label:'Siege'},
         {key:'winRate',label:'Siegquote %'},
         {key:'rounds',label:'Runden'},
+        {key:'firstDate',label:'Erstes Rennen'},
+        {key:'lastDate',label:'Letztes Rennen'},
+        {key:'best',label:'Bestzeit (s)'},
         {key:'elo',label:'G!RP'}
      ];
      let html=`<table class="record-table"><thead><tr>`;
@@ -68,7 +97,7 @@
      });
      html+=`</tr></thead><tbody>`;
      rows.forEach(r=>{
-        html+=`<tr><td>${r.name||'-'}</td><td>${r.races}</td><td>${r.wins}</td><td>${r.winRate.toFixed(1)}</td><td>${r.rounds}</td><td>${r.elo}</td></tr>`;
+        html+=`<tr><td>${r.name||'-'}</td><td>${r.races}</td><td>${r.wins}</td><td>${r.winRate.toFixed(1)}</td><td>${r.rounds}</td><td>${r.firstDate||'-'}</td><td>${r.lastDate||'-'}</td><td>${r.best? r.best.toFixed(3):'-'}</td><td>${r.elo}</td></tr>`;
      });
      html+=`</tbody></table>`;
      tblWrap.innerHTML=html;
@@ -117,6 +146,12 @@
       filterList.appendChild(row);
    });
  }
+
+  function compareDate(a,b){
+     const [y1,m1,d1]=a.split(/[-.]/).reverse().map(Number);
+     const [y2,m2,d2]=b.split(/[-.]/).reverse().map(Number);
+     return (y1-y2)|| (m1-m2)|| (d1-d2);
+  }
 
   window.StatsUI={reload:render};
 })();

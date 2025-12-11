@@ -539,7 +539,7 @@
     return [rankVal, -d.races, -d.elo, d.name];
   }
   function strengthKeyCar(c){
-    const rank=window.appData.cars.filter(x=>x.races>=MIN_RACES_FOR_RANK && !x.hideFromRanking).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===c.id);
+    const rank=window.appData.cars.filter(x=>!x.hideFromRanking).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===c.id);
     const rankVal=rank===-1?Number.POSITIVE_INFINITY:rank;
     return [ -rankVal, c.races, c.elo, c.name]; // sort ascending later => weakest first
   }

@@ -1,7 +1,6 @@
 (function(){
   const db=firebase.firestore();
-  const DRIVER_COLL='driverRecords';
-  const CAR_COLL='carRecords';
+  const RECORD_COLL='lapRecords';
   let currentMode='drivers'; // 'drivers' | 'cars'
 
   const headRow=document.getElementById('recordsHead');
@@ -11,9 +10,15 @@
   const subNav=document.getElementById('recordSubNav');
 
   async function loadRecords(){
-    const col=db.collection(currentMode==='drivers'?DRIVER_COLL:CAR_COLL);
-    const snap=await col.get();
-    window.appData.recordData= snap.docs.map(d=>({id:d.id,...d.data()}));
+    const snap=await db.collection(RECORD_COLL).get();
+    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Aggregieren je nach Ansicht
+    const map={};
+    all.forEach(rec=>{
+      const key=currentMode==='drivers'? rec.driverId: rec.carId;
+      if(!map[key]||rec.time<map[key].time){ map[key]=rec; }
+    });
+    window.appData.recordData=Object.values(map);
   }
 
   function renderHeader(){
@@ -92,10 +97,8 @@
     const date=document.getElementById('recDate').value;
     if(!(carId&&driverId&&time>0&&date)){window.Helpers.showToast('Alle Felder ausfüllen');return;}
 
-    const col=db.collection(currentMode==='drivers'?DRIVER_COLL:CAR_COLL);
-    const uniqueField=currentMode==='drivers'? 'driverId':'carId';
-    const uniqueVal=currentMode==='drivers'? driverId:carId;
-    const q=col.where(uniqueField,'==',uniqueVal);
+    const col=db.collection(RECORD_COLL);
+    const q=col.where('driverId','==',driverId).where('carId','==',carId);
     const snap=await q.get();
     if(!snap.empty){
        const doc=snap.docs[0];

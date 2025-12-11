@@ -70,7 +70,7 @@
       if(carFilter.length>0 && !carFilter.includes(c.id)) return false;
       return true;
     });
-    const active=selected.filter(c=>c.races>=minRaces).sort((a,b)=>b.elo-a.elo);
+    const active=[...selected].sort((a,b)=>b.elo-a.elo);
     const podium=document.getElementById('carPodium');
     const list=document.getElementById('carsRanking');
     const showPodium=!isFilterActive() && active.length>=3;
@@ -96,12 +96,7 @@
           <div><strong>#${rank++} ${c.name}</strong><div style="font-size:0.9em;color:#666;">${c.races} Rennen · ${c.wins||0} Siege · ${c.totalRounds||0} Runden</div></div>
           <span class="elo-score">${c.elo}</span></div>`);
       });
-      const inactive=selected.filter(c=>c.races<minRaces).sort((a,b)=>b.elo-a.elo);
-      inactive.forEach(c=>{
-        html.push(`<div class="list-item" data-car-id="${c.id}" onclick="openEloModal('car',${c.id})">
-          <div><strong>— ${c.name}</strong><div class="status-inactive">Rang erst ab ${minRaces}. Rennen</div><div style="font-size:0.9em;color:#666;">${c.races} Rennen · ${c.wins||0} Siege · ${c.totalRounds||0} Runden</div></div>
-          <span class="elo-score">${c.elo}</span></div>`);
-      });
+      // Kein Inaktiv-Bereich für Fahrzeuge; sie sind ab dem ersten Rennen direkt gültig
       list.innerHTML=html.join('');
     }
   }

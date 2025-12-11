@@ -60,26 +60,19 @@ function bestPer(key, arr) {
   return [...best.values()];
 }
 
-async function upsertRecord(collName, uniqField, rec) {
-  const col = db.collection(collName);
-  const q = await col.where(uniqField, '==', rec[uniqField]).get();
+async function upsertPairRecord(rec) {
+  const col = db.collection('lapRecords');
+  const q = await col.where('driverId','==',rec.driver_id).where('carId','==',rec.car_id).get();
   const data = {
-    carId: rec.car_id,
     driverId: rec.driver_id,
-    time: rec.laptime / 1000, // ms → Sekunden
-    date: rec.date,
+    carId   : rec.car_id,
+    time    : rec.laptime/1000,
+    date    : rec.date,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-  if (q.empty) {
-    await col.add(data);
-    return 'added';
-  } else {
-    const doc = q.docs[0];
-    if (data.time < doc.data().time) {
-      await doc.ref.set(data);
-      return 'updated';
-    }
-  }
+  if(q.empty){ await col.add(data); return 'added'; }
+  const doc=q.docs[0];
+  if(data.time<doc.data().time){ await doc.ref.set(data); return 'updated'; }
   return 'skipped';
 }
 
@@ -94,17 +87,11 @@ async function upsertRecord(collName, uniqField, rec) {
     const records = dump.db.data.inserts.records;
     if (!records) throw new Error('Keine records-Tabelle im Backup');
 
-    const bestDrivers = bestPer('driver_id', records);
-    const bestCars    = bestPer('car_id',   records);
-
-    let adds = 0, ups = 0;
-    for (const r of bestDrivers) {
-      const res = await upsertRecord('driverRecords', 'driverId', r);
-      if (res === 'added') adds++; else if (res === 'updated') ups++;
-    }
-    for (const r of bestCars) {
-      const res = await upsertRecord('carRecords', 'carId', r);
-      if (res === 'added') adds++; else if (res === 'updated') ups++;
+    const bestPairs = bestPer('combined', records.map(r=>({ ...r, combined:`${r.driver_id}-${r.car_id}` })));
+    let adds=0, ups=0;
+    for(const r of bestPairs){
+       const res=await upsertPairRecord(r);
+       if(res==='added') adds++; else if(res==='updated') ups++;
     }
     console.log(`Fertig. Neu: ${adds}, Aktualisiert: ${ups}`);
     process.exit(0);
