@@ -249,21 +249,23 @@ function renderDetails(){
            }
         }
     }
-    // Bestzeit ermitteln
-    let bestLine='Bestzeit: <strong>-</strong>';
-    const recs=[...(window.appData.driverRecords||[]),...(window.appData.carRecords||[])];
-    if(recs.length){
-        if(currentEntityType==='driver'){
-            const rec=[...recs].filter(r=>r.driverId==currentEntityId).sort((a,b)=>a.time-b.time)[0];
-            if(rec){
-               const car=appData.cars.find(c=>c.id===rec.carId)?.name||'?';
-               bestLine=`Bestzeit: <strong>${rec.time.toFixed(3)} Sek.</strong> – ${car}`;
+    // Bestzeit ermitteln – Daten kommen jetzt aus lapRecords
+    let bestLine = 'Bestzeit: <strong>-</strong>';
+    const recs = window.appData.lapRecords || [];
+    if (recs.length) {
+        if (currentEntityType === 'driver') {
+            const rec = recs.filter(r => r.driverId == currentEntityId)
+                            .sort((a, b) => a.time - b.time)[0];
+            if (rec) {
+                const car = appData.cars.find(c => c.id === rec.carId)?.name || '?';
+                bestLine = `Bestzeit: <strong>${Number(rec.time).toFixed(3)} Sek.</strong> – ${car}`;
             }
-        }else{
-            const rec=[...recs].filter(r=>r.carId==currentEntityId).sort((a,b)=>a.time-b.time)[0];
-            if(rec){
-               const drv=appData.drivers.find(d=>d.id===rec.driverId)?.name||'?';
-               bestLine=`Bestzeit: <strong>${rec.time.toFixed(3)} Sek.</strong> – ${drv}`;
+        } else { // car
+            const rec = recs.filter(r => r.carId == currentEntityId)
+                            .sort((a, b) => a.time - b.time)[0];
+            if (rec) {
+                const drv = appData.drivers.find(d => d.id === rec.driverId)?.name || '?';
+                bestLine = `Bestzeit: <strong>${Number(rec.time).toFixed(3)} Sek.</strong> – ${drv}`;
             }
         }
     }
