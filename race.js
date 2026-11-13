@@ -425,6 +425,7 @@
         });
         // trigger change to update selection
         carListDiv.dispatchEvent(new Event('change'));
+        finishIfComplete();
      }):null;
   });
 
@@ -439,8 +440,14 @@
            if(box) box.checked=true;
         });
         carListDiv.dispatchEvent(new Event('change'));
+        finishIfComplete();
      });
   });
+
+  // Glücksrad/Slotmachine haben alle Autos gezogen → direkt die fertigen Paarungen anzeigen
+  function finishIfComplete(){
+    if(selectedDrivers.length>=2 && selectedCars.length===selectedDrivers.length) finishBtn.click();
+  }
 
   backBtn?.addEventListener('click',()=>{
     step2.classList.add('hidden');
