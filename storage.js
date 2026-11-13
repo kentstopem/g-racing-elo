@@ -27,14 +27,28 @@
       };
     },
 
-    // Gesamten Zustand synchen (Schreiblast gering, aber einfach)
+    // Gesamten Zustand synchen (nur für Neuberechnung/Löschen von Rennen).
+    // Firestore erlaubt max. 500 Schreibvorgänge pro Batch → in Blöcken schreiben.
     async syncAll (appData) {
+      const ops = [
+        ...appData.drivers.map(d => [driversCol.doc(String(d.id)), d]),
+        ...appData.cars.map(c    => [carsCol.doc(String(c.id)), c]),
+        ...appData.races.map(r   => [racesCol.doc(String(r.id)), r])
+      ];
+      const CHUNK = 400;
+      for (let i = 0; i < ops.length; i += CHUNK) {
+        const batch = db.batch();
+        ops.slice(i, i + CHUNK).forEach(([ref, data]) => batch.set(ref, data));
+        await batch.commit();
+      }
+    },
+
+    // Neues Rennen inkl. beteiligter Fahrer/Fahrzeuge in einem Rutsch (atomar) speichern
+    saveRace (race, drivers, cars) {
       const batch = db.batch();
-
-      appData.drivers.forEach(d => batch.set(driversCol.doc(String(d.id)), d));
-      appData.cars.forEach(c    => batch.set(carsCol.doc(String(c.id)), c));
-      appData.races.forEach(r   => batch.set(racesCol.doc(String(r.id)), r));
-
+      batch.set(racesCol.doc(String(race.id)), race);
+      drivers.forEach(d => batch.set(driversCol.doc(String(d.id)), d));
+      cars.forEach(c    => batch.set(carsCol.doc(String(c.id)), c));
       return batch.commit();
     },
 

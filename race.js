@@ -1,7 +1,7 @@
 (function(){
   const { showToast } = window.Helpers;
   const { calculateExpectedScore, calculateActualScore, calculateKFactor } = window.Elo;
-  const MIN_RACES_FOR_RANK = 5; // ab so vielen Rennen gilt ein Fahrer/Fahrzeug als „aktiv“
+  const MIN_RACES_FOR_RANK = window.Elo.MIN_RACES_FOR_RANK; // ab so vielen Rennen gilt ein Fahrer/Fahrzeug als „aktiv“
 
   // ---- Draft Speicher --------------------------------------------------
   const DRAFT_KEY='raceDraft';
@@ -293,146 +293,86 @@
     const totalPlayers=results.length;
     // Validierung Platzlücken
     const missing=[];for(let p=1;p<=totalPlayers;p++){if(!chosenPlaces.has(p)) missing.push(p);}if(missing.length){showToast('Platzierungen lückenhaft');return;}
-    const kFactor=calculateKFactor(totalPlayers, rounds);
-
-    results.forEach(res=>{
-      const otherDriverElos=results.filter(r=>r!==res).map(r=>r.oldDriverElo);
-      const otherCarElos   =results.filter(r=>r!==res).map(r=>r.oldCarElo);
-      const expectedDriver=calculateExpectedScore(res.oldDriverElo,otherDriverElos);
-      const expectedCar   =calculateExpectedScore(res.oldCarElo, otherCarElos);
-      const actualScore=calculateActualScore(res.position,totalPlayers);
-      const driverEloChange=Math.round(kFactor*(actualScore-expectedDriver));
-      const carEloChange   =Math.round(kFactor*(actualScore-expectedCar));
-      const driver=window.appData.drivers.find(d=>d.id===res.driverId);
-      const car   =window.appData.cars.find(c=>c.id===res.carId);
-      if(driver&&car){
-        driver.elo=Math.max(100, driver.elo+driverEloChange);
-        car.elo   =Math.max(100, car.elo+carEloChange);
-        driver.races++;car.races++;
-        if(res.position===1){driver.wins=(driver.wins||0)+1;car.wins=(car.wins||0)+1;}
-        driver.totalRounds=(driver.totalRounds||0)+rounds;
-        car.totalRounds   =(car.totalRounds||0)+rounds;
-        res.newDriverElo=driver.elo;
-        res.newCarElo   =car.elo;
-        res.driverEloChange=driverEloChange;
-        res.carEloChange=carEloChange;
-        res.eloChange=driverEloChange; // legacy
-      }
-    });
-
-    // Ergebnisse nach Platzierung sortieren, damit History korrekt angezeigt wird
-    results.sort((a,b)=>a.position-b.position);
-
-    // Platzierungen im Gesamtclassement nach diesem Rennen speichern (nur aktive Fahrer/Fahrzeuge)
-    const activeDrivers=[...window.appData.drivers].filter(d=>d.races>=MIN_RACES_FOR_RANK).sort((a,b)=>b.elo-a.elo);
-    const activeCars   =[...window.appData.cars   ].filter(c=>c.races>=MIN_RACES_FOR_RANK && !c.hideFromRanking).sort((a,b)=>b.elo-a.elo);
-    const drvRankMap=new Map(activeDrivers.map((d,i)=>[d.id,i+1]));
-    const carRankMap=new Map(activeCars.map((c,i)=>[c.id,i+1]));
-    results.forEach(res=>{
-      res.positionOverallDriver=drvRankMap.get(res.driverId)??null;
-      res.positionOverallCar   =carRankMap.get(res.carId)??null;
-    });
-
     const formattedDate=new Date(raceDate).toLocaleDateString('de-DE');
     const raceTimeInput=document.getElementById('raceTime');
     const raceTime=raceTimeInput&&raceTimeInput.value?raceTimeInput.value:new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    window.appData.races.unshift({id:Date.now(),date:formattedDate,time:raceTime,rounds,results});
-    // Nur neues Rennen speichern
-    window.Storage.addRace(window.appData.races[0]).catch(console.error);
-    // Gezielte Updates für veränderte Fahrer/Fahrzeuge
-    const updatedDrivers=new Set();
-    const updatedCars=new Set();
-    results.forEach(r=>{updatedDrivers.add(r.driverId);updatedCars.add(r.carId);});
-    updatedDrivers.forEach(id=>{
-      const d=window.appData.drivers.find(x=>x.id===id);
-      if(d) window.Storage.updateDriver(d).catch(console.error);
-    });
-    updatedCars.forEach(id=>{
-      const c=window.appData.cars.find(x=>x.id===id);
-      if(c) window.Storage.updateCar(c).catch(console.error);
-    });
+    const race={id:Date.now(),date:formattedDate,time:raceTime,rounds,results};
 
-    // UI auffrischen
+    // Rennen nachgetragen (liegt zeitlich vor dem letzten gespeicherten Rennen)?
+    // Dann müssen alle späteren Rennen neu bewertet werden.
+    const lastRace=window.Elo.sortChronologically(window.appData.races).pop();
+    const isBackfill=lastRace && window.Helpers.tsForRace(race) < window.Helpers.tsForRace(lastRace);
+
+    window.appData.races.unshift(race);
+    let kFactor;
+    if(isBackfill){
+      window.Elo.recomputeAll(window.appData);
+      kFactor=calculateKFactor(totalPlayers, rounds);
+      window.Storage.syncAll(window.appData).catch(err=>{console.error(err);showToast('⚠️ Speichern fehlgeschlagen!');});
+    }else{
+      kFactor=window.Elo.applyRace(race, window.appData.drivers, window.appData.cars);
+      window.Elo.storeOverallPositions(race, window.appData.drivers, window.appData.cars);
+    }
+    if(!isBackfill){
+      // Neues Rennen + beteiligte Fahrer/Fahrzeuge gemeinsam (atomar) speichern
+      const drvs=results.map(r=>window.appData.drivers.find(x=>x.id===r.driverId)).filter(Boolean);
+      const cars=results.map(r=>window.appData.cars.find(x=>x.id===r.carId)).filter(Boolean);
+      window.Storage.saveRace(race, drvs, cars).catch(err=>{console.error(err);showToast('⚠️ Rennen konnte nicht gespeichert werden!');});
+    }
+
+    // UI auffrischen – Datum und Runden bleiben für das nächste Rennen stehen, Uhrzeit wird aktualisiert
     clearRaceDraft();
     const container=document.getElementById('raceEntries');
-    if(container){container.innerHTML='';window.appData.raceCounter=0;updateRaceForm();}
-    raceDateInput.value='';raceRoundsInput.value='';
+    if(container){container.innerHTML='';window.appData.raceCounter=0;}
+    const timeInput=document.getElementById('raceTime');
+    if(timeInput) timeInput.value=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    updateRaceForm();
     showToast(`Rennen ausgewertet!\nRunden: ${rounds}\nK: ${kFactor}`);
     window.RankingUI.update();
     window.HistoryUI.update();
   }
 
-  // -------------------- Rennen löschen --------------------
-  function deleteRace(id){
-    const race=window.appData.races.find(r=>r.id===id);
-    if(!race){showToast('Rennen nicht gefunden');return;}
-    if(!confirm(`Rennen vom ${race.date} wirklich löschen?`))return;
-    race.results.forEach(res=>{
-      const d=window.appData.drivers.find(x=>x.id===res.driverId);
-      const c=window.appData.cars.find(x=>x.id===res.carId);
-      if(d&&c){d.elo=res.oldDriverElo;c.elo=res.oldCarElo;d.races--;c.races--;if(res.position===1){d.wins--;c.wins--;}
-      d.totalRounds-=race.rounds;c.totalRounds-=race.rounds;}
-    });
-    window.appData.races=window.appData.races.filter(r=>r.id!==id);
-    window.Storage.deleteRace(id).catch(console.error);
-    // Fahrer/Fahrzeuge updaten
-    const updDrv=new Set();const updCar=new Set();
-    race.results.forEach(res=>{updDrv.add(res.driverId);updCar.add(res.carId);});
-    updDrv.forEach(i=>{const d=window.appData.drivers.find(x=>x.id===i);if(d) window.Storage.updateDriver(d).catch(console.error);});
-    updCar.forEach(i=>{const c=window.appData.cars.find(x=>x.id===i);if(c) window.Storage.updateCar(c).catch(console.error);});
-    showToast('Rennen gelöscht');
+  // -------------------- Gemeinsame Aktualisierung nach Neuberechnung --------------------
+  function refreshAfterRecompute(){
     window.RankingUI.update();
     window.HistoryUI.update();
     if(typeof updateDriversList==='function') updateDriversList();
     if(typeof updateCarsList==='function') updateCarsList();
+    if(typeof window.updateTagline==='function') window.updateTagline();
+  }
+
+  // -------------------- Rennen löschen --------------------
+  // Alle Werte werden danach aus der Historie neu berechnet, damit auch spätere Rennen stimmen.
+  async function deleteRace(id){
+    const race=window.appData.races.find(r=>r.id===id);
+    if(!race){showToast('Rennen nicht gefunden');return;}
+    if(!confirm(`Rennen vom ${race.date} wirklich löschen?\nAlle G!RP-Werte werden danach neu berechnet.`))return;
+    window.appData.races=window.appData.races.filter(r=>r.id!==id);
+    window.Elo.recomputeAll(window.appData);
+    refreshAfterRecompute();
+    try{
+      await window.Storage.deleteRace(id);
+      await window.Storage.syncAll(window.appData);
+      showToast('Rennen gelöscht, G!RP neu berechnet');
+    }catch(err){
+      console.error(err);
+      showToast('⚠️ Löschen/Speichern fehlgeschlagen – bitte Seite neu laden');
+    }
   }
 
   // -------------------- Rebuild Elo --------------------
-  function rebuildElo(){
+  async function rebuildElo(){
     if(!window.isAdmin){showToast('Nur Admin');return;}
     if(!confirm('Alle G!RP-Werte neu berechnen?')) return;
-    window.appData.drivers.forEach(d=>{d.elo=1000;d.races=d.wins=d.totalRounds=0;});
-    window.appData.cars.forEach(c=>{c.elo=1000;c.races=c.wins=c.totalRounds=0;});
-    // chronologisch sortiert
-    const ordered=[...window.appData.races].sort((a,b)=>window.Helpers.tsForRace(a)-window.Helpers.tsForRace(b));
-    ordered.forEach(r=>{
-      // Reihenfolge sicherstellen (Platz 1,2,3 ...)
-      r.results.sort((a,b)=>a.position-b.position);
-      r.results.forEach(res=>{
-        const driver=window.appData.drivers.find(d=>d.id===res.driverId);
-        const car   =window.appData.cars.find(c=>c.id===res.carId);
-        if(!(driver&&car))return;
-        res.oldDriverElo=driver.elo;res.oldCarElo=car.elo;
-        const otherDriverElos=r.results.filter(x=>x!==res).map(x=>window.appData.drivers.find(d=>d.id===x.driverId).elo);
-        const otherCarElos   =r.results.filter(x=>x!==res).map(x=>window.appData.cars.find(c=>c.id===x.carId).elo);
-        const total=r.results.length;
-        const k=calculateKFactor(total, r.rounds);
-        const expectedD=calculateExpectedScore(driver.elo,otherDriverElos);
-        const expectedC=calculateExpectedScore(car.elo,   otherCarElos);
-        const actual=calculateActualScore(res.position,total);
-        const dChange=Math.round(k*(actual-expectedD));
-        const cChange=Math.round(k*(actual-expectedC));
-        driver.elo=Math.max(100,driver.elo+dChange);
-        car.elo   =Math.max(100,car.elo+cChange);
-        driver.races++;car.races++;if(res.position===1){driver.wins++;car.wins++;}
-        driver.totalRounds=(driver.totalRounds||0)+r.rounds;
-        car.totalRounds   =(car.totalRounds||0)+r.rounds;
-        res.newDriverElo=driver.elo;res.newCarElo=car.elo;res.driverEloChange=dChange;res.carEloChange=cChange;
-      });
-      // Platzierungen nach Update speichern
-      const activeD=[...window.appData.drivers].filter(d=>d.races>=MIN_RACES_FOR_RANK).sort((a,b)=>b.elo-a.elo);
-      const activeC=[...window.appData.cars   ].filter(c=>c.races>=MIN_RACES_FOR_RANK && !c.hideFromRanking).sort((a,b)=>b.elo-a.elo);
-      const drvRank=new Map(activeD.map((d,i)=>[d.id,i+1]));
-      const carRank=new Map(activeC.map((c,i)=>[c.id,i+1]));
-      r.results.forEach(res=>{
-        res.positionOverallDriver=drvRank.get(res.driverId)??null;
-        res.positionOverallCar  =carRank.get(res.carId)??null;
-      });
-    });
-    window.Storage.syncAll(window.appData).catch(console.error);
-    showToast('G!RP neu berechnet');
-    window.RankingUI.update();
-    window.HistoryUI.update();
+    window.Elo.recomputeAll(window.appData);
+    refreshAfterRecompute();
+    try{
+      await window.Storage.syncAll(window.appData);
+      showToast('G!RP neu berechnet und gespeichert');
+    }catch(err){
+      console.error(err);
+      showToast('⚠️ Speichern fehlgeschlagen!');
+    }
   }
 
   // -------------------- Auto-Setup Modal --------------------

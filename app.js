@@ -20,7 +20,6 @@ window.carFilter = carFilter;
 
 // Neue Modul-Imports
 const { showToast, tsForRace } = window.Helpers;
-const { calculateExpectedScore, calculateActualScore, calculateKFactor } = window.Elo;
 
 // Chart handling
 let eloChartInstance=null;
@@ -630,101 +629,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('eloModal')?.classList.add('hidden');
     });
   
-    function rebuildElo(){
-        console.log('Rebuild Elo triggered');
-        if(!window.isAdmin){showToast('Nur Admin');return;}
-        if(!confirm('Alle GRP-Werte neu berechnen?')) return;
-        // Alle Fahrer und Fahrzeuge auf 1000 zurücksetzen
-        appData.drivers.forEach(driver => {
-            driver.elo = 1000;
-            driver.races = 0;
-            driver.wins = 0;
-            driver.totalRounds = 0;
-        });
-        appData.cars.forEach(car => {
-            car.elo = 1000;
-            car.races = 0;
-            car.wins = 0;
-            car.totalRounds = 0;
-        });
-
-        // Rennen nach Datum+Zeit sortieren (chronologisch)
-        const ordered = [...appData.races].sort((a, b) => {
-            const ts = r => {
-                const dateStr = r.date || '01.01.1970'; // dd.mm.yyyy
-                const timeStr = (r.time || '00:00').replace(/[^0-9:]/g,''); // HH:MM
-                const parts = dateStr.split('.');
-                const iso = (parts.length===3) ? `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}` : dateStr;
-                return new Date(`${iso}T${timeStr}:00`).getTime();
-            };
-            return ts(a) - ts(b);
-        });
-
-        // Alle Rennen chronologisch neu berechnen
-        ordered.forEach(race => {
-            const totalPlayers = race.results.length;
-            const kFactor = calculateKFactor(totalPlayers, race.rounds);
-
-            // aktuelle Elo-Listen nach Reset / vorherigen Rennen
-            const currDriverElos = race.results.map(res=>{
-                const d=appData.drivers.find(x=>x.id===res.driverId);return d?d.elo:1000;});
-            const currCarElos = race.results.map(res=>{
-                const c=appData.cars.find(x=>x.id===res.carId);return c?c.elo:1000;});
-
-            race.results.forEach((res,idx) => {
-                const driverObj = appData.drivers.find(d => d.id === res.driverId);
-                const carObj    = appData.cars.find(c => c.id === res.carId);
-                if(!(driverObj&&carObj)) return;
-
-                // save old ELO before update
-                res.oldDriverElo = driverObj.elo;
-                res.oldCarElo    = carObj.elo;
-
-                const otherDriverElos = currDriverElos.filter((_,i)=>i!==idx);
-                const otherCarElos    = currCarElos.filter((_,i)=>i!==idx);
-
-                const expectedDriver = calculateExpectedScore(driverObj.elo, otherDriverElos);
-                const expectedCar    = calculateExpectedScore(carObj.elo,    otherCarElos);
-
-                const actualScore = calculateActualScore(res.position, totalPlayers);
-
-                const driverEloChange = Math.round(kFactor * (actualScore - expectedDriver));
-                const carEloChange    = Math.round(kFactor * (actualScore - expectedCar));
-
-                const driver = appData.drivers.find(d => d.id === res.driverId);
-                const car    = appData.cars.find(c => c.id === res.carId);
-                if (driver && car) {
-                    driverObj.elo = Math.max(100, driverObj.elo + driverEloChange);
-                    carObj.elo    = Math.max(100, carObj.elo + carEloChange);
-
-                    driverObj.races++;
-                    carObj.races++;
-
-                    // Siege & Runden
-                    if (res.position === 1) {
-                        driverObj.wins = (driverObj.wins || 0) + 1;
-                        carObj.wins    = (carObj.wins || 0) + 1;
-                    }
-                    driverObj.totalRounds = (driverObj.totalRounds || 0) + race.rounds;
-                    carObj.totalRounds    = (carObj.totalRounds || 0) + race.rounds;
-
-                    res.newDriverElo    = driverObj.elo;
-                    res.newCarElo       = carObj.elo;
-                    res.driverEloChange = driverEloChange;
-                    res.carEloChange    = carEloChange;
-
-                    // Kompatibilität: alter Schlüssel
-                    res.eloChange = driverEloChange;
-                }
-            });
-        });
-
-        saveData();
-        RankingUI.update();
-        showToast('Alle G!RP-Werte wurden neu berechnet und gespeichert!');
-    }
-
-    // Entfernt – neuer Listener ist in race.js
+    // Neuberechnung: siehe race.js / elo.js
 });
 
 // App Initialisierung
