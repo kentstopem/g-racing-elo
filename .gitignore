@@ -12,3 +12,11 @@ backups/
 node_modules/
 dist/
 build/
+
+# SmartRace-Backups
+sr/
+*.srbk
+
+# Firebase Service-Account-Keys
+serviceAccount*.json
+*-firebase-adminsdk-*.json
