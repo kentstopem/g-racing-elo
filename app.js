@@ -641,6 +641,10 @@ async function init() {
         updateTagline();
         const v = document.getElementById('appVersion');
         if (v && window.APP_VERSION) v.textContent = window.APP_VERSION;
+        // © 2025–<aktuelles Jahr>
+        const year = new Date().getFullYear();
+        const cy = document.getElementById('copyrightYear');
+        if (cy && year > 2025) cy.textContent = `–${year}`;
         showSection('rankings');
         initNavigation();
         initDriverManagement();

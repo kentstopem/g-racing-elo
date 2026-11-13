@@ -440,8 +440,8 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .muted { color: var(--text-muted); }
 .empty-state { text-align: center; color: var(--text-muted); padding: 16px 0; }
 
-/* Ranglisten-Filter ist derzeit ausgeblendet */
-#rankings .ranking-filter-btn { display: none !important; }
+/* aktiver Filter */
+.ranking-filter-btn.filter-active { background: var(--iu-accent-light); border-color: var(--iu-black); }
 
 /* ---------- Mobil ---------- */
 @media (max-width: 600px) {
