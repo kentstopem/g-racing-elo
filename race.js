@@ -304,22 +304,25 @@
     const lastRace=window.Elo.sortChronologically(window.appData.races).pop();
     const isBackfill=lastRace && window.Helpers.tsForRace(race) < window.Helpers.tsForRace(lastRace);
 
-    window.appData.races.unshift(race);
-    let kFactor;
+    let kFactor, drvs=[], cars=[];
     if(isBackfill){
-      window.Elo.recomputeAll(window.appData);
+      // Nachgetragenes Rennen: Ergebnis auf einer Kopie der gesamten Historie berechnen.
+      // Die Werte aller späteren Rennen korrigiert anschließend sync.js automatisch.
+      const copy=structuredClone({drivers:window.appData.drivers,cars:window.appData.cars,races:[race,...window.appData.races]});
+      window.Elo.recomputeAll(copy);
+      race.results=copy.races[0].results;
       kFactor=calculateKFactor(totalPlayers, rounds);
-      window.Storage.syncAll(window.appData).catch(err=>{console.error(err);showToast('⚠️ Speichern fehlgeschlagen!');});
     }else{
       kFactor=window.Elo.applyRace(race, window.appData.drivers, window.appData.cars);
       window.Elo.storeOverallPositions(race, window.appData.drivers, window.appData.cars);
+      drvs=results.map(r=>window.appData.drivers.find(x=>x.id===r.driverId)).filter(Boolean);
+      cars=results.map(r=>window.appData.cars.find(x=>x.id===r.carId)).filter(Boolean);
     }
-    if(!isBackfill){
-      // Neues Rennen + beteiligte Fahrer/Fahrzeuge gemeinsam (atomar) speichern
-      const drvs=results.map(r=>window.appData.drivers.find(x=>x.id===r.driverId)).filter(Boolean);
-      const cars=results.map(r=>window.appData.cars.find(x=>x.id===r.carId)).filter(Boolean);
-      window.Storage.saveRace(race, drvs, cars).catch(err=>{console.error(err);showToast('⚠️ Rennen konnte nicht gespeichert werden!');});
-    }
+    window.appData.races.unshift(race);
+    // Rennen + Werte der Teilnehmer gemeinsam (atomar) speichern; Anzeige aktualisiert der Live-Listener
+    window.Storage.saveRace(race, drvs, cars)
+      .then(()=>{ if(isBackfill) window.Sync.schedule(0); })
+      .catch(err=>{console.error(err);showToast('⚠️ Rennen konnte nicht gespeichert werden!');});
 
     // UI auffrischen – Datum und Runden bleiben für das nächste Rennen stehen, Uhrzeit wird aktualisiert
     clearRaceDraft();
@@ -333,47 +336,29 @@
     window.HistoryUI.update();
   }
 
-  // -------------------- Gemeinsame Aktualisierung nach Neuberechnung --------------------
-  function refreshAfterRecompute(){
-    window.RankingUI.update();
-    window.HistoryUI.update();
-    if(typeof updateDriversList==='function') updateDriversList();
-    if(typeof updateCarsList==='function') updateCarsList();
-    if(typeof window.updateTagline==='function') window.updateTagline();
-  }
-
   // -------------------- Rennen löschen --------------------
-  // Alle Werte werden danach aus der Historie neu berechnet, damit auch spätere Rennen stimmen.
+  // Danach berechnet sync.js alle Werte aus der verbleibenden Historie neu und speichert die Abweichungen.
   async function deleteRace(id){
     const race=window.appData.races.find(r=>r.id===id);
     if(!race){showToast('Rennen nicht gefunden');return;}
     if(!confirm(`Rennen vom ${race.date} wirklich löschen?\nAlle G!RP-Werte werden danach neu berechnet.`))return;
-    window.appData.races=window.appData.races.filter(r=>r.id!==id);
-    window.Elo.recomputeAll(window.appData);
-    refreshAfterRecompute();
     try{
       await window.Storage.deleteRace(id);
-      await window.Storage.syncAll(window.appData);
+      await window.Sync.heal();
       showToast('Rennen gelöscht, G!RP neu berechnet');
     }catch(err){
       console.error(err);
-      showToast('⚠️ Löschen/Speichern fehlgeschlagen – bitte Seite neu laden');
+      showToast('⚠️ Löschen fehlgeschlagen – Verbindung prüfen!');
     }
   }
 
   // -------------------- Rebuild Elo --------------------
+  // Prüft alle gespeicherten Werte gegen die Renn-Historie und korrigiert Abweichungen.
   async function rebuildElo(){
     if(!window.isAdmin){showToast('Nur Admin');return;}
     if(!confirm('Alle G!RP-Werte neu berechnen?')) return;
-    window.Elo.recomputeAll(window.appData);
-    refreshAfterRecompute();
-    try{
-      await window.Storage.syncAll(window.appData);
-      showToast('G!RP neu berechnet und gespeichert');
-    }catch(err){
-      console.error(err);
-      showToast('⚠️ Speichern fehlgeschlagen!');
-    }
+    const n=await window.Sync.heal();
+    showToast(n?`G!RP neu berechnet – ${n} Einträge korrigiert`:'Alle G!RP-Werte sind bereits korrekt');
   }
 
   // -------------------- Auto-Setup Modal --------------------
@@ -604,7 +589,7 @@
     document.getElementById('raceRounds')?.addEventListener('change', persistRaceDraft);
   }
 
-  window.RaceUI={ init, updateForm:updateRaceForm };
+  window.RaceUI={ init, updateForm:updateRaceForm, refreshPredictions:updatePredictions };
   document.addEventListener('DOMContentLoaded', init);
 
   // global needed by inline onclicks

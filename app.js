@@ -258,23 +258,37 @@ function renderDetails(){
     div.innerHTML=`<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">${listHTML}${imgHTML}</div>`;
 }
 
-// Daten laden (Firestore)
-async function loadData() {
-    try {
-        const data = await window.Storage.fetchAll();
-        appData.drivers = data.drivers || [];
-        appData.cars    = data.cars    || [];
-        appData.races   = data.races   || [];
+// Daten laden und live halten (Firestore-Listener)
+// Jede Änderung – auch von einem anderen Gerät – aktualisiert die Anzeige sofort.
+let dataReady = null;
+function loadData() {
+    if (dataReady) return dataReady;
+    dataReady = window.Storage.subscribe((state, info) => {
+        appData.drivers    = state.drivers;
+        appData.cars       = state.cars;
+        appData.races      = state.races;
+        appData.lapRecords = state.lapRecords;
+        if (appStarted) refreshViews(info);
+        if (info.remote) showToast('🔄 Daten von einem anderen Gerät aktualisiert');
+        // Abgeleitete Werte prüfen/reparieren, sobald echte Serverdaten vorliegen
+        if (!info.fromCache) window.Sync.schedule();
+    });
+    return dataReady;
+}
 
-        // Rekorde gleichzeitig laden
-        try{
-          const db=firebase.firestore();
-          const snap=await db.collection('lapRecords').get();
-          appData.lapRecords = snap.docs.map(d=>({id:d.id,...d.data()}));
-        }catch(e){console.error('lapRecords konnten nicht geladen werden',e);}
-    } catch (e) {
-        console.error('Fehler beim Laden der Daten aus Firestore:', e);
-    }
+// Alle sichtbaren Bereiche neu zeichnen (Formulareingaben bleiben erhalten)
+let appStarted = false;
+function refreshViews(info = {}) {
+    updateTagline();
+    RankingUI.update();
+    HistoryUI.update();
+    updateDriversList();
+    updateCarsList();
+    RaceUI.refreshPredictions?.();
+    if (currentSection === 'stats') window.StatsUI?.reload();
+    if (currentSection === 'records' && info.collection === 'lapRecords') window.RecordsUI?.reload();
+    const modal = document.getElementById('eloModal');
+    if (modal && !modal.classList.contains('hidden')) renderView();
 }
 
 // Schreibvorgang absichern: Fehler werden sichtbar gemeldet statt nur in der Konsole
@@ -411,7 +425,7 @@ function toggleArchiveDriver(id) {
     const d = appData.drivers.find(x => x.id === id);
     if (!d) return;
     d.archived = !d.archived;
-    persist(window.Storage.updateDriver(d));
+    persist(window.Storage.updateDriverFields(id, { archived: d.archived }));
     updateDriversList();
     RankingUI.update();
     RaceUI.updateForm();
@@ -507,7 +521,7 @@ function toggleArchiveCar(id) {
     const c = appData.cars.find(x => x.id === id);
     if (!c) return;
     c.archived = !c.archived;
-    persist(window.Storage.updateCar(c));
+    persist(window.Storage.updateCarFields(id, { archived: c.archived }));
     updateCarsList();
     RankingUI.update();
     RaceUI.updateForm();
@@ -554,7 +568,7 @@ function updateCarsList() {
             if(e.target.classList.contains('toggle-hide')){
                const id=parseInt(e.target.dataset.id,10);
                const car=appData.cars.find(c=>c.id===id);
-               if(car){car.hideFromRanking=!e.target.checked;persist(window.Storage.updateCar(car));RankingUI.update();}
+               if(car){car.hideFromRanking=!e.target.checked;persist(window.Storage.updateCarFields(id,{hideFromRanking:car.hideFromRanking}));RankingUI.update();}
             }
         });
         list._delegationBound = true;
@@ -579,8 +593,8 @@ function updateAuthUI() {
     }
 }
 
-// Auth-Event Listener
-document.addEventListener('auth-changed', updateAuthUI);
+// Auth-Event Listener (nach Login als Admin: Werte einmal prüfen/reparieren)
+document.addEventListener('auth-changed', () => { updateAuthUI(); if (window.isAdmin) window.Sync?.schedule(); });
 
 // Auth-Button Click
 document.addEventListener('DOMContentLoaded', () => {
@@ -638,7 +652,7 @@ async function init() {
         initNavigation();
         initDriverManagement();
         initCarManagement();
-        /* initRaceManagement(); */
+        appStarted = true;
         updateDriversList();
         updateCarsList();
         RaceUI.updateForm();

@@ -23,6 +23,11 @@ firebase.initializeApp(firebaseConfig);
 window.auth = firebase.auth();
 window.db   = firebase.firestore();
 
+// Offline-Cache: Daten bleiben ohne WLAN verfügbar, Schreibvorgänge werden gepuffert
+// und automatisch gesendet, sobald wieder eine Verbindung besteht (auch nach einem Neuladen).
+window.db.enablePersistence({ synchronizeTabs: true })
+  .catch(err => console.warn('Offline-Cache nicht verfügbar:', err.code));
+
 // Login / Logout Funktionen
 window.login  = (mail, pw) => window.auth.signInWithEmailAndPassword(mail, pw);
 window.logout = () => window.auth.signOut();
@@ -33,12 +38,3 @@ window.auth.onAuthStateChanged(user => {
   window.isAdmin = !!user;
   document.dispatchEvent(new CustomEvent('auth-changed', { detail: user }));
 });
-
-// -------------------------------
-// Helfer – Referenzen auf window legen
-// -------------------------------
-function autoAttachGlobals () {
-  // Damit app.js (vorerst) ohne Refactor auf globale Objekte zugreifen kann
-  window.db   = firebase.firestore();
-  window.auth = firebase.auth();
-}
