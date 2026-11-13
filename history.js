@@ -1,5 +1,5 @@
 (function(){
-  const { tsForRace, showToast } = window.Helpers;
+  const { tsForRace, showToast, escapeHtml: esc } = window.Helpers;
 
   // Filterzustand (Fahrer-/Fahrzeug-IDs)
   window.historyFilter = window.historyFilter || [];
@@ -47,17 +47,20 @@
               const carChange=(res.carEloChange!==undefined)?res.carEloChange:drvChange;
               const drvColor=drvChange>=0?'elo-up':'elo-down';
               const carColor=carChange>=0?'elo-up':'elo-down';
-              return `<tr>
-                        <td class="pos">${res.position}.</td>
-                        <td><strong>${res.driverName}</strong></td>
-                        <td>${res.oldDriverElo} → <span class="${drvColor}">${res.newDriverElo} (${drvChange>=0?'+':''}${drvChange})</span></td>
+              // Fahrer + Fahrzeug bilden ein Paar (eigener tbody); Trennlinie nur zwischen den Paaren
+              return `<tbody class="pair">
+                      <tr class="pair-driver">
+                        <td class="pos" rowspan="2">${res.position}.</td>
+                        <td class="who"><span class="pair-icon" aria-hidden="true">😎</span><strong>${esc(res.driverName)}</strong></td>
+                        <td class="pts"><span class="old">${res.oldDriverElo} → </span><span class="${drvColor}">${res.newDriverElo} (${drvChange>=0?'+':''}${drvChange})</span></td>
                       </tr>
-                      <tr class="sub">
-                        <td></td><td>${res.carName}</td>
-                        <td>${res.oldCarElo} → <span class="${carColor}">${res.newCarElo} (${carChange>=0?'+':''}${carChange})</span></td>
-                      </tr>`;
+                      <tr class="pair-car">
+                        <td class="who"><span class="pair-icon" aria-hidden="true">🏎️</span>${esc(res.carName)}</td>
+                        <td class="pts"><span class="old">${res.oldCarElo} → </span><span class="${carColor}">${res.newCarElo} (${carChange>=0?'+':''}${carChange})</span></td>
+                      </tr>
+                    </tbody>`;
           }).join('');
-          return `<div class="race-history-item"><table class="race-table"><tbody>${header}</tbody></table><table class="race-table"><tbody>${rows}</tbody></table></div>`;
+          return `<div class="race-history-item"><table class="race-table"><tbody>${header}</tbody></table><table class="race-table">${rows}</table></div>`;
       }).join('');
   }
 
