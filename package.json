@@ -1,0 +1,9 @@
+{
+  "name": "g-racing-elo",
+  "private": true,
+  "description": "G!lashammer Racing Points – Rennauswertung für die Carrerabahn",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}
