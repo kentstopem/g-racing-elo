@@ -39,6 +39,9 @@
       this.stopBtn.className='btn btn-small reel-stop-btn';
       this.stopBtn.textContent='Stopp';
       this.stopBtn.disabled=true;
+      // Ergebnis-Feld: ersetzt nach dem Stoppen den Stopp-Knopf und bleibt stehen
+      this.result=document.createElement('div');
+      this.result.className='reel-result hidden';
       this.reel=document.createElement('div');
       this.reel.className='reel'; // viewport
       this.track=document.createElement('div');
@@ -67,6 +70,7 @@
       this.wrap.appendChild(this.startBtn);
       this.wrap.appendChild(this.reel);
       this.wrap.appendChild(this.stopBtn);
+      this.wrap.appendChild(this.result);
       reelsDiv.appendChild(this.wrap);
 
       // Einträge vervielfachen, bis die Walze nahtlos laufen kann (begrenzt)
@@ -145,7 +149,11 @@
       // finalize selection
       selectedIds[this.idx]=chosen.id;
       this.stopped=true;this.frozen=true;
-      window.Helpers.showToast(`Walze ${this.idx+1}: ${chosen.name}`);
+      this.stopBtn.classList.add('hidden');
+      this.result.textContent=chosen.name;
+      this.result.title=chosen.name;
+      this.result.classList.remove('hidden');
+      chosenEl.classList.add('reel-item-chosen');
       runningReels.forEach(r=>{ if(r!==this) r.removeCar(carId);});
       // enable confirm if all stopped
       checkAllStopped();
