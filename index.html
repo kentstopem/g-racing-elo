@@ -165,6 +165,19 @@
             <div id="raceHistory"></div>
         </div>
 
+        <!-- Statistik Section -->
+        <div id="stats" class="section">
+            <div id="statsSubNav" class="sub-nav">
+                <button class="sub-tab active" id="statsDriversBtn">😎 Fahrer</button>
+                <button class="sub-tab" id="statsCarsBtn">🏎️ Fahrzeuge</button>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div></div>
+                <button class="ranking-filter-btn admin-only" id="statsFilterBtn">🔍 Filter</button>
+            </div>
+            <div id="statsTableWrap"></div>
+        </div>
+
         <!-- G!RP Chart Modal -->
         <div id="eloModal" class="modal hidden">
             <div class="modal-content" style="max-width:600px;">
@@ -299,19 +312,6 @@
                 <button class="btn btn-danger" id="slotCloseBtn">Abbrechen</button>
             </div>
         </div>
-    </div>
-
-    <!-- Statistik Section -->
-    <div id="stats" class="section">
-        <div id="statsSubNav" class="sub-nav">
-            <button class="sub-tab active" id="statsDriversBtn">😎 Fahrer</button>
-            <button class="sub-tab" id="statsCarsBtn">🏎️ Fahrzeuge</button>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div></div>
-            <button class="ranking-filter-btn admin-only" id="statsFilterBtn">🔍 Filter</button>
-        </div>
-        <div id="statsTableWrap"></div>
     </div>
 
     <footer class="site-footer">

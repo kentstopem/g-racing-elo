@@ -105,12 +105,13 @@
   function update(){ updateDriverRanking(); updateCarRanking(); }
 
   // —————————————— Sub-Navigation (Fahrer / Fahrzeuge)
+  // Nur die Ranglisten-Buttons (oben in der Navigation und in der Sektion), nicht die von Rekorden/Statistik
   function initSubNav(){
-    document.querySelectorAll('.sub-tab').forEach(btn=>{
+    const buttons=document.querySelectorAll('#rankSubNav .sub-tab, #rankings .rank-sub-btn');
+    buttons.forEach(btn=>{
       btn.addEventListener('click',()=>{
-        document.querySelectorAll('.sub-tab').forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
         const sel=btn.getAttribute('data-rank');
+        buttons.forEach(b=>b.classList.toggle('active', b.getAttribute('data-rank')===sel));
         document.getElementById('driversRankWrapper').classList.toggle('hidden', sel!=='drivers');
         document.getElementById('carsRankWrapper').classList.toggle('hidden', sel!=='cars');
       });

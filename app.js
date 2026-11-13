@@ -342,6 +342,8 @@ function showSection(sectionName) {
             carFilter
         );
         // rankSubNav bleibt versteckt
+    } else if (sectionName === 'stats') {
+        window.StatsUI?.reload();
     } else if (sectionName==='records'){
         if(window.RecordsUI?.reload) window.RecordsUI.reload();
         document.getElementById('recordSubNav').classList.remove('hidden');

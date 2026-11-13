@@ -80,13 +80,8 @@
        totalWeight-=segments[pickedIdx].weight;
        segments.splice(pickedIdx,1);
        drawWheel();
-       if(segments.length===0){
-         close();
-         if(callback) callback(selectedIds);
-         return;
-       }
        selectedIds.push(pickedId);
-       if(selectedIds.length===targetCount){
+       if(selectedIds.length===targetCount || segments.length===0){
          close();
          if(callback) callback(selectedIds);
        }

@@ -291,6 +291,7 @@
       });
     }
     const totalPlayers=results.length;
+    if(totalPlayers<2){showToast('Mindestens 2 Teilnehmer erforderlich!');return;}
     // Validierung Platzlücken
     const missing=[];for(let p=1;p<=totalPlayers;p++){if(!chosenPlaces.has(p)) missing.push(p);}if(missing.length){showToast('Platzierungen lückenhaft');return;}
     const formattedDate=new Date(raceDate).toLocaleDateString('de-DE');
@@ -394,14 +395,15 @@
 
   function openSetupModal(){
     if(!setupModal)return;
-    clearRaceDraft();
-    selectedDrivers=[];selectedCars=[];
+    selectedCars=[];
+    // zuletzt gewählte (noch vorhandene) Fahrer sind vorausgewählt
+    selectedDrivers=prevSelectedDrivers.filter(id=>window.appData.drivers.some(d=>d.id===id&&!d.archived));
     // Build driver checklist (alphabetisch)
     driverListDiv.innerHTML=[...window.appData.drivers].filter(d=>!d.archived)
       .sort((a,b)=>a.name.localeCompare(b.name))
       .map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${prevSelectedDrivers.includes(d.id)?'checked':''}>${esc(d.name)}</label>`)
       .join('');
-    nextBtn.disabled=true;
+    nextBtn.disabled=selectedDrivers.length<2||selectedDrivers.length>6;
     step1.classList.remove('hidden');
     step2.classList.add('hidden');
     setupModal.classList.remove('hidden');
@@ -498,7 +500,8 @@
     }
     const driversSorted=[...drvs].sort((a,b)=>cmpArrays(strengthKeyDriver(a),strengthKeyDriver(b)));
     const carsSorted=[...cars].sort((a,b)=>cmpArrays(strengthKeyCar(a),strengthKeyCar(b)));
-    // Clear existing entries
+    // Bisherigen Entwurf durch die neue Paarung ersetzen
+    clearRaceDraft();
     const container=document.getElementById('raceEntries');
     if(container){container.innerHTML='';window.appData.raceCounter=0;}
     driversSorted.forEach((d,idx)=>{
