@@ -2,8 +2,8 @@
   const BASE_K = 32;
   const START_ELO = 1000;
   const MIN_ELO = 100;
-  const MIN_RACES_FOR_RANK = 5;     // ab so vielen Rennen gilt ein Fahrer als „aktiv“ (Rangliste) bzw. ein Fahrzeug als eingestuft (Auto-Setup)
-  const MIN_RACES_FOR_CAR_RANK = 1; // Fahrzeug-Rangliste/-Diagramm: ab dem ersten Rennen
+  const MIN_RACES_FOR_RANK = 5;     // ab so vielen Rennen gilt ein Fahrer als „aktiv“ (Rangliste, Auto-Setup)
+  const MIN_RACES_FOR_CAR_RANK = 1; // Fahrzeuge: Rangliste, Diagramm und Auto-Setup ab dem ersten Rennen
 
   function calculateExpectedScore(playerElo, opponentElos) {
     return opponentElos.reduce((acc, opponentElo) => acc + 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400)), 0) / opponentElos.length;

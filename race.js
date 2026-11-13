@@ -480,10 +480,9 @@
     const rankVal=rank===-1?Number.POSITIVE_INFINITY:rank;
     return [rankVal, -d.races, -d.elo, d.name];
   }
-  // Matching: Fahrzeuge mit weniger als MIN_RACES_FOR_RANK Rennen gelten als „schwächste“
-  // (ihr G!RP ist noch nicht aussagekräftig) und gehen an die stärksten Fahrer.
+  // Matching: Fahrzeuge werden ab dem ersten Rennen nach ihren G!RP-Punkten eingestuft.
   function strengthKeyCar(c){
-    const rank=window.appData.cars.filter(x=>x.races>=MIN_RACES_FOR_RANK&&!x.hideFromRanking&&!x.archived).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===c.id);
+    const rank=window.appData.cars.filter(x=>!x.hideFromRanking&&!x.archived).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===c.id);
     const rankVal=rank===-1?Number.POSITIVE_INFINITY:rank;
     return [ -rankVal, c.races, c.elo, c.name]; // sort ascending later => weakest first
   }
