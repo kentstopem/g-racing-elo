@@ -531,3 +531,5 @@ input[type=range]{width:100%;}
 
 /* Pair delete icon */
 .pair-del-btn{background:none;border:none;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;color:#cc0000;margin-left:auto;align-self:center;order:99;} 
+/* Archivierte Fahrer/Fahrzeuge */
+.list-item.archived{opacity:.6;}

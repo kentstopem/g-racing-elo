@@ -21,5 +21,10 @@
     return new Date(`${iso}T${timeStr}:00`).getTime();
   }
 
-  window.Helpers = { showToast, tsForRace };
+  // Text sicher in HTML einsetzen (Namen etc.)
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  window.Helpers = { showToast, tsForRace, escapeHtml };
 })(); 

@@ -19,11 +19,20 @@ window.historyFilter = historyFilter;
 window.carFilter = carFilter;
 
 // Neue Modul-Imports
-const { showToast, tsForRace } = window.Helpers;
+const { showToast, tsForRace, escapeHtml } = window.Helpers;
 
 // Chart handling
 let eloChartInstance=null;
 let currentChartType='pos';let currentEntityType=null;let currentEntityId=null;
+
+// Aktuelle Rangliste (wie in elo.js storeOverallPositions): aktive, nicht archivierte, nach G!RP sortiert
+function activeRanking(type){
+  const min=window.Elo.MIN_RACES_FOR_RANK;
+  const list = type==='driver'
+      ? appData.drivers.filter(d=>d.races>=min && !d.archived)
+      : appData.cars.filter(c=>c.races>=min && !c.hideFromRanking && !c.archived);
+  return [...list].sort((a,b)=>b.elo-a.elo);
+}
 
 function renderChart(mode){
   const canvas=document.getElementById('eloChart');
@@ -72,13 +81,10 @@ function renderChart(mode){
       }
     });
   }
-  if(!labels.length && mode==='pos'){
-    // versuche, nur den heutigen Rang zu zeigen, falls vorhanden
-    const MIN_RACES_FOR_RANK=5;
-    const active = currentEntityType==='driver'
-        ? [...appData.drivers].filter(d=>d.races>=MIN_RACES_FOR_RANK)
-        : [...appData.cars   ].filter(c=>c.races>=MIN_RACES_FOR_RANK && !c.hideFromRanking);
-    const idx = active.findIndex(x=>x.id===currentEntityId);
+  // ▼ Synthetischer Schluss-Punkt (heutiger Rang)
+  if(mode==='pos'){
+    const active=activeRanking(currentEntityType);
+    const idx=active.findIndex(x=>x.id==currentEntityId);
     if(idx!==-1){
       labels.push('heute');
       data.push(idx+1);
@@ -86,6 +92,7 @@ function renderChart(mode){
       posArr.push(idx+1);
       totalArr.push(active.length);
       raceNrArr.push('-');
+      partnerArr.push(null);
     }
   }
   if(!labels.length){
@@ -93,45 +100,16 @@ function renderChart(mode){
     const ctx=canvas.getContext('2d');
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle='#666';ctx.textAlign='center';ctx.font='16px sans-serif';
-    const msg=mode==='pos'?'Rang erst nach dem 5. Rennen':'Noch keine G!RP-Daten';
+    const msg=mode==='pos'?`Rang erst nach dem ${window.Elo.MIN_RACES_FOR_RANK}. Rennen`:'Noch keine G!RP-Daten';
     ctx.fillText(msg, canvas.width/2, canvas.height/2);
     return;
   }
 
-  // ▼ Synthetischer Schluss-Punkt (heutiger Rang)
-  if(mode==='pos'){
-    const MIN_RACES_FOR_RANK=5;
-    if(currentEntityType==='driver'){
-      const active=[...appData.drivers].filter(d=>d.races>=MIN_RACES_FOR_RANK).sort((a,b)=>b.elo-a.elo);
-      const idx=active.findIndex(d=>d.id===currentEntityId);
-      if(idx!==-1 && (raceNrArr[raceNrArr.length-1]!=='-')){
-        labels.push('heute');
-        data.push(idx+1);
-        dateArr.push(new Date().toLocaleDateString('de-DE'));
-        posArr.push(idx+1);
-        totalArr.push(active.length);
-        raceNrArr.push('-');
-      }
-    }else{
-      const active=[...appData.cars].filter(c=>c.races>=MIN_RACES_FOR_RANK && !c.hideFromRanking).sort((a,b)=>b.elo-a.elo);
-      const idx=active.findIndex(c=>c.id===currentEntityId);
-      if(idx!==-1 && (raceNrArr[raceNrArr.length-1]!=='-')){
-        labels.push('heute');
-        data.push(idx+1);
-        dateArr.push(new Date().toLocaleDateString('de-DE'));
-        posArr.push(idx+1);
-        totalArr.push(active.length);
-        raceNrArr.push('-');
-      }
-    }
-  }
   if(eloChartInstance) eloChartInstance.destroy();
   const yOpts = mode==='elo'
       ? {title:{display:true,text:'G!RP'},beginAtZero:false}
       : (()=>{
-          const activeCount = currentEntityType==='driver'
-              ? appData.drivers.filter(d=>d.races>=5).length
-              : appData.cars   .filter(c=>c.races>=5 && !c.hideFromRanking).length;
+          const activeCount = activeRanking(currentEntityType).length;
           const maxRank=Math.max(activeCount, ...data,1);
           return {title:{display:true,text:'Rang'},reverse:true,min:1,max:maxRank,ticks:{stepSize:1,callback:v=>Number.isInteger(v)?v:''}};
         })();
@@ -299,10 +277,12 @@ async function loadData() {
     }
 }
 
-// Daten synchronisieren (Batch)
-function saveData() {
-    // Fire-and-forget; wir warten nicht zwingend auf das Promise
-    window.Storage.syncAll(appData).catch(err => console.error('Sync-Fehler:', err));
+// Schreibvorgang absichern: Fehler werden sichtbar gemeldet statt nur in der Konsole
+function persist(promise) {
+    return promise.catch(err => {
+        console.error('Speicherfehler:', err);
+        showToast('⚠️ Speichern fehlgeschlagen – Verbindung prüfen!');
+    });
 }
 
 // --- Kopfzeile Spitzenreiter-Tagline ---
@@ -312,7 +292,7 @@ function updateTagline() {
 
     let topName = 'Christian L.';
     if (appData.drivers && appData.drivers.length) {
-        const topDriver = [...appData.drivers].sort((a,b)=>b.elo - a.elo)[0];
+        const topDriver = activeRanking('driver')[0];
         if (topDriver && topDriver.name) topName = topDriver.name;
     }
     taglineEl.textContent = `Kannst Du mit ${topName} mithalten?`;
@@ -398,30 +378,40 @@ function addDriver() {
         return;
     }
 
-    appData.drivers.push({
-        id: Date.now(),
-        name,
-        elo: 1000,
-        races: 0
-    });
+    const driver = { id: Date.now(), name, elo: 1000, races: 0, wins: 0, totalRounds: 0 };
+    appData.drivers.push(driver);
 
     input.value = '';
-    saveData();
+    persist(window.Storage.addDriver(driver));
     updateDriversList();
     RaceUI.updateForm();
 }
 
+// Fahrer/Fahrzeuge mit Rennen werden archiviert statt gelöscht, damit die Historie vollständig bleibt.
+// Archivierte erscheinen nicht mehr in Rangliste, Rennformular und Auto-Setup.
+function hasRaces(field, id) {
+    return appData.races.some(r => (r.results || []).some(res => res[field] === id));
+}
+
 function deleteDriver(id) {
-    if (!confirm('Fahrer wirklich löschen? Alle Renndaten gehen verloren!')) return;
-
+    if (hasRaces('driverId', id)) {
+        showToast('Fahrer hat bereits Rennen – bitte archivieren statt löschen');
+        return;
+    }
+    if (!confirm('Fahrer wirklich löschen?')) return;
     appData.drivers = appData.drivers.filter(d => d.id !== id);
-    appData.races   = appData.races.filter(race => !race.results.some(r => r.driverId === id));
-
-    // Firestore-Dokument direkt löschen
-    window.Storage.deleteDriver(id).catch(err => console.error('deleteDriver Firestore:', err));
-
-    saveData();
+    persist(window.Storage.deleteDriver(id));
     updateDriversList();
+    RaceUI.updateForm();
+}
+
+function toggleArchiveDriver(id) {
+    const d = appData.drivers.find(x => x.id === id);
+    if (!d) return;
+    d.archived = !d.archived;
+    persist(window.Storage.updateDriver(d));
+    updateDriversList();
+    RankingUI.update();
     RaceUI.updateForm();
 }
 
@@ -434,18 +424,20 @@ function updateDriversList() {
         return;
     }
 
-    const sortedDrivers=[...appData.drivers].sort((a,b)=>a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
+    const sortedDrivers=[...appData.drivers].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
     list.innerHTML = sortedDrivers.map(driver => `
-        <div class="list-item" data-id="${driver.id}">
+        <div class="list-item${driver.archived?' archived':''}" data-id="${driver.id}">
             <div>
-                <strong>${driver.name}</strong>
+                <strong>${escapeHtml(driver.name)}</strong>${driver.archived?' <span class="status-inactive">archiviert</span>':''}
                 <div style="font-size: 0.9em; color: #666;">
-                    ${driver.races} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Rd.
+                    ${driver.races||0} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Rd.
                 </div>
             </div>
-            <div style="display: flex; align-items: center;">
+            <div style="display: flex; align-items: center; gap:8px;">
                 <span class="elo-score">${driver.elo}</span>
-                <button class="btn btn-danger delete-driver" data-id="${driver.id}">Löschen</button>
+                ${driver.races>0
+                  ? `<button class="btn archive-driver" data-id="${driver.id}">${driver.archived?'Reaktivieren':'Archivieren'}</button>`
+                  : `<button class="btn btn-danger delete-driver" data-id="${driver.id}">Löschen</button>`}
             </div>
         </div>
     `).join('');
@@ -453,10 +445,9 @@ function updateDriversList() {
     // Event-Delegation nur einmal binden
     if (!list._delegationBound) {
         list.addEventListener('click', (e) => {
-            if (e.target.classList.contains('delete-driver')) {
-                const id = parseInt(e.target.dataset.id, 10);
-                deleteDriver(id);
-            }
+            const id = parseInt(e.target.dataset.id, 10);
+            if (e.target.classList.contains('delete-driver')) deleteDriver(id);
+            if (e.target.classList.contains('archive-driver')) toggleArchiveDriver(id);
         });
         list._delegationBound = true;
     }
@@ -489,32 +480,34 @@ function addCar() {
         return;
     }
 
-    appData.cars.push({
-        id: Date.now(),
-        name,
-        elo: 1000,
-        races: 0,
-        wins: 0,
-        totalRounds: 0,
-        hideFromRanking: false
-    });
+    const car = { id: Date.now(), name, elo: 1000, races: 0, wins: 0, totalRounds: 0, hideFromRanking: false };
+    appData.cars.push(car);
 
     input.value = '';
-    saveData();
+    persist(window.Storage.addCar(car));
     updateCarsList();
     RaceUI.updateForm();
 }
 
 function deleteCar(id) {
-    if (!confirm('Fahrzeug wirklich löschen? Alle Renndaten gehen verloren!')) return;
-
-    appData.cars  = appData.cars.filter(c => c.id !== id);
-    appData.races = appData.races.filter(race => !race.results.some(r => r.carId === id));
-
-    window.Storage.deleteCar(id).catch(err => console.error('deleteCar Firestore:', err));
-
-    saveData();
+    if (hasRaces('carId', id)) {
+        showToast('Fahrzeug hat bereits Rennen – bitte archivieren statt löschen');
+        return;
+    }
+    if (!confirm('Fahrzeug wirklich löschen?')) return;
+    appData.cars = appData.cars.filter(c => c.id !== id);
+    persist(window.Storage.deleteCar(id));
     updateCarsList();
+    RaceUI.updateForm();
+}
+
+function toggleArchiveCar(id) {
+    const c = appData.cars.find(x => x.id === id);
+    if (!c) return;
+    c.archived = !c.archived;
+    persist(window.Storage.updateCar(c));
+    updateCarsList();
+    RankingUI.update();
     RaceUI.updateForm();
 }
 
@@ -527,38 +520,39 @@ function updateCarsList() {
         return;
     }
 
-    const sortedCars=[...appData.cars].sort((a,b)=>a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
+    const sortedCars=[...appData.cars].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
     list.innerHTML = sortedCars.map(car => `
-        <div class="list-item" data-id="${car.id}">
+        <div class="list-item${car.archived?' archived':''}" data-id="${car.id}">
             <div>
-                <strong>${car.name}</strong>
+                <strong>${escapeHtml(car.name)}</strong>${car.archived?' <span class="status-inactive">archiviert</span>':''}
                 <div style="font-size: 0.9em; color: #666;">
-                    ${car.races} Rennen · ${car.wins||0} Siege · ${car.totalRounds||0} Rd.
+                    ${car.races||0} Rennen · ${car.wins||0} Siege · ${car.totalRounds||0} Rd.
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap:8px;">
-                ${window.isAdmin?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;">
+                ${window.isAdmin && !car.archived?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;">
                     <input type="checkbox" class="toggle-hide" data-id="${car.id}" ${car.hideFromRanking?'' :'checked'}>
                     im Ranking
                 </label>`:''}
                 <span class="elo-score">${car.elo}</span>
-                <button class="btn btn-danger delete-car" data-id="${car.id}">Löschen</button>
+                ${car.races>0
+                  ? `<button class="btn archive-car" data-id="${car.id}">${car.archived?'Reaktivieren':'Archivieren'}</button>`
+                  : `<button class="btn btn-danger delete-car" data-id="${car.id}">Löschen</button>`}
             </div>
         </div>
     `).join('');
 
     if (!list._delegationBound) {
         list.addEventListener('click', (e) => {
-            if (e.target.classList.contains('delete-car')) {
-                const id = parseInt(e.target.dataset.id, 10);
-                deleteCar(id);
-            }
+            const id = parseInt(e.target.dataset.id, 10);
+            if (e.target.classList.contains('delete-car')) deleteCar(id);
+            if (e.target.classList.contains('archive-car')) toggleArchiveCar(id);
         });
         list.addEventListener('change',(e)=>{
             if(e.target.classList.contains('toggle-hide')){
                const id=parseInt(e.target.dataset.id,10);
                const car=appData.cars.find(c=>c.id===id);
-               if(car){car.hideFromRanking=!e.target.checked;window.Storage.updateCar(car).catch(console.error);saveData();RankingUI.update();}
+               if(car){car.hideFromRanking=!e.target.checked;persist(window.Storage.updateCar(car));RankingUI.update();}
             }
         });
         list._delegationBound = true;

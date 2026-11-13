@@ -14,6 +14,7 @@
   function updateDriverRanking(){
     // Auswahl & Filter anwenden
     const selected=[...window.appData.drivers].filter(d=>{
+      if(d.archived) return false;
       if(driverFilter.length>0 && !driverFilter.includes(d.id)) return false;
       return true;
     });
@@ -66,7 +67,7 @@
 
   function updateCarRanking(){
     const selected=[...window.appData.cars].filter(c=>{
-      if(c.hideFromRanking) return false;
+      if(c.hideFromRanking||c.archived) return false;
       if(carFilter.length>0 && !carFilter.includes(c.id)) return false;
       return true;
     });
@@ -132,9 +133,9 @@
     function populateList(){
       const isDriversTab=!document.getElementById('driversRankWrapper').classList.contains('hidden');
       if(isDriversTab){
-        listDiv.innerHTML=[...window.appData.drivers].sort((a,b)=>a.name.localeCompare(b.name)).map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${driverFilter.includes(d.id)?'checked':''}>${d.name}</label>`).join('');
+        listDiv.innerHTML=[...window.appData.drivers].filter(d=>!d.archived).sort((a,b)=>a.name.localeCompare(b.name)).map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${driverFilter.includes(d.id)?'checked':''}>${d.name}</label>`).join('');
       }else{
-        listDiv.innerHTML=[...window.appData.cars].filter(c=>!c.hideFromRanking).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${c.id}' ${carFilter.includes(c.id)?'checked':''}>${c.name}</label>`).join('');
+        listDiv.innerHTML=[...window.appData.cars].filter(c=>!c.hideFromRanking&&!c.archived).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${c.id}' ${carFilter.includes(c.id)?'checked':''}>${c.name}</label>`).join('');
       }
     }
 

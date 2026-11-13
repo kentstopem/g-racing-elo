@@ -89,8 +89,8 @@
 
   // Gesamtrang aller aktiven Fahrer/Fahrzeuge nach einem Rennen im Ergebnis festhalten
   function storeOverallPositions(race, drivers, cars) {
-    const activeD = drivers.filter(d => d.races >= MIN_RACES_FOR_RANK).sort((a, b) => b.elo - a.elo);
-    const activeC = cars.filter(c => c.races >= MIN_RACES_FOR_RANK && !c.hideFromRanking).sort((a, b) => b.elo - a.elo);
+    const activeD = drivers.filter(d => d.races >= MIN_RACES_FOR_RANK && !d.archived).sort((a, b) => b.elo - a.elo);
+    const activeC = cars.filter(c => c.races >= MIN_RACES_FOR_RANK && !c.hideFromRanking && !c.archived).sort((a, b) => b.elo - a.elo);
     const drvRank = new Map(activeD.map((d, i) => [d.id, i + 1]));
     const carRank = new Map(activeC.map((c, i) => [c.id, i + 1]));
     (race.results || []).forEach(res => {

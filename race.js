@@ -1,5 +1,5 @@
 (function(){
-  const { showToast } = window.Helpers;
+  const { showToast, escapeHtml: esc } = window.Helpers;
   const { calculateExpectedScore, calculateActualScore, calculateKFactor } = window.Elo;
   const MIN_RACES_FOR_RANK = window.Elo.MIN_RACES_FOR_RANK; // ab so vielen Rennen gilt ein Fahrer/Fahrzeug als „aktiv“
 
@@ -99,7 +99,7 @@
         <label>Platz ${window.appData.raceCounter}:</label>
         <select class="driver-select">
           <option value="">Fahrer wählen...</option>
-          ${[...window.appData.drivers].sort((a,b)=>a.name.localeCompare(b.name)).map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}
+          ${[...window.appData.drivers].filter(d=>!d.archived).sort((a,b)=>a.name.localeCompare(b.name)).map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('')}
         </select>
         <div class="pred driver-pred"></div>
       </div>
@@ -107,7 +107,7 @@
         <label>Fahrzeug:</label>
         <select class="car-select">
           <option value="">Fahrzeug wählen...</option>
-          ${[...window.appData.cars].sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
+          ${[...window.appData.cars].filter(c=>!c.archived).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
         </select>
         <div class="pred car-pred"></div>
       </div>
@@ -397,9 +397,9 @@
     clearRaceDraft();
     selectedDrivers=[];selectedCars=[];
     // Build driver checklist (alphabetisch)
-    driverListDiv.innerHTML=[...window.appData.drivers]
+    driverListDiv.innerHTML=[...window.appData.drivers].filter(d=>!d.archived)
       .sort((a,b)=>a.name.localeCompare(b.name))
-      .map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${prevSelectedDrivers.includes(d.id)?'checked':''}>${d.name}</label>`)
+      .map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${prevSelectedDrivers.includes(d.id)?'checked':''}>${esc(d.name)}</label>`)
       .join('');
     nextBtn.disabled=true;
     step1.classList.remove('hidden');
@@ -420,9 +420,9 @@
     prevSelectedDrivers=[...selectedDrivers];
     // Build car checklist (alphabetisch, nur im Ranking)
     carListDiv.classList.remove('hidden');
-    carListDiv.innerHTML=[...window.appData.cars].filter(c=>!c.hideFromRanking)
+    carListDiv.innerHTML=[...window.appData.cars].filter(c=>!c.hideFromRanking&&!c.archived)
       .sort((a,b)=>a.name.localeCompare(b.name))
-      .map(c=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${c.id}'>${c.name}</label>`)
+      .map(c=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${c.id}'>${esc(c.name)}</label>`)
       .join('');
     finishBtn.disabled=true;
     step1.classList.add('hidden');
@@ -474,12 +474,12 @@
   });
 
   function strengthKeyDriver(d){
-    const rank=window.appData.drivers.filter(x=>x.races>=MIN_RACES_FOR_RANK).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===d.id);
+    const rank=window.appData.drivers.filter(x=>x.races>=MIN_RACES_FOR_RANK&&!x.archived).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===d.id);
     const rankVal=rank===-1?Number.POSITIVE_INFINITY:rank;
     return [rankVal, -d.races, -d.elo, d.name];
   }
   function strengthKeyCar(c){
-    const rank=window.appData.cars.filter(x=>!x.hideFromRanking).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===c.id);
+    const rank=window.appData.cars.filter(x=>!x.hideFromRanking&&!x.archived).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===c.id);
     const rankVal=rank===-1?Number.POSITIVE_INFINITY:rank;
     return [ -rankVal, c.races, c.elo, c.name]; // sort ascending later => weakest first
   }
