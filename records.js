@@ -39,14 +39,14 @@
         <div class="form-group"><label>Fahrzeug:</label><select id="recCarSel"></select></div>
         <div class="form-group"><label>Bestzeit (Sekunden):</label><input type="number" id="recTime" step="0.001" min="0"></div>
         <div class="form-group"><label>Datum:</label><input type="date" id="recDate"></div>
-        <button class="btn" id="saveRecordBtn">Speichern</button>`;
+        <button class="btn btn-primary" id="saveRecordBtn">Speichern</button>`;
     }else{
       formDiv.innerHTML=`
         <div class="form-group"><label>Fahrzeug:</label><select id="recCarSel"></select></div>
         <div class="form-group"><label>Fahrer:</label><select id="recDriverSel"></select></div>
         <div class="form-group"><label>Bestzeit (Sekunden):</label><input type="number" id="recTime" step="0.001" min="0"></div>
         <div class="form-group"><label>Datum:</label><input type="date" id="recDate"></div>
-        <button class="btn" id="saveRecordBtn">Speichern</button>`;
+        <button class="btn btn-primary" id="saveRecordBtn">Speichern</button>`;
     }
     fillDropdowns();
     document.getElementById('saveRecordBtn')?.addEventListener('click',saveRecord);

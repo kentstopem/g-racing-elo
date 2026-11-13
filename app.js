@@ -99,13 +99,15 @@ function renderChart(mode){
     if(eloChartInstance){eloChartInstance.destroy(); eloChartInstance=null;}
     const ctx=canvas.getContext('2d');
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle='#666';ctx.textAlign='center';ctx.font='16px sans-serif';
+    ctx.fillStyle='#5A5A5E';ctx.textAlign='center';ctx.font="16px 'Source Sans 3', system-ui, sans-serif";
     const msg=mode==='pos'?(currentEntityType==='car'?'Noch keine Rennen':`Rang erst nach dem ${window.Elo.MIN_RACES_FOR_RANK}. Rennen`):'Noch keine G!RP-Daten';
     ctx.fillText(msg, canvas.width/2, canvas.height/2);
     return;
   }
 
   if(eloChartInstance) eloChartInstance.destroy();
+  Chart.defaults.font.family="'Source Sans 3', system-ui, sans-serif";
+  Chart.defaults.color='#5A5A5E';
   const yOpts = mode==='elo'
       ? {title:{display:true,text:'G!RP'},beginAtZero:false}
       : (()=>{
@@ -115,7 +117,7 @@ function renderChart(mode){
         })();
   eloChartInstance=new Chart(canvas.getContext('2d'),{
     type:'line',
-    data:{labels,datasets:[{label:mode==='elo'?'G!RP':'Rang',data,borderColor:'#007bff',backgroundColor:'rgba(0,123,255,0.1)',tension:0.2,pointRadius:10,pointHoverRadius:12}]},
+    data:{labels,datasets:[{label:mode==='elo'?'G!RP':'Rang',data,borderColor:'#1D1D1F',backgroundColor:'#00F9FF',pointBorderColor:'#1D1D1F',pointBorderWidth:2,borderWidth:2,tension:0.2,pointRadius:4,pointHoverRadius:8}]},
     options:{
       scales:{y:yOpts},
       interaction:{mode:'index',intersect:false},
@@ -436,7 +438,7 @@ function updateDriversList() {
     if (!list) return;
 
     if (appData.drivers.length === 0) {
-        list.innerHTML = '<p style="text-align: center; color: #666;">Noch keine Fahrer hinzugefügt.</p>';
+        list.innerHTML = '<p style="text-align: center; color:var(--text-muted);">Noch keine Fahrer hinzugefügt.</p>';
         return;
     }
 
@@ -445,7 +447,7 @@ function updateDriversList() {
         <div class="list-item${driver.archived?' archived':''}" data-id="${driver.id}">
             <div>
                 <strong>${escapeHtml(driver.name)}</strong>${driver.archived?' <span class="status-inactive">archiviert</span>':''}
-                <div style="font-size: 0.9em; color: #666;">
+                <div style="font-size: 0.9em; color:var(--text-muted);">
                     ${driver.races||0} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Rd.
                 </div>
             </div>
@@ -532,7 +534,7 @@ function updateCarsList() {
     if (!list) return;
 
     if (appData.cars.length === 0) {
-        list.innerHTML = '<p style="text-align: center; color: #666;">Noch keine Fahrzeuge hinzugefügt.</p>';
+        list.innerHTML = '<p style="text-align: center; color:var(--text-muted);">Noch keine Fahrzeuge hinzugefügt.</p>';
         return;
     }
 
@@ -541,7 +543,7 @@ function updateCarsList() {
         <div class="list-item${car.archived?' archived':''}" data-id="${car.id}">
             <div>
                 <strong>${escapeHtml(car.name)}</strong>${car.archived?' <span class="status-inactive">archiviert</span>':''}
-                <div style="font-size: 0.9em; color: #666;">
+                <div style="font-size: 0.9em; color:var(--text-muted);">
                     ${car.races||0} Rennen · ${car.wins||0} Siege · ${car.totalRounds||0} Rd.
                 </div>
             </div>

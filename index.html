@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="G!RP">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#1D1D1F">
     <title>G!lashammer Racing Points</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
@@ -15,14 +15,21 @@
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <img src="assets/logo.png" alt="" class="topbar-logo">
+            <span class="topbar-title"><span class="long">G!lashammer Racing Points</span><span class="short">G!RP</span></span>
+            <button id="authBtn" class="auth-btn">Admin</button>
+        </div>
+    </header>
     <div class="container">
         <div class="header">
             <h1>G!lashammer Racing Points</h1>
+            <div class="the-line" aria-hidden="true"></div>
             <p id="tagline">Kannst Du mit Christian L. mithalten?</p>
-            <button id="authBtn" class="auth-btn">🔐</button>
         </div>
         
         <div class="nav">
@@ -76,26 +83,26 @@
         <div id="race" class="section">
             <h2>🏁 Neues Rennen eingeben</h2>
             
-            <div class="race-meta-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                <div class="form-group" style="margin-bottom: 0;">
+            <div class="race-meta-grid">
+                <div class="form-group" style="margin-bottom:0;">
                     <label>Datum:</label>
                     <input type="date" id="raceDate">
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
+                <div class="form-group" style="margin-bottom:0;">
                     <label>Uhrzeit:</label>
                     <input type="time" id="raceTime">
                 </div>
-                <div class="form-group" style="margin-bottom: 0;">
+                <div class="form-group" style="margin-bottom:0;">
                     <label>Anzahl Runden:</label>
                     <input type="number" id="raceRounds" min="1" max="999" placeholder="z.B. 50">
                 </div>
             </div>
             
-            <div style="display:flex;gap:10px;margin-bottom:12px;">
+            <div class="race-actions">
                <button class="btn" id="setupRaceBtn">⚙️ Auto-Setup</button>
-               <button class="btn" id="calculateRaceBtn">🏆 Rennen auswerten</button>
+               <button class="btn btn-primary" id="calculateRaceBtn">🏆 Rennen auswerten</button>
             </div>
-            <h3 id="raceEntriesHeader" style="margin-top:0;margin-bottom:8px;">Rennen manuell eingeben (Platz 1 bis 6):</h3>
+            <h3 id="raceEntriesHeader" style="margin-bottom:8px;">Rennen manuell eingeben (Platz 1 bis 6):</h3>
             <div id="raceEntries"></div>
         </div>
         
@@ -147,7 +154,7 @@
                     <label>Datum:</label>
                     <input type="date" id="recDate">
                 </div>
-                <button class="btn" id="saveRecordBtn">Speichern</button>
+                <button class="btn btn-primary" id="saveRecordBtn">Speichern</button>
             </div>
 
             <div id="recordPodium" class="podium"></div>
@@ -164,7 +171,7 @@
             <h2>📊 Renn-Historie</h2>
                 <div style="display:flex;gap:8px;">
                     <button class="ranking-filter-btn" id="historyFilterBtn">🔍 Filter</button>
-                    <button class="btn btn-danger admin-only" id="rebuildEloBtn">🔄 G!RP neu berechnen</button>
+                    <button class="btn admin-only" id="rebuildEloBtn">🔄 G!RP neu berechnen</button>
                 </div>
             </div>
             <div id="raceHistory"></div>
@@ -199,7 +206,7 @@
                     <!-- dynamisch gefüllt -->
                 </div>
                 <div style="text-align:right;margin-top:15px;">
-                    <button class="btn btn-danger" id="eloModalClose">Schließen</button>
+                    <button class="btn" id="eloModalClose">Schließen</button>
                 </div>
             </div>
         </div>
@@ -213,8 +220,8 @@
             <input type="email" id="loginEmail" placeholder="E-Mail" class="modal-input">
             <input type="password" id="loginPassword" placeholder="Passwort" class="modal-input">
             <div style="margin-top:15px;text-align:right;">
-                <button class="btn" id="loginSubmitBtn">Login</button>
-                <button class="btn btn-danger" id="loginCancelBtn">Abbrechen</button>
+                <button class="btn btn-primary" id="loginSubmitBtn">Login</button>
+                <button class="btn" id="loginCancelBtn">Abbrechen</button>
                         </div>
                     </div>
                 </div>
@@ -230,8 +237,8 @@
                 <div id="filterCarList"></div>
                 </div>
             <div style="text-align:right;margin-top:15px;">
-                <button class="btn" id="filterApplyBtn">Anwenden</button>
-                <button class="btn btn-danger" id="filterCancelBtn">Abbrechen</button>
+                <button class="btn btn-primary" id="filterApplyBtn">Anwenden</button>
+                <button class="btn" id="filterCancelBtn">Abbrechen</button>
                         </div>
                                 </div>
                             </div>
@@ -254,9 +261,9 @@
                         </div>
             <div id="rankingFilterList" style="max-height:300px;overflow:auto;margin-bottom:10px;"></div>
             <div style="text-align:right;margin-top:15px;display:flex;gap:8px;justify-content:flex-end;">
-                <button class="btn btn-modal" id="rankingFilterApply">Anwenden</button>
+                <button class="btn btn-primary btn-modal" id="rankingFilterApply">Anwenden</button>
                 <button class="btn btn-modal" id="rankingFilterReset">Zurücksetzen</button>
-                <button class="btn btn-danger btn-modal" id="rankingFilterCancel">Abbrechen</button>
+                <button class="btn btn-modal" id="rankingFilterCancel">Abbrechen</button>
                                 </div>
                             </div>
                         </div>
@@ -269,7 +276,7 @@
           <div id="setupDriverList" style="max-height:320px;overflow:auto;margin-bottom:10px;"></div>
           <div style="text-align:right;margin-top:15px;display:flex;gap:8px;justify-content:flex-end;">
             <button class="btn" id="setupNextBtn" disabled>Weiter</button>
-            <button class="btn btn-danger" id="setupCancelBtn">Abbrechen</button>
+            <button class="btn" id="setupCancelBtn">Abbrechen</button>
           </div>
                                 </div>
         <div id="setupStep2" class="hidden">
@@ -283,8 +290,8 @@
             </div>
             <div style="display:flex;gap:8px;justify-content:center;width:100%;margin-top:6px;">
               <button class="btn" id="setupBackBtn">Zurück</button>
-              <button class="btn" id="setupFinishBtn" disabled>Fertig</button>
-              <button class="btn btn-danger" id="setupCancelBtn2">Abbrechen</button>
+              <button class="btn btn-primary" id="setupFinishBtn" disabled>Fertig</button>
+              <button class="btn" id="setupCancelBtn2">Abbrechen</button>
             </div>
           </div>
                                     </div>
@@ -299,8 +306,8 @@
             <canvas id="wheelCanvas" width="300" height="300" style="margin-bottom:10px;"></canvas>
             <div id="powerBarWrap" class="power-wrap"><div id="powerBar" class="power-bar"></div></div>
             <div style="display:flex;gap:10px;justify-content:center;">
-                <button class="btn" id="spinBtn">Drehen</button>
-                <button class="btn btn-danger" id="wheelCloseBtn">Abbrechen</button>
+                <button class="btn btn-primary" id="spinBtn">Drehen</button>
+                <button class="btn" id="wheelCloseBtn">Abbrechen</button>
             </div>
                     </div>
                 </div>
@@ -313,8 +320,8 @@
               <div id="slotSelectLine"></div>
             </div>
             <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
-                <button class="btn" id="slotConfirmBtn" disabled>Fertig</button>
-                <button class="btn btn-danger" id="slotCloseBtn">Abbrechen</button>
+                <button class="btn btn-primary" id="slotConfirmBtn" disabled>Fertig</button>
+                <button class="btn" id="slotCloseBtn">Abbrechen</button>
             </div>
         </div>
     </div>
@@ -367,8 +374,8 @@
          <h3 style="margin-bottom:10px;">Statistik-Filter</h3>
          <div id="statsFilterList" style="max-height:320px;overflow:auto;margin-bottom:10px;"></div>
          <div style="text-align:right;margin-top:15px;">
-            <button class="btn" id="statsFilterSaveBtn">Speichern</button>
-            <button class="btn btn-danger" id="statsFilterCancelBtn">Abbrechen</button>
+            <button class="btn btn-primary" id="statsFilterSaveBtn">Speichern</button>
+            <button class="btn" id="statsFilterCancelBtn">Abbrechen</button>
          </div>
       </div>
     </div>

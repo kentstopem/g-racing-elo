@@ -127,6 +127,7 @@
 
   function updateRacePositions(){
     const rows=[...document.getElementById('raceEntries').children].filter(r=>r.classList.contains('race-entry'));
+    const usedPlaces=new Set();
     rows.forEach((e,i)=>{
       const lbl=e.querySelector('label');
       if(lbl) lbl.textContent=`Platz ${i+1}:`;
@@ -140,14 +141,17 @@
         const comb=document.createElement('div');comb.className='pred combined-pred';wrap.appendChild(comb);
         e.appendChild(wrap);
       }
-      // rebuild options if count mismatch
+      // rebuild options if count mismatch – bisherige Wahl behalten, sofern gültig und noch frei
       if(sel.options.length!==total){
+        const prev=parseInt(sel.value);
         sel.innerHTML='';
         for(let p=1;p<=total;p++){
           const opt=document.createElement('option');opt.value=p;opt.textContent=`Platz ${p}`;sel.appendChild(opt);
         }
+        sel.value=(prev>=1&&prev<=total&&!usedPlaces.has(prev))?prev:i+1;
       }
       if(!sel.value || sel.value>total){sel.value=i+1;}
+      usedPlaces.add(parseInt(sel.value));
     });
     window.appData.raceCounter=rows.length;
   }

@@ -25,15 +25,14 @@
       ctx.beginPath();
       ctx.moveTo(radius,radius);
       ctx.arc(radius,radius,radius,start,end);
-      ctx.fillStyle='#fff';
+      ctx.fillStyle=idx%2?'#F6F6F6':'#FFFFFF';
       ctx.fill();
-      // farbiger Ring
-      const hue=Math.round(360*idx/n);
-      ctx.lineWidth=radius*0.12; // ca. 12 % Breite
-      ctx.strokeStyle=`hsl(${hue}, 60%, 80%)`;
+      // Ring: abwechselnd Schwarz / Grau (Designvorgabe: keine Farbcodierung)
+      ctx.lineWidth=radius*0.10;
+      ctx.strokeStyle=idx%2?'#E1E1E1':'#1D1D1F';
       ctx.stroke();
       ctx.lineWidth=1; // reset
-      ctx.strokeStyle='#666';
+      ctx.strokeStyle='#E1E1E1';
       ctx.stroke();
       const img=imgMap[seg.id];
       if(img){
@@ -51,7 +50,7 @@
          ctx.translate(radius,radius);
          ctx.rotate(start+(end-start)/2);
          ctx.textAlign='right';
-         ctx.fillStyle='#000';
+         ctx.fillStyle='#1D1D1F';
          ctx.font='12px sans-serif';
          const car=window.appData.cars.find(c=>c.id===seg.id);
          ctx.fillText(car?car.name:'' , radius-10,4);

@@ -20,3 +20,6 @@ sr/
 # Firebase Service-Account-Keys
 serviceAccount*.json
 *-firebase-adminsdk-*.json
+
+# Testwerkzeuge
+.playwright-mcp/

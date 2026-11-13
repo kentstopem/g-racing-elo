@@ -49,6 +49,7 @@
     subscribe (onChange) {
       const state = { drivers: null, cars: null, races: null, lapRecords: [] };
       const meta  = { drivers: true, cars: true, races: true };
+      const serverSynced = {};
       let resolveReady;
       const ready = new Promise(res => { resolveReady = res; });
       let firstDone = false;
@@ -56,11 +57,13 @@
       const listen = (key, query) => query.onSnapshot({ includeMetadataChanges: true }, snap => {
         // Echte Datenänderung ohne eigene ausstehende Schreibvorgänge ⇒ kam von einem anderen Gerät.
         // (Reine Metadaten-Änderungen wie „Schreibvorgang bestätigt“ zählen nicht.)
-        const remote = !snap.metadata.hasPendingWrites && snap.docChanges({ includeMetadataChanges: false }).length > 0;
+        // Erst ab dem zweiten Server-Stand je Collection (der erste ist nur das Nachladen beim Start).
+        const remote = serverSynced[key] && !snap.metadata.hasPendingWrites && snap.docChanges({ includeMetadataChanges: false }).length > 0;
+        if (!snap.metadata.fromCache) serverSynced[key] = true;
         state[key] = docsToArray(snap);
         if (key in meta) meta[key] = snap.metadata.fromCache;
         if (state.drivers && state.cars && state.races) {
-          const info = { fromCache: Object.values(meta).some(Boolean), remote: firstDone && remote, collection: key };
+          const info = { fromCache: Object.values(meta).some(Boolean), remote, collection: key };
           onChange(state, info);
           if (!firstDone) { firstDone = true; resolveReady(); }
         }

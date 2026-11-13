@@ -7,7 +7,7 @@
     if(!historyContainer) return;
 
     if(window.appData.races.length===0){
-      historyContainer.innerHTML='<p style="text-align:center;color:#666;">Noch keine Rennen gefahren.</p>';
+      historyContainer.innerHTML='<p style="text-align:center;color:var(--text-muted);">Noch keine Rennen gefahren.</p>';
       return;
     }
 

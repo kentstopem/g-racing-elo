@@ -1,5 +1,5 @@
 (function(){
-  function showToast(message, duration = 2500) {
+  function showToast(message, duration = 4000) {
     const t = document.createElement('div');
     t.className = 'toast';
     t.textContent = message;

@@ -44,19 +44,19 @@
 
     // Liste rendern
     if(list){
-      if(selected.length===0){list.innerHTML='<p style="text-align:center;color:#666;">Keine Fahrer</p>';return;}
+      if(selected.length===0){list.innerHTML='<p style="text-align:center;color:var(--text-muted);">Keine Fahrer</p>';return;}
       let rank=showPodium?4:1;
       const html=[];
       active.slice(showPodium?3:0).forEach(d=>{
         html.push(`<div class="list-item" data-driver-id="${d.id}" onclick="openEloModal('driver',${d.id})">
-          <div><strong>#${rank++} ${d.name}</strong><div style="font-size:0.9em;color:#666;">${d.races} Rennen · ${d.wins||0} Siege · ${d.totalRounds||0} Runden</div></div>
+          <div><strong>#${rank++} ${d.name}</strong><div style="font-size:0.9em;color:var(--text-muted);">${d.races} Rennen · ${d.wins||0} Siege · ${d.totalRounds||0} Runden</div></div>
           <span class="elo-score">${d.elo}</span></div>`);
       });
       // Inaktive ausgewählte Fahrer anhängen
       const inactive=selected.filter(d=>d.races<minRaces).sort((a,b)=>b.elo-a.elo);
       inactive.forEach(d=>{
         html.push(`<div class="list-item" data-driver-id="${d.id}" onclick="openEloModal('driver',${d.id})">
-          <div><strong>— ${d.name}</strong><div class="status-inactive">Ranking ab Rennen ${minRaces}</div><div style="font-size:0.9em;color:#666;">${d.races} Rennen · ${d.wins||0} Siege · ${d.totalRounds||0} Runden</div></div>
+          <div><strong>— ${d.name}</strong><div class="status-inactive">Ranking ab Rennen ${minRaces}</div><div style="font-size:0.9em;color:var(--text-muted);">${d.races} Rennen · ${d.wins||0} Siege · ${d.totalRounds||0} Runden</div></div>
           <span class="elo-score">${d.elo}</span></div>`);
       });
       list.innerHTML=html.join('');
@@ -89,12 +89,12 @@
       podium.classList.toggle('hidden',!showPodium);
     }
     if(list){
-      if(selected.length===0){list.innerHTML='<p style="text-align:center;color:#666;">Keine Fahrzeuge</p>';return;}
+      if(selected.length===0){list.innerHTML='<p style="text-align:center;color:var(--text-muted);">Keine Fahrzeuge</p>';return;}
       let rank=showPodium?4:1;
       const html=[];
       active.slice(showPodium?3:0).forEach(c=>{
         html.push(`<div class="list-item" data-car-id="${c.id}" onclick="openEloModal('car',${c.id})">
-          <div><strong>#${rank++} ${c.name}</strong><div style="font-size:0.9em;color:#666;">${c.races} Rennen · ${c.wins||0} Siege · ${c.totalRounds||0} Runden</div></div>
+          <div><strong>#${rank++} ${c.name}</strong><div style="font-size:0.9em;color:var(--text-muted);">${c.races} Rennen · ${c.wins||0} Siege · ${c.totalRounds||0} Runden</div></div>
           <span class="elo-score">${c.elo}</span></div>`);
       });
       // Kein Inaktiv-Bereich für Fahrzeuge; sie sind ab dem ersten Rennen direkt gültig
