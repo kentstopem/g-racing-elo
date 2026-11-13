@@ -62,22 +62,21 @@
         }
         this.track.appendChild(item);
       });
-      // bounded duplication (max 3 extra copies)
+      // erst ins DOM hängen, damit Höhen messbar sind
+      this.reel.appendChild(this.track);
+      this.wrap.appendChild(this.startBtn);
+      this.wrap.appendChild(this.reel);
+      this.wrap.appendChild(this.stopBtn);
+      reelsDiv.appendChild(this.wrap);
+
+      // Einträge vervielfachen, bis die Walze nahtlos laufen kann (begrenzt)
       const viewH=360;
       for(let r=0;r<5 && this.track.scrollHeight<viewH*4;r++){
         const clones=[...this.track.children].map(n=>n.cloneNode(true));
         clones.forEach(cl=>this.track.appendChild(cl));
       }
-      this.reel.appendChild(this.track);
-
-      // now that track is in DOM, measure height
       this.totalHeight=this.track.scrollHeight;
       this.offset=Math.random()*this.totalHeight;
-
-      this.wrap.appendChild(this.startBtn);
-      this.wrap.appendChild(this.reel);
-      this.wrap.appendChild(this.stopBtn);
-      reelsDiv.appendChild(this.wrap);
       this.startBtn.addEventListener('click',()=>this.start());
       this.stopBtn.addEventListener('click',()=>this.stop());
     }
@@ -156,6 +155,8 @@
       if(this.frozen) return;
       const items=[...this.track.querySelectorAll(`.reel-item[data-car-id="${id}"]`)];
       if(items.length===0) return;
+      // mindestens ein Fahrzeug muss auf der Walze bleiben
+      if(items.length>=this.track.children.length) return;
       items.forEach(el=>el.remove());
       this.totalHeight=this.track.scrollHeight;
       this.offset=this.offset%this.totalHeight;
@@ -178,6 +179,7 @@
   }
 
   function open(ids,count,cb){
+    if(ids.length<count){window.Helpers.showToast(`Zu wenige Fahrzeuge: ${ids.length} verfügbar, ${count} benötigt`);return;}
     reelsDiv.innerHTML='';
     // recreate selection line
     const sel=document.createElement('div'); sel.id='slotSelectLine'; reelsDiv.appendChild(sel);
@@ -185,10 +187,11 @@
     const cars=ids.map(id=>window.appData.cars.find(c=>c.id===id));
     loadImages(ids).then(map=>{
        imgMap=map;
-       for(let i=0;i<count;i++) runningReels.push(new Reel(cars,i));
+       // erst sichtbar machen, dann Walzen bauen – sonst sind alle Höhen 0
        const modalContent=modal.querySelector('.modal-content');
        modalContent.style.maxWidth=(count*132+80)+'px';
        modal.classList.remove('hidden');
+       for(let i=0;i<count;i++) runningReels.push(new Reel(cars,i));
        document.getElementById('slotConfirmBtn').disabled=true;
     });
   }
@@ -204,13 +207,7 @@
      close(); if(callback) callback(selectedIds);
   });
 
-  function debug(){
-     const r=runningReels[0];
-     if(!r){console.log('no reels');return;}
-     console.table({speed:r.speed,offset:r.offset,totalHeight:r.totalHeight,children:r.track.children.length});
-  }
-
-  window.Slot={open,_debug:debug};
+  window.Slot={open};
 
   function loadImages(ids){
      const promises=ids.map(id=>{

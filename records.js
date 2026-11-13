@@ -9,9 +9,9 @@
   const formDiv=document.getElementById('recordForm');
   const subNav=document.getElementById('recordSubNav');
 
-  async function loadRecords(){
-    const snap=await db.collection(RECORD_COLL).get();
-    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+  // Rekorde kommen per Live-Listener aus appData.lapRecords (siehe app.js/storage.js)
+  function loadRecords(){
+    const all=window.appData.lapRecords||[];
     // Aggregieren je nach Ansicht
     const map={};
     all.forEach(rec=>{
@@ -110,9 +110,7 @@
        await col.add({carId,driverId,time,date,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
        window.Helpers.showToast('Rekord gespeichert');
     }
-    await loadRecords();
-    renderHeader();
-    renderTable();
+    // Anzeige aktualisiert der Live-Listener
   }
 
   function switchMode(mode){
@@ -122,10 +120,17 @@
     initWorkflow();
   }
 
-  async function initWorkflow(){
+  // Modus wechseln: Kopf, Formular und Tabelle neu aufbauen
+  function initWorkflow(){
     renderHeader();
     renderForm();
-    await loadRecords();
+    reload();
+  }
+
+  // Nur Tabelle/Podium aktualisieren (Formulareingaben bleiben erhalten)
+  function reload(){
+    if(formDiv && !document.getElementById('saveRecordBtn')) renderForm();
+    loadRecords();
     renderTable();
   }
 
@@ -160,5 +165,5 @@
 
   document.addEventListener('DOMContentLoaded',init);
 
-  window.RecordsUI={ reload:initWorkflow };
+  window.RecordsUI={ reload };
 })(); 

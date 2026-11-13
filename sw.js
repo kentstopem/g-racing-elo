@@ -13,7 +13,7 @@ const APP_SHELL = [
   'index.html',
   'style.css',
   'manifest.webmanifest',
-  'firebase.js', 'storage.js', 'helpers.js', 'elo.js', 'sync.js',
+  'version.js', 'firebase.js', 'storage.js', 'helpers.js', 'elo.js', 'sync.js',
   'app.js', 'ranking.js', 'race.js', 'history.js', 'records.js',
   'statistics.js', 'wheel.js', 'slot.js',
   'assets/logo.png', 'assets/icons/icon-192.png', 'assets/icons/apple-touch-icon.png'

@@ -108,10 +108,6 @@
         
         <!-- Rankings Section -->
         <div id="rankings" class="section active">
-            <div style="display:flex;gap:10px;justify-content:center;margin-bottom:15px;">
-                <button class="btn rank-sub-btn active" data-rank="drivers">😎 Fahrer</button>
-                <button class="btn rank-sub-btn" data-rank="cars">🏎️ Fahrzeuge</button>
-            </div>
             <div id="driversRankWrapper">
             <div class="ranking-header">🏆 Fahrer-Rangliste</div>
             <div class="flex justify-between items-center" style="margin-bottom:10px;">
@@ -137,25 +133,7 @@
         <div id="records" class="section">
             <div id="recordsHeader" class="ranking-header">🏅 Fahrzeug-Rekorde</div>
 
-            <div id="recordForm" class="card admin-only" style="margin-bottom:20px;">
-                <div class="form-group">
-                    <label>Fahrzeug:</label>
-                    <select id="recCarSel"></select>
-                </div>
-                <div class="form-group">
-                    <label>Fahrer:</label>
-                    <select id="recDriverSel"></select>
-                </div>
-                <div class="form-group">
-                    <label>Bestzeit (Sekunden):</label>
-                    <input type="number" id="recTime" step="0.001" min="0" placeholder="z. B. 7.352">
-                </div>
-                <div class="form-group">
-                    <label>Datum:</label>
-                    <input type="date" id="recDate">
-                </div>
-                <button class="btn btn-primary" id="saveRecordBtn">Speichern</button>
-            </div>
+            <div id="recordForm" class="card admin-only" style="margin-bottom:20px;"><!-- wird von records.js aufgebaut --></div>
 
             <div id="recordPodium" class="podium"></div>
 
@@ -327,7 +305,7 @@
     </div>
 
     <footer class="site-footer">
-        <p>Version 1.7.5 · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
+        <p>Version <span id="appVersion">2.0</span> · Copyright © 2025 by Tris · Nur für den privaten G!brauch</p>
         <p>Contact &amp; Donations (Paypal): rennstall@saeuferleber.de</p>
     </footer>
 
@@ -346,6 +324,7 @@
     <script src="storage.js"></script>
 
     <!-- Hilfs-Module -->
+    <script src="version.js"></script>
     <script src="helpers.js"></script>
     <script src="elo.js"></script>
     <script src="sync.js"></script>

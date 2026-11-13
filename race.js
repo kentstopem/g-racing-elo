@@ -63,22 +63,6 @@
         if(placeSel && d.place) placeSel.value=d.place;
       });
       updateRacePositions();
-      // Ensure place-select exists and remove remove-buttons (auto-setup style)
-      entriesDOM.forEach((entry,idx)=>{
-         if(!entry.querySelector('.place-select')){
-            let delBtn=entry.querySelector('button.btn-danger');
-            if(!delBtn){
-               delBtn=document.createElement('button');
-               delBtn.className='btn btn-danger';
-               entry.appendChild(delBtn);
-            }
-            delBtn.classList.add('pair-del-btn');
-            delBtn.textContent='🗑️';
-            delBtn.onclick=function(){removeRaceEntry(delBtn);}
-            // add place-select only if not present
-            const selExists=false; // placeholder
-         }
-      });
       const headerEl=document.getElementById('raceEntriesHeader');
       if(headerEl) headerEl.textContent='Bitte Platzierungen angeben und Rennen auswerten:';
       updatePredictions();
@@ -378,7 +362,6 @@
   const cancelBtn2=document.getElementById('setupCancelBtn2');
   const wheelBtn=document.getElementById('setupLuckyWheelBtn');
   const slotBtn=document.getElementById('setupSlotBtn');
-  const pairTableDiv=document.getElementById('pairTable');
   let selectedDrivers=[];let selectedCars=[];
   let prevSelectedDrivers=[];
 
@@ -517,43 +500,6 @@
   function closeSetup(){setupModal.classList.add('hidden');}
   cancelBtn1?.addEventListener('click',closeSetup);
   cancelBtn2?.addEventListener('click',closeSetup);
-
-  function renderPairTable(){
-    if(!pairTableDiv) return;
-    const allCars=[...window.appData.cars].filter(c=>!c.hideFromRanking);
-    let html='<table class="record-table"><thead><tr><th>Fahrer</th><th>Fahrzeug</th><th></th></tr></thead><tbody>';
-    selectedDrivers.forEach((dId,idx)=>{
-      const driver=window.appData.drivers.find(d=>d.id===dId);
-      const carId=selectedCars[idx]||'';
-      html+=`<tr><td>${driver?.name||'-'}</td><td><select data-idx="${idx}">`;
-      allCars.forEach(c=>{
-        const taken=selectedCars.includes(c.id)&&c.id!==carId;
-        if(taken) return;
-        html+=`<option value="${c.id}" ${c.id===carId?'selected':''}>${c.name}</option>`;
-      });
-      html+='</select></td>';
-      html+=`<td><button class="btn-small" data-del="${idx}">🗑️</button></td></tr>`;
-    });
-    html+='</tbody></table>';
-    pairTableDiv.innerHTML=html;
-    // listeners
-    pairTableDiv.querySelectorAll('select').forEach(sel=>{
-      sel.addEventListener('change',e=>{
-        const i=parseInt(e.target.dataset.idx);
-        selectedCars[i]=parseInt(e.target.value);
-        finishBtn.disabled=selectedCars.length!==selectedDrivers.length;
-      });
-    });
-    pairTableDiv.querySelectorAll('button[data-del]').forEach(btn=>{
-      btn.addEventListener('click',e=>{
-        const i=parseInt(btn.dataset.del);
-        selectedDrivers.splice(i,1);
-        selectedCars.splice(i,1);
-        renderPairTable();
-        finishBtn.disabled=selectedCars.length!==selectedDrivers.length||selectedDrivers.length<2;
-      });
-    });
-  }
 
   function renderAddEntryButton(){
     const container=document.getElementById('raceEntries');

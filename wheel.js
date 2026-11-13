@@ -111,6 +111,7 @@
 
   let selectedIds=[];
   function open(ids,count,cb){
+    if(ids.length<count){window.Helpers.showToast(`Zu wenige Fahrzeuge: ${ids.length} verfügbar, ${count} benötigt`);return;}
     segments=buildSegments(ids);
     totalWeight=segments.reduce((s,x)=>s+x.weight,0);
     targetCount=count;callback=cb;selectedIds=[];angle=0;

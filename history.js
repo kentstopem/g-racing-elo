@@ -1,6 +1,22 @@
 (function(){
   const { tsForRace, showToast } = window.Helpers;
 
+  // Filterzustand (Fahrer-/Fahrzeug-IDs)
+  window.historyFilter = window.historyFilter || [];
+  window.carFilter     = window.carFilter || [];
+
+  // Trifft ein Rennen den aktuellen Filter?
+  // Genau 1 Fahrer + 1 Fahrzeug ⇒ diese Paarung; sonst müssen alle gewählten Fahrer/Fahrzeuge dabei sein.
+  function matchesFilter(r){
+    const drvF=window.historyFilter, carF=window.carFilter;
+    if(!drvF.length&&!carF.length) return true;
+    if(drvF.length===1&&carF.length===1){
+      return r.results.some(res=>res.driverId===drvF[0]&&res.carId===carF[0]);
+    }
+    const drvIds=r.results.map(x=>x.driverId), carIds=r.results.map(x=>x.carId);
+    return drvF.every(id=>drvIds.includes(id)) && carF.every(id=>carIds.includes(id));
+  }
+
   // ▼ Öffentliche Funktion: Liste neu zeichnen
   function updateHistory(){
     const historyContainer = document.getElementById('raceHistory');
@@ -16,22 +32,9 @@
     const raceNumberMap=new Map();
     asc.forEach((r,idx)=>raceNumberMap.set(r.id,idx+1));
 
-    const driverFilterActive=Array.isArray(window.historyFilter)&&window.historyFilter.length>0;
-    const carFilterActive=Array.isArray(window.carFilter)&&window.carFilter.length>0;
-
     historyContainer.innerHTML=[...window.appData.races]
       .sort((a,b)=>tsForRace(b)-tsForRace(a)) // neueste zuerst
-      .filter(r=>{
-          if(!driverFilterActive&&!carFilterActive) return true;
-          const drvIds=r.results.map(x=>x.driverId);
-          const carIds=r.results.map(x=>x.carId);
-          if(driverFilterActive&&carFilterActive&&window.historyFilter.length===1&&window.carFilter.length===1){
-             return r.results.some(res=>res.driverId===window.historyFilter[0]&&res.carId===window.carFilter[0]);
-          }
-          if(driverFilterActive&&!window.historyFilter.every(id=>drvIds.includes(id))) return false;
-          if(carFilterActive   &&!window.carFilter.every(id=>carIds.includes(id)))   return false;
-          return true;
-      })
+      .filter(matchesFilter)
       .map(race=>{
           const header=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
               <div class="race-date">#${raceNumberMap.get(race.id)} · 📅 ${race.date} – ${race.time||''} – ${race.rounds} Rd.</div>
@@ -93,21 +96,7 @@
           if(filterCarList){window.carFilter=[...filterCarList.querySelectorAll('input:checked')].map(i=>parseInt(i.value));}
           closeFilter();
 
-          // Anzahl Treffer ermitteln
-          const driverActive=window.historyFilter.length>0;
-          const carActive=window.carFilter.length>0;
-          const matches=window.appData.races.filter(r=>{
-              if(!driverActive&&!carActive) return true;
-              const drv=r.results.map(x=>x.driverId);
-              const car=r.results.map(x=>x.carId);
-              if(driverActive&&carActive&&window.historyFilter.length===1&&window.carFilter.length===1){
-                   return r.results.some(res=>res.driverId===window.historyFilter[0]&&res.carId===window.carFilter[0]);
-              }
-              if(driverActive&&!window.historyFilter.every(id=>drv.includes(id))) return false;
-              if(carActive   &&!window.carFilter.every(id=>car.includes(id)))   return false;
-              return true;
-          }).length;
-
+          const matches=window.appData.races.filter(matchesFilter).length;
           updateHistory();
           showToast(`${matches} Rennen gefunden`);
       });

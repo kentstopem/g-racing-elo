@@ -10,13 +10,9 @@ let appData = {
 };
 
 let currentSection = 'rankings';
-let historyFilter=[]; // Fahrer-IDs
-let carFilter=[];     // Fahrzeug-IDs
 
 // → global verfügbar für andere Module
 window.appData = appData;
-window.historyFilter = historyFilter;
-window.carFilter = carFilter;
 
 // Neue Modul-Imports
 const { showToast, tsForRace, escapeHtml } = window.Helpers;
@@ -349,14 +345,7 @@ function showSection(sectionName) {
         HistoryUI.update();
         // rankSubNav bleibt versteckt
     } else if (sectionName === 'race') {
-        RaceUI.updateForm(
-            appData.raceCounter,
-            appData.drivers,
-            appData.cars,
-            appData.races,
-            historyFilter,
-            carFilter
-        );
+        RaceUI.updateForm();
         // rankSubNav bleibt versteckt
     } else if (sectionName === 'stats') {
         window.StatsUI?.reload();
@@ -650,6 +639,8 @@ async function init() {
         await loadData();
         updateAuthUI();
         updateTagline();
+        const v = document.getElementById('appVersion');
+        if (v && window.APP_VERSION) v.textContent = window.APP_VERSION;
         showSection('rankings');
         initNavigation();
         initDriverManagement();
@@ -675,6 +666,4 @@ if (document.readyState === 'loading') {
 // ————————————————————————————————————
 // Funktionen global verfügbar machen (wegen Inline-HTML-Handlers)
 // ————————————————————————————————————
-window.deleteDriver = deleteDriver;
-window.deleteCar = deleteCar;
 window.updateTagline = updateTagline; 

@@ -1,0 +1,60 @@
+# Veröffentlicht die App auf GitHub Pages.
+# Vorher laufen die Tests; schlagen sie fehl, wird nichts veröffentlicht.
+# Die Release-Nummer (r<n>) ist die Anzahl der Commits in main.
+name: Tests & Veröffentlichung
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # komplette Historie für die Commit-Zählung
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tests
+        run: npm test
+
+      - name: Release-Nummer eintragen
+        if: github.event_name != 'pull_request'
+        run: |
+          RELEASE=$(git rev-list --count HEAD)
+          echo "Release r$RELEASE"
+          sed -i "s/window.APP_RELEASE = null;/window.APP_RELEASE = $RELEASE;/" version.js
+          # neuer Cache-Name, damit installierte Apps die neue Version sicher laden
+          sed -i "s/const CACHE = '[^']*';/const CACHE = 'grp-r$RELEASE';/" sw.js
+          rm -rf tests .github package.json
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: .
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

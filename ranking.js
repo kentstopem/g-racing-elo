@@ -107,7 +107,7 @@
   // —————————————— Sub-Navigation (Fahrer / Fahrzeuge)
   // Nur die Ranglisten-Buttons (oben in der Navigation und in der Sektion), nicht die von Rekorden/Statistik
   function initSubNav(){
-    const buttons=document.querySelectorAll('#rankSubNav .sub-tab, #rankings .rank-sub-btn');
+    const buttons=document.querySelectorAll('#rankSubNav .sub-tab');
     buttons.forEach(btn=>{
       btn.addEventListener('click',()=>{
         const sel=btn.getAttribute('data-rank');

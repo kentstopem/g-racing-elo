@@ -440,8 +440,7 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .muted { color: var(--text-muted); }
 .empty-state { text-align: center; color: var(--text-muted); padding: 16px 0; }
 
-/* Alt-Elemente ohne Funktion */
-.rank-sub-btn { display: none !important; }
+/* Ranglisten-Filter ist derzeit ausgeblendet */
 #rankings .ranking-filter-btn { display: none !important; }
 
 /* ---------- Mobil ---------- */

@@ -126,7 +126,7 @@
    try{await batch.commit();}
    catch(e){console.error(e);window.Helpers.showToast('Speichern fehlgeschlagen');return;}
    filterModal.classList.add('hidden');
-   await window.loadData?.();
+   // Anzeige aktualisiert sich über den Live-Listener
    render();
  }
 
