@@ -352,8 +352,7 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .race-table tr.pair-car td { padding-bottom: 8px; color: var(--text-muted); font-size: 14px; }
 .race-table td.pos { font-size: 20px; vertical-align: top; padding-top: 6px; }
 .race-table td.pts { text-align: right; white-space: nowrap; }
-.race-table td.who { padding-left: calc(6px + 1.6em); text-indent: -1.6em; }
-.race-table .pair-icon { display: inline-block; width: 1.6em; text-indent: 0; }
+
 .pos { width: 40px; text-align: right; font-weight: 700; }
 .elo-up   { color: var(--status-ok); }
 .elo-down { color: var(--status-error); }
