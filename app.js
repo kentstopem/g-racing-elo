@@ -30,7 +30,7 @@ function activeRanking(type){
   const min=window.Elo.MIN_RACES_FOR_RANK;
   const list = type==='driver'
       ? appData.drivers.filter(d=>d.races>=min && !d.archived)
-      : appData.cars.filter(c=>c.races>=min && !c.hideFromRanking && !c.archived);
+      : appData.cars.filter(c=>c.races>=window.Elo.MIN_RACES_FOR_CAR_RANK && !c.hideFromRanking && !c.archived);
   return [...list].sort((a,b)=>b.elo-a.elo);
 }
 
@@ -100,7 +100,7 @@ function renderChart(mode){
     const ctx=canvas.getContext('2d');
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle='#666';ctx.textAlign='center';ctx.font='16px sans-serif';
-    const msg=mode==='pos'?`Rang erst nach dem ${window.Elo.MIN_RACES_FOR_RANK}. Rennen`:'Noch keine G!RP-Daten';
+    const msg=mode==='pos'?(currentEntityType==='car'?'Noch keine Rennen':`Rang erst nach dem ${window.Elo.MIN_RACES_FOR_RANK}. Rennen`):'Noch keine G!RP-Daten';
     ctx.fillText(msg, canvas.width/2, canvas.height/2);
     return;
   }

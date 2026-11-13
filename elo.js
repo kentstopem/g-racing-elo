@@ -2,7 +2,8 @@
   const BASE_K = 32;
   const START_ELO = 1000;
   const MIN_ELO = 100;
-  const MIN_RACES_FOR_RANK = 5; // ab so vielen Rennen gilt ein Fahrer/Fahrzeug als „aktiv“
+  const MIN_RACES_FOR_RANK = 5;     // ab so vielen Rennen gilt ein Fahrer als „aktiv“ (Rangliste) bzw. ein Fahrzeug als eingestuft (Auto-Setup)
+  const MIN_RACES_FOR_CAR_RANK = 1; // Fahrzeug-Rangliste/-Diagramm: ab dem ersten Rennen
 
   function calculateExpectedScore(playerElo, opponentElos) {
     return opponentElos.reduce((acc, opponentElo) => acc + 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400)), 0) / opponentElos.length;
@@ -90,7 +91,7 @@
   // Gesamtrang aller aktiven Fahrer/Fahrzeuge nach einem Rennen im Ergebnis festhalten
   function storeOverallPositions(race, drivers, cars) {
     const activeD = drivers.filter(d => d.races >= MIN_RACES_FOR_RANK && !d.archived).sort((a, b) => b.elo - a.elo);
-    const activeC = cars.filter(c => c.races >= MIN_RACES_FOR_RANK && !c.hideFromRanking && !c.archived).sort((a, b) => b.elo - a.elo);
+    const activeC = cars.filter(c => c.races >= MIN_RACES_FOR_CAR_RANK && !c.hideFromRanking && !c.archived).sort((a, b) => b.elo - a.elo);
     const drvRank = new Map(activeD.map((d, i) => [d.id, i + 1]));
     const carRank = new Map(activeC.map((c, i) => [c.id, i + 1]));
     (race.results || []).forEach(res => {
@@ -110,7 +111,7 @@
   }
 
   window.Elo = {
-    START_ELO, MIN_RACES_FOR_RANK,
+    START_ELO, MIN_RACES_FOR_RANK, MIN_RACES_FOR_CAR_RANK,
     calculateExpectedScore, calculateActualScore, calculateKFactor,
     sortChronologically, applyRace, storeOverallPositions, recomputeAll
   };
