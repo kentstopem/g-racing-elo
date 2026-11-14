@@ -1,8 +1,8 @@
 // sync.js – hält die abgeleiteten Werte auf allen Geräten konsistent.
 //
 // Grundidee: Die Rennen sind die einzige „Wahrheit“. G!RP, Rennen, Siege, Runden der
-// Fahrer/Fahrzeuge sowie die Vorher/Nachher-Werte in den Rennergebnissen lassen sich
-// jederzeit deterministisch daraus berechnen (Elo.recomputeAll).
+// Fahrer/Fahrzeuge (pro Saison) werden im Browser daraus berechnet. Die Vorher/Nachher-
+// Werte in den gespeicherten Rennergebnissen hält dieses Modul aktuell (Elo.recomputeSeasons).
 //
 // Nach jeder Datenänderung (eigenes Gerät oder anderes Gerät) wird im Hintergrund neu
 // berechnet und mit dem gespeicherten Stand verglichen. Weicht etwas ab – z. B. weil zwei
@@ -17,7 +17,6 @@
     'driverEloChange', 'carEloChange',
     'positionOverallDriver', 'positionOverallCar'
   ];
-  const ENTITY_FIELDS = ['elo', 'races', 'wins', 'totalRounds'];
 
   let timer = null;
   let running = false;
@@ -31,23 +30,15 @@
     return s.every((res, i) => RESULT_FIELDS.every(f => same(res[f], calc[i][f])));
   }
 
-  function entityEqual (stored, calc) {
-    return ENTITY_FIELDS.every(f => same(stored[f], calc[f]));
-  }
-
-  // Vergleicht gespeicherten Stand mit der Neuberechnung und liefert nur die Abweichungen
+  // Vergleicht die gespeicherten Rennergebnisse mit der Neuberechnung (pro Saison)
   function computeDiff () {
     const data = window.appData;
-    const calc = structuredClone({ drivers: data.drivers, cars: data.cars, races: data.races });
-    window.Elo.recomputeAll(calc);
-
-    const byId = arr => new Map(arr.map(x => [x.id, x]));
-    const sD = byId(data.drivers), sC = byId(data.cars), sR = byId(data.races);
-    return {
-      drivers: calc.drivers.filter(d => !entityEqual(sD.get(d.id), d)),
-      cars:    calc.cars.filter(c => !entityEqual(sC.get(c.id), c)),
-      races:   calc.races.filter(r => !resultsEqual(sR.get(r.id).results, r.results))
-    };
+    const races = data.allRaces || data.races;
+    const calc = structuredClone({ drivers: data.drivers, cars: data.cars, races });
+    const seasonOf = window.Seasons ? window.Seasons.seasonOfRace : undefined;
+    window.Elo.recomputeSeasons(calc, seasonOf);
+    const stored = new Map(races.map(r => [r.id, r]));
+    return { races: calc.races.filter(r => !resultsEqual(stored.get(r.id).results, r.results)) };
   }
 
   /**
@@ -61,9 +52,9 @@
     let count = 0;
     try {
       const diff = computeDiff();
-      count = diff.drivers.length + diff.cars.length + diff.races.length;
+      count = diff.races.length;
       if (count > 0) {
-        console.info(`Sync: korrigiere ${diff.drivers.length} Fahrer, ${diff.cars.length} Fahrzeuge, ${diff.races.length} Rennen`);
+        console.info(`Sync: korrigiere ${count} Rennen`);
         await window.Storage.writeDerived(diff);
       }
     } catch (err) {

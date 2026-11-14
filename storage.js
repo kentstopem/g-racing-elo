@@ -4,8 +4,9 @@
 // Synchronisation zwischen Geräten:
 // • subscribe() hält Fahrer, Fahrzeuge, Rennen und Rekorde per Live-Listener aktuell.
 // • Geschrieben werden nur einzelne Felder (update), nie ganze Dokumente aus einem
-//   evtl. veralteten Gerätestand. Abgeleitete Werte (G!RP, Rennen, Siege …) repariert
-//   sync.js automatisch aus der Renn-Historie.
+//   evtl. veralteten Gerätestand. G!RP/Rennen/Siege der Fahrer und Fahrzeuge werden ab
+//   Version 2.1 nur noch im Browser aus den Rennen berechnet (pro Saison); die Werte in
+//   den Rennergebnissen hält sync.js aktuell.
 
 (function () {
   const db = firebase.firestore();
@@ -14,18 +15,13 @@
   const carsCol    = db.collection('cars');
   const racesCol   = db.collection('races');
   const recordsCol = db.collection('lapRecords');
+  const seasonsCol = db.collection('seasons');
+  const tracksCol  = db.collection('tracks');
+  const ALL_COLLECTIONS = { drivers: driversCol, cars: carsCol, races: racesCol, lapRecords: recordsCol, seasons: seasonsCol, tracks: tracksCol };
 
-  // Abgeleitete Felder (werden aus der Renn-Historie berechnet)
-  const DERIVED_FIELDS = ['elo', 'races', 'wins', 'totalRounds'];
 
   function docsToArray (snap) {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  }
-
-  function pick (obj, fields) {
-    const out = {};
-    fields.forEach(f => { out[f] = obj[f] ?? 0; });
-    return out;
   }
 
   // Schreibvorgänge in Blöcken (Firestore erlaubt max. 500 pro Batch)
@@ -47,8 +43,8 @@
      * Liefert ein Promise, das nach dem ersten vollständigen Datenstand erfüllt ist.
      */
     subscribe (onChange) {
-      const state = { drivers: null, cars: null, races: null, lapRecords: [] };
-      const meta  = { drivers: true, cars: true, races: true };
+      const state = { drivers: null, cars: null, races: null, lapRecords: [], seasons: null, tracks: null };
+      const meta  = { drivers: true, cars: true, races: true, seasons: true, tracks: true };
       const serverSynced = {};
       let resolveReady;
       const ready = new Promise(res => { resolveReady = res; });
@@ -62,7 +58,7 @@
         if (!snap.metadata.fromCache) serverSynced[key] = true;
         state[key] = docsToArray(snap);
         if (key in meta) meta[key] = snap.metadata.fromCache;
-        if (state.drivers && state.cars && state.races) {
+        if (state.drivers && state.cars && state.races && state.seasons && state.tracks) {
           const info = { fromCache: Object.values(meta).some(Boolean), remote, collection: key };
           onChange(state, info);
           if (!firstDone) { firstDone = true; resolveReady(); }
@@ -76,31 +72,52 @@
       listen('cars', carsCol);
       listen('races', racesCol.orderBy('id', 'desc'));
       listen('lapRecords', recordsCol);
+      listen('seasons', seasonsCol);
+      listen('tracks', tracksCol);
       return ready;
     },
 
-    // Abgeleitete Werte schreiben: nur die Felder, die sich wirklich unterscheiden
-    async writeDerived ({ drivers = [], cars = [], races = [] }) {
-      const ops = [
-        ...drivers.map(d => b => b.update(driversCol.doc(String(d.id)), pick(d, DERIVED_FIELDS))),
-        ...cars.map(c    => b => b.update(carsCol.doc(String(c.id)),    pick(c, DERIVED_FIELDS))),
-        ...races.map(r   => b => b.update(racesCol.doc(String(r.id)),   { results: r.results }))
-      ];
-      await commitInChunks(ops);
+    // Abgeleitete Werte in den Rennergebnissen schreiben (nur abweichende Rennen)
+    async writeDerived ({ races = [] }) {
+      await commitInChunks(races.map(r => b => b.update(racesCol.doc(String(r.id)), { results: r.results })));
     },
 
-    // Neues Rennen + abgeleitete Werte der Teilnehmer gemeinsam (atomar) speichern
-    saveRace (race, drivers, cars) {
-      const batch = db.batch();
-      batch.set(racesCol.doc(String(race.id)), race);
-      drivers.forEach(d => batch.update(driversCol.doc(String(d.id)), pick(d, DERIVED_FIELDS)));
-      cars.forEach(c    => batch.update(carsCol.doc(String(c.id)),    pick(c, DERIVED_FIELDS)));
-      return batch.commit();
+    // Neues Rennen speichern (G!RP der Fahrer/Fahrzeuge wird aus den Rennen berechnet)
+    saveRace (race) {
+      return racesCol.doc(String(race.id)).set(race);
     },
 
     // Einzelne Felder ändern (z. B. archived, hideFromRanking) – überschreibt keine anderen Felder
     updateDriverFields : (id, fields) => driversCol.doc(String(id)).update(fields),
     updateCarFields    : (id, fields) => carsCol.doc(String(id)).update(fields),
+
+    // Saisons / Strecken
+    addSeason      : (s) => seasonsCol.doc(String(s.id)).set(s),
+    addTrack       : (t) => tracksCol.doc(String(t.id)).set(t),
+
+    /**
+     * Ersteinrichtung der Saisons in einem Rutsch: Strecke + Saison anlegen und
+     * Feld-Änderungen (z. B. Namen ohne Krone) an Fahrern/Rennen schreiben.
+     */
+    async setupSeasons ({ track, season, driverUpdates = [], raceUpdates = [] }) {
+      const ops = [
+        b => b.set(tracksCol.doc(String(track.id)), track),
+        b => b.set(seasonsCol.doc(String(season.id)), season),
+        ...driverUpdates.map(([id, fields]) => b => b.update(driversCol.doc(String(id)), fields)),
+        ...raceUpdates.map(([id, fields])   => b => b.update(racesCol.doc(String(id)), fields))
+      ];
+      await commitInChunks(ops);
+    },
+
+    // Komplette Sicherung aller Collections direkt vom Server
+    async exportAll () {
+      const out = { exportedAt: new Date().toISOString(), project: 'g-racing-elo' };
+      for (const [name, col] of Object.entries(ALL_COLLECTIONS)) {
+        const snap = await col.get({ source: 'server' });
+        out[name] = snap.docs.map(d => ({ _docId: d.id, ...d.data() }));
+      }
+      return out;
+    },
 
     // Anlegen / Löschen
     addDriver      : (d) => driversCol.doc(String(d.id)).set(d),

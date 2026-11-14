@@ -96,7 +96,7 @@ function renderChart(mode){
     const ctx=canvas.getContext('2d');
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.fillStyle='#5A5A5E';ctx.textAlign='center';ctx.font="16px 'Source Sans 3', system-ui, sans-serif";
-    const msg=mode==='pos'?(currentEntityType==='car'?'Noch keine Rennen':`Rang erst nach dem ${window.Elo.MIN_RACES_FOR_RANK}. Rennen`):'Noch keine G!RP-Daten';
+    const msg='Noch keine Rennen in dieser Saison';
     ctx.fillText(msg, canvas.width/2, canvas.height/2);
     return;
   }
@@ -226,7 +226,7 @@ function renderDetails(){
     }
     // Bestzeit ermitteln – Daten kommen jetzt aus lapRecords
     let bestLine = 'Bestzeit: <strong>-</strong>';
-    const recs = window.appData.lapRecords || [];
+    const recs = recordsInView();
     if (recs.length) {
         if (currentEntityType === 'driver') {
             const rec = recs.filter(r => r.driverId == currentEntityId)
@@ -262,16 +262,83 @@ let dataReady = null;
 function loadData() {
     if (dataReady) return dataReady;
     dataReady = window.Storage.subscribe((state, info) => {
-        appData.drivers    = state.drivers;
-        appData.cars       = state.cars;
-        appData.races      = state.races;
-        appData.lapRecords = state.lapRecords;
+        rawState = state;
+        buildView();
         if (appStarted) refreshViews(info);
         if (info.remote) showToast('🔄 Daten von einem anderen Gerät aktualisiert');
         // Abgeleitete Werte prüfen/reparieren, sobald echte Serverdaten vorliegen
         if (!info.fromCache) window.Sync.schedule();
     });
     return dataReady;
+}
+
+// ---------- Saison-Ansicht ----------
+// rawState: Daten wie in Firestore. appData: Sicht auf die gewählte Saison.
+//   appData.allRaces – alle Rennen (für Berechnung/Synchronisation)
+//   appData.races    – Rennen der gewählten Saison (bzw. alle bei „Alle Saisons“)
+//   appData.drivers/cars – Stammdaten mit G!RP/Rennen/Siegen/Runden der gewählten Saison
+let rawState = null;
+function buildView() {
+    if (!rawState) return;
+    const S = window.Seasons;
+    S.setData(rawState.seasons, rawState.tracks);
+    appData.allRaces   = rawState.races;
+    appData.lapRecords = rawState.lapRecords;
+    appData.seasons    = S.list();
+    appData.tracks     = S.tracks();
+
+    const calc = structuredClone({ drivers: rawState.drivers, cars: rawState.cars, races: rawState.races });
+    const per  = window.Elo.recomputeSeasons(calc, S.seasonOfRace);
+    const pick = (sid, kind, id) => per.get(sid)?.[kind].find(x => x.id === id);
+    const currentId = S.current().id;
+
+    const withStats = (kind) => rawState[kind].map(x => {
+        const base = { ...x, elo: 1000, races: 0, wins: 0, totalRounds: 0 };
+        if (S.isAll()) {
+            // Alle Saisons: Rennen/Siege/Runden aufsummiert, G!RP der aktuellen Saison
+            for (const st of per.values()) {
+                const v = st[kind].find(y => y.id === x.id);
+                if (v) { base.races += v.races; base.wins += v.wins; base.totalRounds += v.totalRounds; }
+            }
+            base.elo = pick(currentId, kind, x.id)?.elo ?? 1000;
+        } else {
+            const v = pick(S.selectedSeason().id, kind, x.id);
+            if (v) Object.assign(base, { elo: v.elo, races: v.races, wins: v.wins, totalRounds: v.totalRounds });
+        }
+        return base;
+    });
+    appData.drivers = withStats('drivers');
+    appData.cars    = withStats('cars');
+    appData.races   = S.isAll() ? rawState.races : rawState.races.filter(r => S.seasonOfRace(r) === S.selectedSeason().id);
+    renderSeasonSelect();
+}
+
+// Rekorde der Strecke, die zur gewählten Saison gehört
+function recordsInView() {
+    const trackId = window.Seasons.viewTrackId();
+    const recs = appData.lapRecords || [];
+    return trackId ? recs.filter(r => window.Seasons.trackOfRecord(r) === trackId) : recs;
+}
+window.recordsInView = recordsInView;
+
+function renderSeasonSelect() {
+    const sel = document.getElementById('seasonSelect');
+    if (!sel) return;
+    const S = window.Seasons;
+    const opts = [...S.list()].reverse().map(s => {
+        const t = S.track(s.trackId);
+        return `<option value="${s.id}">${escapeHtml(S.label(s))}${t ? ' · ' + escapeHtml(t.short || t.name) : ''}</option>`;
+    });
+    if (S.hasSeasons() && S.list().length > 1) opts.push(`<option value="${S.ALL}">Alle Saisons</option>`);
+    sel.innerHTML = opts.join('');
+    sel.value = S.selectedId();
+    sel.closest('.season-bar')?.classList.toggle('hidden', !S.hasSeasons());
+}
+
+function changeSeason(id) {
+    window.Seasons.select(id);
+    buildView();
+    refreshViews({ collection: 'lapRecords' });
 }
 
 // Alle sichtbaren Bereiche neu zeichnen (Formulareingaben bleiben erhalten)
@@ -285,6 +352,7 @@ function refreshViews(info = {}) {
     RaceUI.refreshPredictions?.();
     if (currentSection === 'stats') window.StatsUI?.reload();
     if (currentSection === 'records' && info.collection === 'lapRecords') window.RecordsUI?.reload();
+    if (currentSection === 'seasons' && ['seasons', 'tracks', 'races'].includes(info.collection)) window.SeasonsUI?.render();
     const modal = document.getElementById('eloModal');
     if (modal && !modal.classList.contains('hidden')) renderView();
 }
@@ -302,12 +370,10 @@ function updateTagline() {
     const taglineEl = document.getElementById('tagline');
     if (!taglineEl) return;
 
-    let topName = 'Christian L.';
-    if (appData.drivers && appData.drivers.length) {
-        const topDriver = activeRanking('driver')[0];
-        if (topDriver && topDriver.name) topName = topDriver.name;
-    }
-    taglineEl.textContent = `Kannst Du mit ${topName} mithalten?`;
+    const topDriver = appData.races?.length ? activeRanking('driver')[0] : null;
+    taglineEl.textContent = topDriver
+        ? `Kannst Du mit ${topDriver.name} mithalten?`
+        : 'Neue Saison – wer legt vor?';
 }
 
 // Navigation
@@ -345,8 +411,15 @@ function showSection(sectionName) {
         HistoryUI.update();
         // rankSubNav bleibt versteckt
     } else if (sectionName === 'race') {
+        // Neue Rennen gehören immer zur aktuellen Saison
+        if (window.Seasons.selectedId() !== window.Seasons.current().id) {
+            changeSeason(window.Seasons.current().id);
+            showToast(`Ansicht auf ${window.Seasons.label(window.Seasons.current())} umgestellt`);
+        }
         RaceUI.updateForm();
         // rankSubNav bleibt versteckt
+    } else if (sectionName === 'seasons') {
+        window.SeasonsUI?.render();
     } else if (sectionName === 'stats') {
         window.StatsUI?.reload();
     } else if (sectionName==='records'){
@@ -397,7 +470,7 @@ function addDriver() {
 // Fahrer/Fahrzeuge mit Rennen werden archiviert statt gelöscht, damit die Historie vollständig bleibt.
 // Archivierte erscheinen nicht mehr in Rangliste, Rennformular und Auto-Setup.
 function hasRaces(field, id) {
-    return appData.races.some(r => (r.results || []).some(res => res[field] === id));
+    return (appData.allRaces || appData.races).some(r => (r.results || []).some(res => res[field] === id));
 }
 
 function deleteDriver(id) {
@@ -442,7 +515,7 @@ function updateDriversList() {
             </div>
             <div style="display: flex; align-items: center; gap:8px;">
                 <span class="elo-score">${driver.elo}</span>
-                ${driver.races>0
+                ${hasRaces('driverId', driver.id)
                   ? `<button class="btn archive-driver" data-id="${driver.id}">${driver.archived?'Reaktivieren':'Archivieren'}</button>`
                   : `<button class="btn btn-danger delete-driver" data-id="${driver.id}">Löschen</button>`}
             </div>
@@ -542,7 +615,7 @@ function updateCarsList() {
                     im Ranking
                 </label>`:''}
                 <span class="elo-score">${car.elo}</span>
-                ${car.races>0
+                ${hasRaces('carId', car.id)
                   ? `<button class="btn archive-car" data-id="${car.id}">${car.archived?'Reaktivieren':'Archivieren'}</button>`
                   : `<button class="btn btn-danger delete-car" data-id="${car.id}">Löschen</button>`}
             </div>
@@ -647,6 +720,7 @@ async function init() {
         if (cy && year > 2025) cy.textContent = `–${year}`;
         showSection('rankings');
         initNavigation();
+        document.getElementById('seasonSelect')?.addEventListener('change', e => changeSeason(e.target.value));
         initDriverManagement();
         initCarManagement();
         appStarted = true;

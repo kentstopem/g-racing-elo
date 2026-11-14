@@ -12,89 +12,67 @@
   }
 
   // —————————————— Rendering
-  function updateDriverRanking(){
-    // Auswahl & Filter anwenden
-    const minRaces=filterMin||DEFAULT_MIN;
-    const selected=[...window.appData.drivers].filter(d=>!d.archived);
-    const active=selected.filter(d=>d.races>=minRaces);
-    // Sortierung nach GRP
-    active.sort((a,b)=>b.elo-a.elo);
-    const podium=document.getElementById('driverPodium');
-    const list=document.getElementById('driversRanking');
+  const esc=window.Helpers.escapeHtml;
+  const medals={first:'🥇',second:'🥈',third:'🥉'};
 
-    // Podium bei mindestens drei gewerteten Fahrern
-    const showPodium=active.length>=3;
+  /**
+   * Rangliste für Fahrer oder Fahrzeuge.
+   * Saison: sortiert nach G!RP. „Alle Saisons“: ewige Tabelle nach Siegen, dann Rennen.
+   */
+  function renderRanking(kind){
+    const isDriver=kind==='driver';
+    const all=window.Seasons.isAll();
+    const S=window.Seasons;
+    const minRaces=isDriver?(filterMin||DEFAULT_MIN):1;
+    const pool=(isDriver?window.appData.drivers:window.appData.cars)
+      .filter(x=>!x.archived && (isDriver||!x.hideFromRanking) && x.races>=minRaces);
+    const sorted=[...pool].sort(all
+      ? (a,b)=>(b.wins-a.wins)||(b.races-a.races)||(b.totalRounds-a.totalRounds)
+      : (a,b)=>b.elo-a.elo);
+    const podium=document.getElementById(isDriver?'driverPodium':'carPodium');
+    const list=document.getElementById(isDriver?'driversRanking':'carsRanking');
+    const header=document.getElementById(isDriver?'driversRankHeader':'carsRankHeader');
+    const idAttr=isDriver?'data-driver-id':'data-car-id';
+    const open=x=>`openEloModal('${kind}',${x.id})`;
+    const score=x=>all?`${x.wins} S`:`${x.elo}`;
+    const scoreLong=x=>all?`${x.wins} Siege`:`${x.elo} G!RP`;
+
+    if(header){
+      const title=isDriver?'🏆 Fahrer':'🏎️ Fahrzeug';
+      header.textContent=all?`${title}-Ewige Tabelle`:(S.hasSeasons()?`${title}-Rangliste · ${S.label(S.selectedSeason())}`:`${title}-Rangliste`);
+    }
+
+    const showPodium=sorted.length>=3;
     if(podium){
-      podium.innerHTML = showPodium ? ( ()=>{
-        const order=[1,0,2];
-        const classes=['second','first','third'];
-        const medals=['🥈','🥇','🥉'];
-        return order.map(i=>active[i]).filter(Boolean).map((d,idx)=>`
-          <div class="podium-item ${classes[idx]}" data-driver-id="${d.id}" onclick="openEloModal('driver',${d.id})">
-            <div class="podium-position">${medals[idx]}</div>
-            <div class="podium-name">${d.name}</div>
-            <div class="podium-elo">${d.elo} G!RP</div>
-            <div style="font-size:0.75em;opacity:.9;">${d.races}R · ${d.wins||0}S · ${d.totalRounds||0}Rd</div>
-          </div>`).join('');
-      })():'';
+      podium.innerHTML=showPodium?[[1,'second'],[0,'first'],[2,'third']].map(([i,cls])=>{
+        const x=sorted[i];
+        return `<div class="podium-item ${cls}" ${idAttr}="${x.id}" onclick="${open(x)}">
+            <div class="podium-position">${medals[cls]}</div>
+            <div class="podium-name">${esc(x.name)}</div>
+            <div class="podium-elo">${scoreLong(x)}</div>
+            <div style="font-size:0.75em;opacity:.9;">${x.races}R · ${x.wins||0}S · ${x.totalRounds||0}Rd</div>
+          </div>`;
+      }).join(''):'';
       podium.classList.toggle('hidden',!showPodium);
     }
 
-    // Liste rendern
     if(list){
-      if(selected.length===0){list.innerHTML='<p style="text-align:center;color:var(--text-muted);">Keine Fahrer</p>';return;}
+      if(!sorted.length){
+        list.innerHTML=`<p class="empty-state">${window.appData.races.length?'Keine Einträge für diesen Filter':'Noch keine Rennen in dieser Saison'}</p>`;
+        return;
+      }
       let rank=showPodium?4:1;
-      const html=[];
-      active.slice(showPodium?3:0).forEach(d=>{
-        html.push(`<div class="list-item" data-driver-id="${d.id}" onclick="openEloModal('driver',${d.id})">
-          <div><strong>#${rank++} ${d.name}</strong><div style="font-size:0.9em;color:var(--text-muted);">${d.races} Rennen · ${d.wins||0} Siege · ${d.totalRounds||0} Runden</div></div>
-          <span class="elo-score">${d.elo}</span></div>`);
-      });
-      // Ohne Filter: Fahrer mit zu wenigen Rennen unten anhängen. Mit Filter: ausblenden.
-      const inactive=filterMin?[]:selected.filter(d=>d.races<minRaces).sort((a,b)=>b.elo-a.elo);
-      inactive.forEach(d=>{
-        html.push(`<div class="list-item" data-driver-id="${d.id}" onclick="openEloModal('driver',${d.id})">
-          <div><strong>— ${d.name}</strong><div class="status-inactive">Ranking ab Rennen ${minRaces}</div><div style="font-size:0.9em;color:var(--text-muted);">${d.races} Rennen · ${d.wins||0} Siege · ${d.totalRounds||0} Runden</div></div>
-          <span class="elo-score">${d.elo}</span></div>`);
-      });
-      list.innerHTML=html.join('');
+      list.innerHTML=sorted.slice(showPodium?3:0).map(x=>`<div class="list-item" ${idAttr}="${x.id}" onclick="${open(x)}">
+          <div><strong>#${rank++} ${esc(x.name)}</strong><div>${x.races} Rennen · ${x.wins||0} Siege · ${x.totalRounds||0} Runden</div></div>
+          <span class="elo-score">${score(x)}</span></div>`).join('');
     }
+  }
 
+  function updateDriverRanking(){
+    renderRanking('driver');
     if(typeof window.updateTagline==='function'){window.updateTagline();}
   }
-
-  function updateCarRanking(){
-    const selected=[...window.appData.cars].filter(c=>!c.hideFromRanking&&!c.archived);
-    const active=[...selected].sort((a,b)=>b.elo-a.elo);
-    const podium=document.getElementById('carPodium');
-    const list=document.getElementById('carsRanking');
-    const showPodium=active.length>=3;
-    if(podium){
-      podium.innerHTML= showPodium ?(()=>{
-        const order=[1,0,2];const classes=['second','first','third'];const medals=['🥈','🥇','🥉'];
-        return order.map(i=>active[i]).filter(Boolean).map((c,idx)=>`
-          <div class="podium-item ${classes[idx]}" data-car-id="${c.id}" onclick="openEloModal('car',${c.id})">
-            <div class="podium-position">${medals[idx]}</div>
-            <div class="podium-name">${c.name}</div>
-            <div class="podium-elo">${c.elo} G!RP</div>
-            <div style="font-size:0.75em;opacity:.9;">${c.races}R · ${c.wins||0}S · ${c.totalRounds||0}Rd</div>
-          </div>`).join('');
-      })():'';
-      podium.classList.toggle('hidden',!showPodium);
-    }
-    if(list){
-      if(selected.length===0){list.innerHTML='<p style="text-align:center;color:var(--text-muted);">Keine Fahrzeuge</p>';return;}
-      let rank=showPodium?4:1;
-      const html=[];
-      active.slice(showPodium?3:0).forEach(c=>{
-        html.push(`<div class="list-item" data-car-id="${c.id}" onclick="openEloModal('car',${c.id})">
-          <div><strong>#${rank++} ${c.name}</strong><div style="font-size:0.9em;color:var(--text-muted);">${c.races} Rennen · ${c.wins||0} Siege · ${c.totalRounds||0} Runden</div></div>
-          <span class="elo-score">${c.elo}</span></div>`);
-      });
-      // Kein Inaktiv-Bereich für Fahrzeuge; sie sind ab dem ersten Rennen direkt gültig
-      list.innerHTML=html.join('');
-    }
-  }
+  function updateCarRanking(){ renderRanking('car'); }
 
   function update(){ updateDriverRanking(); updateCarRanking(); }
 

@@ -30,6 +30,10 @@
             <h1>G!lashammer Racing Points</h1>
             <div class="the-line" aria-hidden="true"></div>
             <p id="tagline">Kannst Du mit Christian L. mithalten?</p>
+            <div class="season-bar hidden">
+                <label for="seasonSelect" class="sr-only">Saison</label>
+                <select id="seasonSelect" class="season-select"></select>
+            </div>
         </div>
         
         <div class="nav">
@@ -40,6 +44,7 @@
             <button class="nav-btn admin-only" data-section="race">🏁 Neues Rennen</button>
             <button class="nav-btn admin-only" data-section="drivers">😎 Fahrer</button>
             <button class="nav-btn admin-only" data-section="cars">🏎️ Fahrzeuge</button>
+            <button class="nav-btn admin-only" data-section="seasons">📅 Saisons</button>
         </div>
 
         <!-- Sub navigation for Rankings -->
@@ -66,6 +71,12 @@
             <div id="driversList"></div>
         </div>
         
+        <!-- Saisons Section (Admin) -->
+        <div id="seasons" class="section">
+            <h2>📅 Saisons &amp; Strecken</h2>
+            <div id="seasonAdmin"></div>
+        </div>
+
         <!-- Fahrzeuge Section -->
         <div id="cars" class="section">
             <h2>🏎️ Fahrzeuge verwalten</h2>
@@ -109,7 +120,7 @@
         <!-- Rankings Section -->
         <div id="rankings" class="section active">
             <div id="driversRankWrapper">
-            <div class="ranking-header">🏆 Fahrer-Rangliste</div>
+            <div class="ranking-header" id="driversRankHeader">🏆 Fahrer-Rangliste</div>
             <div class="flex justify-between items-center" style="margin-bottom:10px;">
                 <div></div>
                 <button class="ranking-filter-btn" id="driverFilterBtn">🔍 Filter</button>
@@ -119,7 +130,7 @@
             </div>
             
             <div id="carsRankWrapper" class="hidden">
-                <div class="ranking-header" style="margin-top: 20px;">🏎️ Fahrzeug-Rangliste</div>
+                <div class="ranking-header" id="carsRankHeader">🏎️ Fahrzeug-Rangliste</div>
             <div id="carPodium" class="podium"></div>
             <div id="carsRanking"></div>
             </div>
@@ -312,6 +323,7 @@
     <script src="version.js"></script>
     <script src="helpers.js"></script>
     <script src="elo.js"></script>
+    <script src="seasons.js"></script>
     <script src="sync.js"></script>
 
     <!-- Haupt-App-Logik -->
@@ -323,6 +335,7 @@
     <script src="statistics.js" defer></script>
     <script src="wheel.js" defer></script>
     <script src="slot.js"  defer></script>
+    <script src="seasons-ui.js" defer></script>
 
     <!-- PWA: Service Worker für Offline-Start -->
     <script>

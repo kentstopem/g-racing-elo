@@ -11,7 +11,7 @@
 
   // Rekorde kommen per Live-Listener aus appData.lapRecords (siehe app.js/storage.js)
   function loadRecords(){
-    const all=window.appData.lapRecords||[];
+    const all=window.recordsInView?.()||window.appData.lapRecords||[];
     // Aggregieren je nach Ansicht
     const map={};
     all.forEach(rec=>{
@@ -97,17 +97,21 @@
     const date=document.getElementById('recDate').value;
     if(!(carId&&driverId&&time>0&&date)){window.Helpers.showToast('Alle Felder ausfüllen');return;}
 
+    // Rekorde gelten pro Strecke: Strecke ergibt sich aus der Saison des Datums
+    const S=window.Seasons;
+    const trackId=S.seasonAt(new Date(`${date}T12:00:00`).getTime()).trackId??null;
     const col=db.collection(RECORD_COLL);
     const q=col.where('driverId','==',driverId).where('carId','==',carId);
     const snap=await q.get();
-    if(!snap.empty){
-       const doc=snap.docs[0];
+    const existing=snap.docs.find(d=>S.trackOfRecord(d.data())===trackId);
+    if(existing){
+       const doc=existing;
        if(time<doc.data().time){
-         await doc.ref.set({carId,driverId,time,date,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+         await doc.ref.set({carId,driverId,time,date,trackId,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
          window.Helpers.showToast('Rekord verbessert!');
        }else{window.Helpers.showToast('Langsamer als aktueller Rekord');return;}
     }else{
-       await col.add({carId,driverId,time,date,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+       await col.add({carId,driverId,time,date,trackId,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
        window.Helpers.showToast('Rekord gespeichert');
     }
     // Anzeige aktualisiert der Live-Listener

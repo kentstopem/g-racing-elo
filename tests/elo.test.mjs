@@ -80,14 +80,31 @@ test('recomputeAll ist deterministisch und unabhängig von der Speicherreihenfol
   assert.equal(a.drivers.find(d => d.id === 1).totalRounds, 60 + 40 + 75);
 });
 
-test('recomputeAll: Rang-Speicherung – Fahrer ab 5 Rennen, Fahrzeuge ab dem 1., Archivierte nie', () => {
+test('recomputeAll: Rang ab dem ersten Rennen, Archivierte nie', () => {
   const data = sampleData();
   data.cars[0].archived = true;
   Elo.recomputeAll(data);
   const first = Elo.sortChronologically(data.races)[0];
-  assert.ok(first.results.every(r => r.positionOverallDriver === null));
+  assert.ok(first.results.every(r => Number.isInteger(r.positionOverallDriver)));
   assert.equal(first.results.find(r => r.carId === 11).positionOverallCar, null);
   assert.ok(Number.isInteger(first.results.find(r => r.carId === 12).positionOverallCar));
+});
+
+test('recomputeSeasons: jede Saison startet bei 1000, Rennen bleiben getrennt', () => {
+  const data = sampleData();
+  const seasonOf = r => (r.id >= 102 ? 'S2' : 'S1');
+  const per = Elo.recomputeSeasons(data, seasonOf);
+  same([...per.keys()], ['S1', 'S2']);
+  const r102 = data.races.find(r => r.id === 102);
+  assert.ok(r102.results.every(res => res.oldDriverElo === 1000 && res.oldCarElo === 1000));
+  const d1s1 = per.get('S1').drivers.find(d => d.id === 1);
+  const d1s2 = per.get('S2').drivers.find(d => d.id === 1);
+  assert.equal(d1s1.races, 2);
+  assert.equal(d1s2.races, 1);
+  // Saison 1 allein entspricht der Berechnung nur mit ihren Rennen
+  const only1 = sampleData(); only1.races = only1.races.filter(r => r.id < 102);
+  Elo.recomputeAll(only1);
+  same(per.get('S1').drivers.map(d => d.elo), only1.drivers.map(d => d.elo));
 });
 
 test('Chronologie: gleiche Zeit wird nach Erfassungs-ID sortiert', () => {

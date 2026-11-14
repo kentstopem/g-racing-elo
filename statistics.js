@@ -44,7 +44,7 @@
      // Bestzeiten
      if(appData.lapRecords){
        const bestDrv={};const bestCar={};
-       appData.lapRecords.forEach(r=>{
+       window.recordsInView().forEach(r=>{
           if(!bestDrv[r.driverId]||r.time<bestDrv[r.driverId]) bestDrv[r.driverId]=r.time;
           if(!bestCar[r.carId]   ||r.time<bestCar[r.carId])    bestCar[r.carId] =r.time;
        });

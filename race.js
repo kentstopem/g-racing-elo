@@ -289,26 +289,29 @@
 
     // Rennen nachgetragen (liegt zeitlich vor dem letzten gespeicherten Rennen)?
     // Dann müssen alle späteren Rennen neu bewertet werden.
+    // Gehört das Rennen in eine frühere Saison oder liegt es vor dem letzten Rennen der Saison?
+    // Dann müssen spätere Rennen neu bewertet werden.
+    const S=window.Seasons;
     const lastRace=window.Elo.sortChronologically(window.appData.races).pop();
-    const isBackfill=lastRace && window.Helpers.tsForRace(race) < window.Helpers.tsForRace(lastRace);
+    const isBackfill=S.seasonOfRace(race)!==S.current().id
+      || (lastRace && window.Helpers.tsForRace(race) < window.Helpers.tsForRace(lastRace));
 
-    let kFactor, drvs=[], cars=[];
+    let kFactor;
     if(isBackfill){
-      // Nachgetragenes Rennen: Ergebnis auf einer Kopie der gesamten Historie berechnen.
+      // Ergebnis auf einer Kopie der gesamten Historie (pro Saison) berechnen.
       // Die Werte aller späteren Rennen korrigiert anschließend sync.js automatisch.
-      const copy=structuredClone({drivers:window.appData.drivers,cars:window.appData.cars,races:[race,...window.appData.races]});
-      window.Elo.recomputeAll(copy);
+      const copy=structuredClone({drivers:window.appData.drivers,cars:window.appData.cars,races:[race,...(window.appData.allRaces||window.appData.races)]});
+      window.Elo.recomputeSeasons(copy, S.seasonOfRace);
       race.results=copy.races[0].results;
       kFactor=calculateKFactor(totalPlayers, rounds);
     }else{
+      // Ansicht ist beim Erfassen immer die aktuelle Saison → appData.drivers/cars = aktuelle Werte
       kFactor=window.Elo.applyRace(race, window.appData.drivers, window.appData.cars);
       window.Elo.storeOverallPositions(race, window.appData.drivers, window.appData.cars);
-      drvs=results.map(r=>window.appData.drivers.find(x=>x.id===r.driverId)).filter(Boolean);
-      cars=results.map(r=>window.appData.cars.find(x=>x.id===r.carId)).filter(Boolean);
     }
     window.appData.races.unshift(race);
-    // Rennen + Werte der Teilnehmer gemeinsam (atomar) speichern; Anzeige aktualisiert der Live-Listener
-    window.Storage.saveRace(race, drvs, cars)
+    // Nur das Rennen speichern – G!RP der Fahrer/Fahrzeuge wird aus den Rennen berechnet.
+    window.Storage.saveRace(race)
       .then(()=>{ if(isBackfill) window.Sync.schedule(0); })
       .catch(err=>{console.error(err);showToast('⚠️ Rennen konnte nicht gespeichert werden!');});
 

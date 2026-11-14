@@ -2,8 +2,9 @@
   const BASE_K = 32;
   const START_ELO = 1000;
   const MIN_ELO = 100;
-  const MIN_RACES_FOR_RANK = 5;     // ab so vielen Rennen gilt ein Fahrer als „aktiv“ (Rangliste, Auto-Setup)
-  const MIN_RACES_FOR_CAR_RANK = 1; // Fahrzeuge: Rangliste, Diagramm und Auto-Setup ab dem ersten Rennen
+  // Ab Version 2.1 zählt jeder ab dem ersten Rennen der Saison (Ausdünnen per Filter in der Rangliste)
+  const MIN_RACES_FOR_RANK = 1;
+  const MIN_RACES_FOR_CAR_RANK = 1;
 
   function calculateExpectedScore(playerElo, opponentElos) {
     return opponentElos.reduce((acc, opponentElo) => acc + 1 / (1 + Math.pow(10, (opponentElo - playerElo) / 400)), 0) / opponentElos.length;
@@ -100,19 +101,44 @@
     });
   }
 
-  // Alle Werte von Grund auf aus der Renn-Historie neu berechnen
-  function recomputeAll(data) {
-    data.drivers.forEach(d => { d.elo = START_ELO; d.races = 0; d.wins = 0; d.totalRounds = 0; });
-    data.cars.forEach(c    => { c.elo = START_ELO; c.races = 0; c.wins = 0; c.totalRounds = 0; });
+  const resetEntity = x => ({ ...x, elo: START_ELO, races: 0, wins: 0, totalRounds: 0 });
+
+  /**
+   * Alle Werte pro Saison aus der Renn-Historie berechnen. Jede Saison startet bei 1000.
+   * Schreibt die Vorher/Nachher-Werte in die Ergebnisse von data.races.
+   * @param seasonOf  Funktion race → Saison-ID
+   * @returns Map Saison-ID → { drivers, cars } (Kopien mit den Werten am Saisonende)
+   */
+  function recomputeSeasons(data, seasonOf = () => 'all') {
+    const perSeason = new Map();
     sortChronologically(data.races).forEach(race => {
-      applyRace(race, data.drivers, data.cars);
-      storeOverallPositions(race, data.drivers, data.cars);
+      const sid = seasonOf(race);
+      if (!perSeason.has(sid)) {
+        perSeason.set(sid, { drivers: data.drivers.map(resetEntity), cars: data.cars.map(resetEntity) });
+      }
+      const st = perSeason.get(sid);
+      applyRace(race, st.drivers, st.cars);
+      storeOverallPositions(race, st.drivers, st.cars);
     });
+    return perSeason;
+  }
+
+  // Alle Rennen als eine Saison berechnen; Endwerte direkt in data.drivers/cars übernehmen
+  function recomputeAll(data, seasonOf) {
+    const per = recomputeSeasons(data, seasonOf);
+    const last = [...per.values()].pop();
+    const take = (target, src) => target.forEach(x => {
+      const v = src?.find(y => y.id === x.id) || resetEntity(x);
+      Object.assign(x, { elo: v.elo, races: v.races, wins: v.wins, totalRounds: v.totalRounds });
+    });
+    take(data.drivers, last?.drivers);
+    take(data.cars, last?.cars);
+    return per;
   }
 
   window.Elo = {
     START_ELO, MIN_RACES_FOR_RANK, MIN_RACES_FOR_CAR_RANK,
     calculateExpectedScore, calculateActualScore, calculateKFactor,
-    sortChronologically, applyRace, storeOverallPositions, recomputeAll
+    sortChronologically, applyRace, storeOverallPositions, recomputeSeasons, recomputeAll
   };
 })();
