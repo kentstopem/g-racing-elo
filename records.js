@@ -28,7 +28,7 @@
       :'<th>#</th><th>Fahrzeug</th><th>Bestzeit</th><th>Datum</th><th>Fahrer</th>';
 
     const hdr=document.getElementById('recordsHeader');
-    if(hdr){hdr.textContent=currentMode==='drivers'?'🏅 Fahrer-Rekorde':'🏅 Fahrzeug-Rekorde';}
+    if(hdr){hdr.innerHTML=window.Helpers.icon('medal')+(currentMode==='drivers'?'Fahrer-Rekorde':'Fahrzeug-Rekorde');}
   }
 
   function renderForm(){
@@ -64,12 +64,12 @@
     const show=sorted.length>=3;
     if(show){
       const classes=['first','second','third'];
-      const medals=['🥇','🥈','🥉'];
+      
       podiumDiv.innerHTML=sorted.slice(0,3).map((rec,idx)=>{
         const mainName=currentMode==='drivers'
           ? window.appData.drivers.find(d=>d.id===rec.driverId)?.name||'?'
           : window.appData.cars.find(c=>c.id===rec.carId)?.name||'?';
-        return `<div class="podium-item ${classes[idx]}"><div class="podium-position">${medals[idx]}</div><div class="podium-name">${mainName}</div><div class="podium-elo">${rec.time.toFixed(3)} s</div></div>`;
+        return `<div class="podium-item ${classes[idx]}"><div class="podium-position">${idx+1}</div><div class="podium-name">${mainName}</div><div class="podium-elo">${rec.time.toFixed(3)} s</div></div>`;
       }).join('');
     }
     podiumDiv.classList.toggle('hidden',!show);

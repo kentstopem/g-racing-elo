@@ -1,8 +1,16 @@
 (function(){
-  function showToast(message, duration = 4000) {
+  // Linien-Icon aus dem SVG-Sprite in index.html (statt Emoji)
+  function icon(name) {
+    return `<svg class="ic" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+  }
+
+  // showToast(text, 4000) oder showToast(text, { icon: 'alert', duration })
+  function showToast(message, opts = 4000) {
+    const { duration = 4000, icon: ic } = typeof opts === 'number' ? { duration: opts } : opts;
     const t = document.createElement('div');
     t.className = 'toast';
-    t.textContent = message;
+    if (ic) t.innerHTML = icon(ic);
+    t.append(message);
     document.body.appendChild(t);
     // kleine Verzögerung, damit das Element gerendert ist
     setTimeout(() => t.classList.add('show'), 10);
@@ -26,5 +34,5 @@
     return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   }
 
-  window.Helpers = { showToast, tsForRace, escapeHtml };
+  window.Helpers = { showToast, tsForRace, escapeHtml, icon };
 })(); 

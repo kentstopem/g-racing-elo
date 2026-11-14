@@ -56,7 +56,7 @@
       showToast('Saison 2025/26 eingerichtet');
     } catch (err) {
       console.error(err);
-      showToast('⚠️ Einrichtung fehlgeschlagen – nichts wurde verändert, bitte erneut versuchen');
+      showToast('Einrichtung fehlgeschlagen – nichts wurde verändert, bitte erneut versuchen', { icon: 'alert' });
     }
   }
 
@@ -80,7 +80,7 @@
     }
     const later = (window.appData.allRaces || []).filter(r => window.Helpers.tsForRace(r) >= new Date(`${start}T00:00:00`).getTime()).length;
     const msg = `Saison „${name}“ ab ${fmt(start)} auf „${track.name}“ starten?\n\n• Alle Fahrer und Fahrzeuge beginnen bei 1000 G!RP\n• ${newTrack ? 'Neue Rekordliste für die neue Strecke' : 'Rekorde der Strecke laufen weiter'}\n• Bisherige Saisons bleiben vollständig erhalten` +
-      (later ? `\n\n⚠️ ${later} bereits erfasste Rennen ab diesem Datum zählen dann zur neuen Saison.` : '');
+      (later ? `\n\nAchtung: ${later} bereits erfasste Rennen ab diesem Datum zählen dann zur neuen Saison.` : '');
     if (!confirm(msg)) return;
     try {
       if (newTrack) await window.Storage.addTrack(newTrack);
@@ -90,7 +90,7 @@
       form.reset();
     } catch (err) {
       console.error(err);
-      showToast('⚠️ Saison konnte nicht angelegt werden');
+      showToast('Saison konnte nicht angelegt werden', { icon: 'alert' });
     }
   }
 
@@ -108,9 +108,9 @@
           <p class="muted" style="margin-bottom:12px;">Legt die Strecke „Circuit du Garage“ und die Saison „2025/26“ an, ordnet alle ${all.length} bisherigen Rennen dieser Saison zu und entfernt die Kronen aus den Fahrernamen. Vorher wird automatisch ein Backup heruntergeladen. Es wird nichts gelöscht.</p>
           <button class="btn btn-primary" id="setupSeasonsBtn">Saison 2025/26 einrichten</button>
         </div>
-        <button class="btn" id="backupBtn">⬇️ Backup herunterladen</button>`;
+        <button class="btn" id="backupBtn">${window.Helpers.icon('download')}Backup herunterladen</button>`;
       el.querySelector('#setupSeasonsBtn').onclick = setupFirstSeason;
-      el.querySelector('#backupBtn').onclick = () => downloadBackup().catch(err => { console.error(err); showToast('⚠️ Backup fehlgeschlagen'); });
+      el.querySelector('#backupBtn').onclick = () => downloadBackup().catch(err => { console.error(err); showToast('Backup fehlgeschlagen', { icon: 'alert' }); });
       return;
     }
 
@@ -143,12 +143,12 @@
         <button class="btn btn-primary" type="submit">Saison starten</button>
       </form>
 
-      <button class="btn" id="backupBtn">⬇️ Backup herunterladen</button>`;
+      <button class="btn" id="backupBtn">${window.Helpers.icon('download')}Backup herunterladen</button>`;
 
     const form = el.querySelector('#newSeasonForm');
     form.seasonTrack.onchange = () => el.querySelector('#newTrackFields').classList.toggle('hidden', form.seasonTrack.value !== '__new');
     form.onsubmit = e => { e.preventDefault(); startNewSeason(form); };
-    el.querySelector('#backupBtn').onclick = () => downloadBackup().catch(err => { console.error(err); showToast('⚠️ Backup fehlgeschlagen'); });
+    el.querySelector('#backupBtn').onclick = () => downloadBackup().catch(err => { console.error(err); showToast('Backup fehlgeschlagen', { icon: 'alert' }); });
   }
 
   window.SeasonsUI = { render, downloadBackup };

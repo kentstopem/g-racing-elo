@@ -52,6 +52,26 @@ h3 { font-size: 18px; font-weight: 600; }
 
 .hidden { display: none !important; }
 
+/* ---------- Icons (SVG-Sprite in index.html, ersetzt Emoji) ---------- */
+.ic {
+  width: 1.15em; height: 1.15em;
+  flex: none;
+  vertical-align: -0.2em;
+  margin-right: .4em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.btn .ic, .ranking-filter-btn .ic { margin-right: 0; }
+.pair-del-btn .ic { width: 18px; height: 18px; }
+.nav-btn .ic { width: 18px; height: 18px; vertical-align: -0.22em; margin-right: 6px; }
+.nav-btn.active .ic { stroke-width: 2; }
+.race-date .ic { width: 15px; height: 15px; vertical-align: -0.15em; margin-right: 4px; }
+.toast { display: flex; align-items: center; gap: 10px; width: max-content; }
+.toast .ic { width: 20px; height: 20px; margin: 0; }
+
 /* ---------- Kopfleiste ---------- */
 .topbar {
   background: var(--iu-black);
@@ -311,7 +331,16 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
   border-top: 4px solid var(--iu-accent);
   padding-top: 24px;
 }
-.podium-position { font-size: 28px; line-height: 1; margin-bottom: 8px; }
+.podium-position {
+  width: 36px; height: 36px; margin: 0 auto 8px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  border: 2px solid var(--iu-black);
+  background: var(--iu-white);
+  font-size: 18px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.podium-item.first .podium-position { background: var(--iu-accent); width: 42px; height: 42px; font-size: 21px; }
 .podium-name { font-weight: 600; word-wrap: break-word; }
 .podium-elo { font-weight: 700; font-variant-numeric: tabular-nums; }
 
@@ -489,7 +518,8 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
   .podium-item.first { order: 2; }
   .podium-item.second { order: 1; }
   .podium-item.third { order: 3; }
-  .podium-position { font-size: 22px; }
+  .podium-position { width: 30px; height: 30px; font-size: 16px; }
+  .podium-item.first .podium-position { width: 36px; height: 36px; font-size: 18px; }
   .podium-name { font-size: 14px; }
   .race-history-item > div:first-child { gap: 8px !important; }
   /* Historie: auf dem Handy nur neuer Wert + Änderung, mehr Platz für Namen */

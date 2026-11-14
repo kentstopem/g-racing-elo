@@ -13,7 +13,7 @@
 
   // —————————————— Rendering
   const esc=window.Helpers.escapeHtml;
-  const medals={first:'🥇',second:'🥈',third:'🥉'};
+  const places={first:1,second:2,third:3};
 
   /**
    * Rangliste für Fahrer oder Fahrzeuge.
@@ -38,8 +38,9 @@
     const scoreLong=x=>all?`${x.wins} Siege`:`${x.elo} G!RP`;
 
     if(header){
-      const title=isDriver?'🏆 Fahrer':'🏎️ Fahrzeug';
-      header.textContent=all?`${title}-Ewige Tabelle`:(S.hasSeasons()?`${title}-Rangliste · ${S.label(S.selectedSeason())}`:`${title}-Rangliste`);
+      const title=isDriver?'Fahrer':'Fahrzeug';
+      const text=all?`${title}-Ewige Tabelle`:(S.hasSeasons()?`${title}-Rangliste · ${S.label(S.selectedSeason())}`:`${title}-Rangliste`);
+      header.innerHTML=window.Helpers.icon(isDriver?'trophy':'car')+esc(text);
     }
 
     const showPodium=sorted.length>=3;
@@ -47,7 +48,7 @@
       podium.innerHTML=showPodium?[[1,'second'],[0,'first'],[2,'third']].map(([i,cls])=>{
         const x=sorted[i];
         return `<div class="podium-item ${cls}" ${idAttr}="${x.id}" onclick="${open(x)}">
-            <div class="podium-position">${medals[cls]}</div>
+            <div class="podium-position">${places[cls]}</div>
             <div class="podium-name">${esc(x.name)}</div>
             <div class="podium-elo">${scoreLong(x)}</div>
             <div style="font-size:0.75em;opacity:.9;">${x.races}R · ${x.wins||0}S · ${x.totalRounds||0}Rd</div>
@@ -97,7 +98,7 @@
     const valSpan=document.getElementById('minRacesVal');
     if(!modal||!btn) return;
 
-    const label=()=>{ btn.textContent=filterMin?`🔍 ab ${filterMin} Rennen`:'🔍 Filter'; btn.classList.toggle('filter-active',!!filterMin); };
+    const label=()=>{ btn.innerHTML=window.Helpers.icon('filter')+(filterMin?`ab ${filterMin} Rennen`:'Filter'); btn.classList.toggle('filter-active',!!filterMin); };
     label();
 
     btn.addEventListener('click',()=>{

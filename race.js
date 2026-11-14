@@ -95,7 +95,7 @@
         </select>
         <div class="pred car-pred"></div>
       </div>
-      <button class="btn btn-danger pair-del-btn" onclick="removeRaceEntry(this)">🗑️</button>`;
+      <button class="btn btn-danger pair-del-btn" onclick="removeRaceEntry(this)" aria-label="Paarung entfernen" title="Paarung entfernen">${window.Helpers.icon('trash')}</button>`;
     container.appendChild(entry);
     updateRacePositions();
     persistRaceDraft();
@@ -313,7 +313,7 @@
     // Nur das Rennen speichern – G!RP der Fahrer/Fahrzeuge wird aus den Rennen berechnet.
     window.Storage.saveRace(race)
       .then(()=>{ if(isBackfill) window.Sync.schedule(0); })
-      .catch(err=>{console.error(err);showToast('⚠️ Rennen konnte nicht gespeichert werden!');});
+      .catch(err=>{console.error(err);showToast('Rennen konnte nicht gespeichert werden!', { icon: 'alert' });});
 
     // UI auffrischen – Datum und Runden bleiben für das nächste Rennen stehen, Uhrzeit wird aktualisiert
     clearRaceDraft();
@@ -339,7 +339,7 @@
       showToast('Rennen gelöscht, G!RP neu berechnet');
     }catch(err){
       console.error(err);
-      showToast('⚠️ Löschen fehlgeschlagen – Verbindung prüfen!');
+      showToast('Löschen fehlgeschlagen – Verbindung prüfen!', { icon: 'alert' });
     }
   }
 
@@ -520,7 +520,7 @@
        btnRow=document.createElement('div');
        btnRow.id='addEntryRow';
        btnRow.style.width='100%';btnRow.style.display='flex';btnRow.style.justifyContent='center';
-       const btn=document.createElement('button');btn.className='btn';btn.textContent='➕ Paarung hinzufügen';
+       const btn=document.createElement('button');btn.className='btn';btn.innerHTML=`${window.Helpers.icon('plus')}Paarung hinzufügen`;
        btn.onclick=()=>{ addRaceEntry(); renderAddEntryButton(); persistRaceDraft?.(); };
        btnRow.appendChild(btn);
        btnRow.style.width='100%';btnRow.style.display='flex';btnRow.style.justifyContent='center';

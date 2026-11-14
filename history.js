@@ -37,7 +37,7 @@
       .filter(matchesFilter)
       .map(race=>{
           const header=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-              <div class="race-date">#${raceNumberMap.get(race.id)} · 📅 ${race.date} – ${race.time||''} – ${race.rounds} Rd.</div>
+              <div class="race-date">#${raceNumberMap.get(race.id)} · ${window.Helpers.icon('calendar')}${race.date} – ${race.time||''} – ${race.rounds} Rd.</div>
               ${window.isAdmin?`<button class="btn btn-danger btn-small" onclick="deleteRace(${race.id})">Löschen</button>`:''}
           </div>`;
 

@@ -265,7 +265,7 @@ function loadData() {
         rawState = state;
         buildView();
         if (appStarted) refreshViews(info);
-        if (info.remote) showToast('🔄 Daten von einem anderen Gerät aktualisiert');
+        if (info.remote) showToast('Daten von einem anderen Gerät aktualisiert', { icon: 'refresh' });
         // Abgeleitete Werte prüfen/reparieren, sobald echte Serverdaten vorliegen
         if (!info.fromCache) window.Sync.schedule();
     });
@@ -361,7 +361,7 @@ function refreshViews(info = {}) {
 function persist(promise) {
     return promise.catch(err => {
         console.error('Speicherfehler:', err);
-        showToast('⚠️ Speichern fehlgeschlagen – Verbindung prüfen!');
+        showToast('Speichern fehlgeschlagen – Verbindung prüfen!', { icon: 'alert' });
     });
 }
 

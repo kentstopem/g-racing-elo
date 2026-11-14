@@ -59,7 +59,7 @@
       }
     } catch (err) {
       console.error('Sync-Fehler:', err);
-      window.Helpers.showToast('⚠️ Synchronisierung fehlgeschlagen – Verbindung prüfen!');
+      window.Helpers.showToast('Synchronisierung fehlgeschlagen – Verbindung prüfen!', { icon: 'alert' });
     } finally {
       running = false;
       if (again) { again = false; schedule(); }
