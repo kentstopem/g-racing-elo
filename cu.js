@@ -89,13 +89,19 @@
 
     static available () { return !!(globalThis.navigator && navigator.bluetooth); }
 
-    // showAll: alle Bluetooth-Geräte in der Auswahl zeigen (falls sich die CU anders meldet)
-    async connect ({ showAll = false } = {}) {
-      // Name je nach Firmware/Adapter unterschiedlich ("Control_Unit", "Control Unit" …) → großzügig filtern
-      this.device = await navigator.bluetooth.requestDevice(showAll
-        ? { acceptAllDevices: true, optionalServices: [SERVICE_UUID] }
-        : { filters: [{ namePrefix: 'Control' }, { namePrefix: 'control' }, { namePrefix: 'Carrera' }, { services: [SERVICE_UUID] }],
-            optionalServices: [SERVICE_UUID] });
+    // Suchvarianten für requestDevice (Bluefy verhält sich teils anders als Chrome)
+    static VARIANTS = {
+      name:      { filters: [{ name: 'Control_Unit' }], optionalServices: [SERVICE_UUID] },
+      prefix:    { filters: [{ namePrefix: 'Control' }, { namePrefix: 'Carrera' }], optionalServices: [SERVICE_UUID] },
+      service:   { filters: [{ services: [SERVICE_UUID] }] },
+      all:       { acceptAllDevices: true, optionalServices: [SERVICE_UUID] },
+      allPlain:  { acceptAllDevices: true }
+    };
+
+    async connect ({ variant = 'name' } = {}) {
+      const opts = Connection.VARIANTS[variant] || Connection.VARIANTS.name;
+      this.log(`Suche (${variant}): ${JSON.stringify(opts)}`);
+      this.device = await navigator.bluetooth.requestDevice(opts);
       this.log(`Gewählt: ${this.device.name || '(ohne Namen)'} · ${this.device.id}`);
       this.device.addEventListener('gattserverdisconnected', () => { this.polling = false; this.onDisconnect?.(); });
       const server = await this.device.gatt.connect();

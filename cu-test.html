@@ -29,7 +29,7 @@
   </style>
 </head>
 <body>
-  <h1>CU-Test <span class="muted">v3</span></h1>
+  <h1>CU-Test <span class="muted">v4</span></h1>
   <div class="muted">Liest Rundenzeiten direkt von der Control Unit. Es wird nichts gespeichert.</div>
 
   <div id="noBt" class="warn" hidden>
@@ -40,10 +40,16 @@
   <div class="card">
     <div class="btns">
       <button id="connectBtn" class="primary">Mit CU verbinden</button>
-      <button id="connectAllBtn">Alle Geräte anzeigen</button>
-      <button id="disconnectBtn" disabled>Trennen</button>
+            <button id="disconnectBtn" disabled>Trennen</button>
       <button id="resetBtn">Zeiten zurücksetzen</button>
       <button id="copyBtn">Protokoll kopieren</button>
+    </div>
+    <div class="btns" style="margin-top:10px">
+      <span class="muted" style="align-self:center">Falls die Liste leer bleibt, andere Suche probieren:</span>
+      <button class="variantBtn" data-v="prefix">B: Namensanfang</button>
+      <button class="variantBtn" data-v="service">C: Dienst</button>
+      <button class="variantBtn" data-v="all">D: Alle + Dienst</button>
+      <button class="variantBtn" data-v="allPlain">E: Alle (wie Google)</button>
     </div>
     <p id="connState" class="muted">Nicht verbunden. SmartRace vorher schließen, die CU nimmt nur eine Verbindung an.</p>
     <div class="stats">
@@ -67,7 +73,7 @@
     <pre id="log"></pre>
   </div>
 
-  <script src="cu.js?v=3"></script>
+  <script src="cu.js?v=4"></script>
   <script>
   (function () {
     const $ = id => document.getElementById(id);
@@ -121,19 +127,19 @@
       log,
       onDisconnect () {
         $('connState').innerHTML = '<span class="err">Verbindung getrennt.</span>';
-        $('connectBtn').disabled = false; $('connectAllBtn').disabled = false; $('disconnectBtn').disabled = true;
+        $('connectBtn').disabled = false; $('disconnectBtn').disabled = true;
         log('Verbindung getrennt');
       }
     });
 
-    if (!CU.Connection.available()) { $('noBt').hidden = false; $('connectBtn').disabled = true; $('connectAllBtn').disabled = true; }
+    if (!CU.Connection.available()) { $('noBt').hidden = false; $('connectBtn').disabled = true; }
 
-    async function connect (showAll) {
+    async function connect (variant) {
       $('connState').textContent = 'Suche Control Unit …';
       try {
-        const name = await conn.connect({ showAll });
+        const name = await conn.connect({ variant });
         $('connState').innerHTML = `<span class="ok">Verbunden mit ${name}.</span> Jetzt einfach fahren.`;
-        $('connectBtn').disabled = true; $('connectAllBtn').disabled = true; $('disconnectBtn').disabled = false;
+        $('connectBtn').disabled = true; $('disconnectBtn').disabled = false;
         log(`Verbunden mit ${name}`);
         conn.startPolling();
         conn.requestVersion();
@@ -143,12 +149,12 @@
         log(`Fehler: ${err.name}: ${err.message}`);
       }
     }
-    $('connectBtn').addEventListener('click', () => connect(false));
-    $('connectAllBtn').addEventListener('click', () => connect(true));
+    $('connectBtn').addEventListener('click', () => connect('name'));
+    document.querySelectorAll('.variantBtn').forEach(b => b.addEventListener('click', () => connect(b.dataset.v)));
     $('disconnectBtn').addEventListener('click', () => { conn.disconnect(); wakeLock?.release?.(); });
     $('resetBtn').addEventListener('click', () => { tracker.reset(); renderLaps(); log('Zeiten zurückgesetzt'); });
     $('copyBtn').addEventListener('click', async () => {
-      const text = `CU-Test ${new Date().toISOString()}\nUA: ${navigator.userAgent}\n\n${logLines.join('\n')}`;
+      const text = `CU-Test ${new Date().toISOString()}\nU${navigator.userAgent}\n\n${logLines.join('\n')}`;
       try { await navigator.clipboard.writeText(text); $('copyBtn').textContent = 'Kopiert ✓'; }
       catch (e) { $('copyBtn').textContent = 'Kopieren nicht möglich'; }
       setTimeout(() => { $('copyBtn').textContent = 'Protokoll kopieren'; }, 2000);
