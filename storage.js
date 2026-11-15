@@ -91,6 +91,15 @@
     updateDriverFields : (id, fields) => driversCol.doc(String(id)).update(fields),
     updateCarFields    : (id, fields) => carsCol.doc(String(id)).update(fields),
 
+    // Veraltetes Feld aus Fahrern/Fahrzeugen entfernen (einmalige Aufräumaktion)
+    async removeLegacyField (field, { driverIds = [], carIds = [] }) {
+      const del = { [field]: firebase.firestore.FieldValue.delete() };
+      await commitInChunks([
+        ...driverIds.map(id => b => b.update(driversCol.doc(String(id)), del)),
+        ...carIds.map(id => b => b.update(carsCol.doc(String(id)), del))
+      ]);
+    },
+
     // Saisons / Strecken
     addSeason      : (s) => seasonsCol.doc(String(s.id)).set(s),
     addTrack       : (t) => tracksCol.doc(String(t.id)).set(t),
