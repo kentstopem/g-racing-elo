@@ -57,7 +57,6 @@
         console.info(`Sync: korrigiere ${count} Rennen`);
         await window.Storage.writeDerived(diff);
       }
-      await cleanupLegacy();
     } catch (err) {
       console.error('Sync-Fehler:', err);
       window.Helpers.showToast('Synchronisierung fehlgeschlagen – Verbindung prüfen!', { icon: 'alert' });
@@ -66,24 +65,6 @@
       if (again) { again = false; schedule(); }
     }
     return count;
-  }
-
-  // Einmalige Aufräumaktion (2.1): das alte Feld „hideInStats“ wird nicht mehr verwendet
-  // (Statistik-Filter liegt jetzt pro Gerät im Browser). Kann entfernt werden, sobald es
-  // in keinem Dokument mehr vorkommt.
-  let legacyDone = false;
-  async function cleanupLegacy () {
-    if (legacyDone || !window.isAdmin || !window.Storage.removeLegacyField) return;
-    const data = window.appData;
-    const has = x => Object.prototype.hasOwnProperty.call(x, 'hideInStats');
-    const driverIds = (data.drivers || []).filter(has).map(x => x.id);
-    const carIds    = (data.cars || []).filter(has).map(x => x.id);
-    legacyDone = true;
-    if (!driverIds.length && !carIds.length) return;
-    try {
-      await window.Storage.removeLegacyField('hideInStats', { driverIds, carIds });
-      console.info(`Aufgeräumt: hideInStats bei ${driverIds.length} Fahrern, ${carIds.length} Fahrzeugen entfernt`);
-    } catch (err) { legacyDone = false; console.error('Aufräumen fehlgeschlagen:', err); }
   }
 
   // Mehrere schnell aufeinanderfolgende Änderungen zusammenfassen
