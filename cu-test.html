@@ -40,6 +40,7 @@
   <div class="card">
     <div class="btns">
       <button id="connectBtn" class="primary">Mit CU verbinden</button>
+      <button id="connectAllBtn">Alle Geräte anzeigen</button>
       <button id="disconnectBtn" disabled>Trennen</button>
       <button id="resetBtn">Zeiten zurücksetzen</button>
       <button id="copyBtn">Protokoll kopieren</button>
@@ -120,19 +121,19 @@
       log,
       onDisconnect () {
         $('connState').innerHTML = '<span class="err">Verbindung getrennt.</span>';
-        $('connectBtn').disabled = false; $('disconnectBtn').disabled = true;
+        $('connectBtn').disabled = false; $('connectAllBtn').disabled = false; $('disconnectBtn').disabled = true;
         log('Verbindung getrennt');
       }
     });
 
-    if (!CU.Connection.available()) { $('noBt').hidden = false; $('connectBtn').disabled = true; }
+    if (!CU.Connection.available()) { $('noBt').hidden = false; $('connectBtn').disabled = true; $('connectAllBtn').disabled = true; }
 
-    $('connectBtn').addEventListener('click', async () => {
+    async function connect (showAll) {
       $('connState').textContent = 'Suche Control Unit …';
       try {
-        const name = await conn.connect();
+        const name = await conn.connect({ showAll });
         $('connState').innerHTML = `<span class="ok">Verbunden mit ${name}.</span> Jetzt einfach fahren.`;
-        $('connectBtn').disabled = true; $('disconnectBtn').disabled = false;
+        $('connectBtn').disabled = true; $('connectAllBtn').disabled = true; $('disconnectBtn').disabled = false;
         log(`Verbunden mit ${name}`);
         conn.startPolling();
         conn.requestVersion();
@@ -141,7 +142,9 @@
         $('connState').innerHTML = `<span class="err">Verbinden fehlgeschlagen: ${err.message}</span>`;
         log(`Fehler: ${err.name}: ${err.message}`);
       }
-    });
+    }
+    $('connectBtn').addEventListener('click', () => connect(false));
+    $('connectAllBtn').addEventListener('click', () => connect(true));
     $('disconnectBtn').addEventListener('click', () => { conn.disconnect(); wakeLock?.release?.(); });
     $('resetBtn').addEventListener('click', () => { tracker.reset(); renderLaps(); log('Zeiten zurückgesetzt'); });
     $('copyBtn').addEventListener('click', async () => {

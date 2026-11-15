@@ -89,11 +89,12 @@
 
     static available () { return !!(globalThis.navigator && navigator.bluetooth); }
 
-    async connect () {
-      this.device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [SERVICE_UUID] }, { namePrefix: 'Control_Unit' }],
-        optionalServices: [SERVICE_UUID]
-      });
+    // showAll: alle Bluetooth-Geräte in der Auswahl zeigen (falls sich die CU anders meldet)
+    async connect ({ showAll = false } = {}) {
+      this.device = await navigator.bluetooth.requestDevice(showAll
+        ? { acceptAllDevices: true, optionalServices: [SERVICE_UUID] }
+        : { filters: [{ services: [SERVICE_UUID] }, { namePrefix: 'Control_Unit' }], optionalServices: [SERVICE_UUID] });
+      this.log(`Gewählt: ${this.device.name || '(ohne Namen)'} · ${this.device.id}`);
       this.device.addEventListener('gattserverdisconnected', () => { this.polling = false; this.onDisconnect?.(); });
       const server = await this.device.gatt.connect();
       const service = await server.getPrimaryService(SERVICE_UUID);
