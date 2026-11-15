@@ -373,23 +373,32 @@
     selectedCars=[];
     // zuletzt gewählte (noch vorhandene) Fahrer sind vorausgewählt
     selectedDrivers=prevSelectedDrivers.filter(id=>window.appData.drivers.some(d=>d.id===id&&window.Elo.isActive(d)));
-    // Build driver checklist (alphabetisch, nur aktive)
+    // Fahrerliste: meiste Rennen (gewählte Saison) zuerst, bei Gleichstand alphabetisch; nur aktive
     driverListDiv.innerHTML=[...window.appData.drivers].filter(d=>window.Elo.isActive(d))
-      .sort((a,b)=>a.name.localeCompare(b.name))
-      .map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${selectedDrivers.includes(d.id)?'checked':''}>${esc(d.name)}</label>`)
+      .sort((a,b)=>((b.races||0)-(a.races||0))||a.name.localeCompare(b.name))
+      .map(d=>{const n=d.races||0;return `<label class='pick-row'><input type='checkbox' value='${d.id}' ${selectedDrivers.includes(d.id)?'checked':''}><span class='pick-check' aria-hidden='true'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></span><span class='pick-name'>${esc(d.name)}</span><span class='pick-meta'>${n} Rennen</span></label>`;})
       .join('');
+    updateDriverCount();
     nextBtn.disabled=selectedDrivers.length<2||selectedDrivers.length>6;
     step1.classList.remove('hidden');
     step2.classList.add('hidden');
     setupModal.classList.remove('hidden');
   }
 
+  function updateDriverCount(){
+    const n=selectedDrivers.length, ok=n>=2&&n<=6;
+    const el=document.getElementById('setupDriverCount');
+    if(el){
+      el.textContent=n===0?'2 bis 6 Fahrer antippen':n===1?'1 Fahrer gewählt – mindestens 2':n>6?`${n} gewählt – höchstens 6`:`${n} Fahrer gewählt`;
+      el.classList.toggle('ok',ok);
+      el.classList.toggle('warn',n>6);
+    }
+    nextBtn.disabled=!ok;
+  }
+
   driverListDiv?.addEventListener('change',()=>{
     selectedDrivers=[...driverListDiv.querySelectorAll('input:checked')].map(i=>parseInt(i.value));
-    nextBtn.disabled=selectedDrivers.length<2 || selectedDrivers.length>6;
-    if(selectedDrivers.length<2||selectedDrivers.length>6){
-        showToast('Bitte 2 bis 6 Fahrer auswählen');
-    }
+    updateDriverCount();
   });
 
   nextBtn?.addEventListener('click',()=>{

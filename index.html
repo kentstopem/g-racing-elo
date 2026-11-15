@@ -276,11 +276,17 @@
     <div id="raceSetupModal" class="modal hidden">
       <div class="modal-content" style="max-width:480px;">
         <div id="setupStep1">
-          <h3 style="margin-bottom:10px;">Schritt 1: Fahrer wählen</h3>
-          <div id="setupDriverList" style="max-height:320px;overflow:auto;margin-bottom:10px;"></div>
-          <div style="text-align:right;margin-top:15px;display:flex;gap:8px;justify-content:flex-end;">
-            <button class="btn" id="setupNextBtn" disabled>Weiter</button>
-            <button class="btn" id="setupCancelBtn">Abbrechen</button>
+          <div class="setup-head">
+            <span class="setup-step">Schritt 1 von 2</span>
+            <h3><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer wählen</h3>
+          </div>
+          <div id="setupDriverList" class="pick-list"></div>
+          <div class="setup-foot">
+            <span id="setupDriverCount" class="pick-count">2 bis 6 Fahrer antippen</span>
+            <div class="setup-actions">
+              <button class="btn btn-modal" id="setupCancelBtn">Abbrechen</button>
+              <button class="btn btn-primary btn-modal" id="setupNextBtn" disabled>Weiter</button>
+            </div>
           </div>
                                 </div>
         <div id="setupStep2" class="hidden">
