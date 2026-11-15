@@ -228,6 +228,16 @@ h3 { font-size: 18px; font-weight: 600; }
 .live-assign-row select:focus { outline: 2px solid var(--iu-black); box-shadow: 0 0 0 6px var(--iu-accent-light); border-color: var(--iu-black); }
 .modal-input { margin-bottom: 10px; }
 
+/* Datumsfelder: iOS Safari gibt ihnen sonst eine feste Mindestbreite und eigene Höhe → ragen aus dem Raster */
+input[type=date] {
+  -webkit-appearance: none; appearance: none;
+  display: block; min-width: 0; max-width: 100%;
+  min-height: 46px; line-height: 1.5;
+  text-align: left;
+}
+input[type=date]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+.race-meta-grid > * { min-width: 0; }
+
 input[type=range] { width: 100%; accent-color: var(--iu-black); }
 input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px; }
 
