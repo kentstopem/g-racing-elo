@@ -52,3 +52,24 @@ test('Rundenzeiten je Controller, Doppelmeldungen und Sektoren ignoriert', () =>
   assert.equal(add(2, 500), null);
   assert.equal(add(2, 7900).time, 7400);
 });
+
+test('Bestzeiten je Fahrer+Fahrzeug und Rekord-Kandidaten', () => {
+  const bests = {};
+  const assign = { 1: { driverId: 7, carId: 11 }, 3: { driverId: 8, carId: 12 } };
+  CU.sessionBest(bests, assign, { address: 1, time: 8497 });
+  CU.sessionBest(bests, assign, { address: 1, time: 8247 });
+  CU.sessionBest(bests, assign, { address: 1, time: 8809 });
+  CU.sessionBest(bests, assign, { address: 3, time: 7621 });
+  assert.equal(CU.sessionBest(bests, assign, { address: 5, time: 7000 }), null); // nicht zugeordnet
+  assert.equal(bests['7|11'].ms, 8247);
+  const records = [
+    { driverId: 7, carId: 11, time: 8.1, trackId: 'cdg' },   // schneller → kein neuer Rekord
+    { driverId: 8, carId: 12, time: 7.9, trackId: 'cdg' },   // langsamer → neuer Rekord
+    { driverId: 8, carId: 12, time: 7.0, trackId: 'alt' }    // andere Strecke zählt nicht
+  ];
+  const c = CU.recordCandidates(bests, records, 'cdg', r => r.trackId);
+  assert.equal(c.length, 1);
+  assert.equal(c[0].driverId, 8); assert.equal(c[0].time, 7.621); assert.equal(c[0].previous, 7.9);
+  const none = CU.recordCandidates(bests, [], 'cdg', r => r.trackId);
+  assert.equal(none.length, 2); assert.equal(none[0].previous, null);
+});

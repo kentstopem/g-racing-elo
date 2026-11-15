@@ -353,6 +353,7 @@ function refreshViews(info = {}) {
     if (currentSection === 'stats') window.StatsUI?.reload();
     if (currentSection === 'records' && info.collection === 'lapRecords') window.RecordsUI?.reload();
     if (currentSection === 'seasons' && ['seasons', 'tracks', 'races'].includes(info.collection)) window.SeasonsUI?.render();
+    if (currentSection === 'live' && ['lapRecords', 'drivers', 'cars', 'seasons'].includes(info.collection)) window.LiveUI?.refresh();
     const modal = document.getElementById('eloModal');
     if (modal && !modal.classList.contains('hidden')) renderView();
 }
@@ -418,6 +419,8 @@ function showSection(sectionName) {
         }
         RaceUI.updateForm();
         // rankSubNav bleibt versteckt
+    } else if (sectionName === 'live') {
+        window.LiveUI?.render();
     } else if (sectionName === 'seasons') {
         window.SeasonsUI?.render();
     } else if (sectionName === 'stats') {
@@ -643,8 +646,10 @@ function updateCarsList() {
 function updateAuthUI() {
     const admin = window.isAdmin;
     // Nav-Buttons
+    // data-feature: nur sichtbar, wenn das Feature Flag auf diesem Gerät an ist
     document.querySelectorAll('.admin-only').forEach(btn => {
-        btn.style.display = admin ? '' : 'none';
+        const f = btn.dataset.feature;
+        btn.style.display = admin && (!f || window.Helpers.feature(f)) ? '' : 'none';
     });
 
     const authBtn = document.getElementById('authBtn');

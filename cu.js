@@ -78,10 +78,37 @@
     }
   }
 
+  /**
+   * Bestzeiten eines Abends je Fahrer+Fahrzeug (unabhängig vom Regler, falls umgesteckt wird).
+   * assignment: { [address]: { driverId, carId } }
+   */
+  function sessionBest (bests, assignment, lap) {
+    const a = assignment[lap.address];
+    if (!a?.driverId || !a?.carId) return null;
+    const key = `${a.driverId}|${a.carId}`;
+    const prev = bests[key];
+    if (!prev || lap.time < prev.ms) bests[key] = { driverId: a.driverId, carId: a.carId, ms: lap.time };
+    return bests[key];
+  }
+
+  /**
+   * Welche Bestzeiten sind neue Rekorde? records: lapRecords-Dokumente (time in Sekunden),
+   * trackOf(rec) → Strecke eines Rekords, trackId: Strecke von heute.
+   * Liefert [{driverId, carId, time (s), previous (s|null)}], schnellste zuerst.
+   */
+  function recordCandidates (bests, records, trackId, trackOf) {
+    return Object.values(bests).map(b => {
+      const time = Math.round(b.ms) / 1000;
+      const existing = records.filter(r => r.driverId === b.driverId && r.carId === b.carId && trackOf(r) === trackId)
+        .reduce((m, r) => (m === null || r.time < m ? r.time : m), null);
+      return { driverId: b.driverId, carId: b.carId, time, previous: existing };
+    }).filter(c => c.previous === null || c.time < c.previous).sort((x, y) => x.time - y.time);
+  }
+
   /** Bluetooth-Verbindung: fragt die CU laufend ab und meldet jede Antwort an onMessage(raw) */
   class Connection {
-    constructor ({ onMessage, onDisconnect, log = () => {} }) {
-      Object.assign(this, { onMessage, onDisconnect, log });
+    constructor ({ onMessage, onDisconnect, onReconnect, log = () => {} }) {
+      Object.assign(this, { onMessage, onDisconnect, onReconnect, log });
       this.polling = false;
       this.dec = new TextDecoder('ascii');
       this.enc = new TextEncoder();
@@ -103,15 +130,42 @@
       this.log(`Suche (${variant}): ${JSON.stringify(opts)}`);
       this.device = await navigator.bluetooth.requestDevice(opts);
       this.log(`Gewählt: ${this.device.name || '(ohne Namen)'} · ${this.device.id}`);
-      this.device.addEventListener('gattserverdisconnected', () => { this.polling = false; this.onDisconnect?.(); });
+      this.manual = false;
+      this.device.addEventListener('gattserverdisconnected', () => this.lost());
+      await this.setup();
+      return this.device.name || 'Control Unit';
+    }
+
+    async setup () {
       const server = await this.device.gatt.connect();
       const service = await server.getPrimaryService(SERVICE_UUID);
       this.out = await service.getCharacteristic(OUTPUT_UUID);
       this.notify = await service.getCharacteristic(NOTIFY_UUID);
       this.log(`Ausgang kann: ${['write', 'writeWithoutResponse'].filter(k => this.out.properties[k]).join(', ') || '?'}`);
-      this.notify.addEventListener('characteristicvaluechanged', e => this.handle(e.target.value));
+      if (!this.listening) {
+        this.notify.addEventListener('characteristicvaluechanged', e => this.handle(e.target.value));
+        this.listening = this.notify;
+      }
       await this.notify.startNotifications();
-      return this.device.name || 'Control Unit';
+    }
+
+    // Unerwartet getrennt → bis zu 3 Mal neu verbinden, sonst onDisconnect
+    async lost () {
+      this.polling = false;
+      if (this.manual) { this.onDisconnect?.(); return; }
+      for (let i = 1; i <= 3; i++) {
+        this.log(`Verbindung verloren, neuer Versuch ${i}/3 …`);
+        await new Promise(r => setTimeout(r, 1000));
+        try {
+          this.listening = null;
+          await this.setup();
+          this.log('Wieder verbunden');
+          this.onReconnect?.();
+          this.startPolling();
+          return;
+        } catch (err) { this.log(`Fehlgeschlagen: ${err.message}`); }
+      }
+      this.onDisconnect?.();
     }
 
     handle (value) {
@@ -147,8 +201,10 @@
     // Firmware-Version abfragen (Antwort kommt über onMessage als type 'version')
     requestVersion () { (this.queue ??= []).push('0'); }
 
-    disconnect () { this.polling = false; this.device?.gatt?.disconnect(); }
+    disconnect () { this.manual = true; this.polling = false; this.device?.gatt?.disconnect(); }
+
+    get connected () { return !!this.device?.gatt?.connected; }
   }
 
-  window.CU = { parse, timestamp, LapTracker, Connection, SERVICE_UUID };
+  window.CU = { parse, timestamp, LapTracker, Connection, sessionBest, recordCandidates, SERVICE_UUID };
 })();

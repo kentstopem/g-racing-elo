@@ -34,5 +34,22 @@
     return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   }
 
-  window.Helpers = { showToast, tsForRace, escapeHtml, icon };
+  // Feature Flags pro Gerät (localStorage), standardmäßig aus.
+  // Einschalten: Seite mit ?feature=live öffnen, ausschalten mit ?feature=-live
+  const FEATURE_KEY = 'grpFeatures';
+  function readFeatures() {
+    try { return JSON.parse(localStorage.getItem(FEATURE_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function setFeature(name, on) {
+    const set = new Set(readFeatures());
+    on ? set.add(name) : set.delete(name);
+    try { localStorage.setItem(FEATURE_KEY, JSON.stringify([...set])); } catch (e) {}
+  }
+  function feature(name) { return readFeatures().includes(name); }
+  try {
+    const params = new URLSearchParams(location.search);
+    params.getAll('feature').forEach(f => f.startsWith('-') ? setFeature(f.slice(1), false) : setFeature(f, true));
+  } catch (e) {}
+
+  window.Helpers = { showToast, tsForRace, escapeHtml, icon, feature, setFeature };
 })(); 

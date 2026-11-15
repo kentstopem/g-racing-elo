@@ -6,7 +6,7 @@
 // • Bibliotheken von CDNs (Firebase, Chart.js, Schrift): aus dem Cache, im Hintergrund aktualisieren.
 // • Firestore-/Login-Anfragen werden NICHT angefasst (die Daten puffert Firestore selbst).
 
-const CACHE = 'grp-v3';
+const CACHE = 'grp-v4';
 
 const APP_SHELL = [
   './',
@@ -15,7 +15,7 @@ const APP_SHELL = [
   'manifest.webmanifest',
   'version.js', 'firebase.js', 'storage.js', 'helpers.js', 'elo.js', 'seasons.js', 'sync.js',
   'app.js', 'ranking.js', 'race.js', 'history.js', 'records.js',
-  'statistics.js', 'wheel.js', 'slot.js', 'seasons-ui.js',
+  'statistics.js', 'wheel.js', 'slot.js', 'seasons-ui.js', 'cu.js', 'live.js',
   'assets/logo.png', 'assets/icons/icon-192.png', 'assets/icons/apple-touch-icon.png'
 ];
 
