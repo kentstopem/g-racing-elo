@@ -664,7 +664,7 @@ function updateAuthUI() {
     });
 
     const authBtn = document.getElementById('authBtn');
-    if (authBtn) authBtn.textContent = admin ? 'Logout' : 'Admin';
+    if (authBtn) authBtn.textContent = admin ? 'Logout' : 'Login';
 
     // Wenn aktueller Tab admin-only und kein Admin → Rankings zeigen
     const activeBtn = document.querySelector('.nav-btn.active');

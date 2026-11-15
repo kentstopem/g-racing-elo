@@ -72,45 +72,20 @@ h3 { font-size: 18px; font-weight: 600; }
 .toast { display: flex; align-items: center; gap: 10px; width: max-content; }
 .toast .ic { width: 20px; height: 20px; margin: 0; }
 
-/* ---------- Kopfleiste ---------- */
-.topbar {
-  background: var(--iu-black);
-  color: var(--iu-white);
-  height: 56px;
-  position: sticky;
-  top: 0;
-  z-index: 500;
-}
-.topbar-inner {
-  max-width: 860px;
-  height: 100%;
-  margin: 0 auto;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.topbar-logo {
-  width: 36px; height: 36px;
-  border-radius: 8px;
-  background: var(--iu-white);
-  object-fit: cover;
-}
-.topbar-title { font-weight: 600; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.topbar-title .short { display: none; }
-
+/* ---------- Login/Logout (Fußzeile) ---------- */
 .auth-btn {
-  margin-left: auto;
   background: transparent;
-  color: var(--iu-white);
-  border: 1px solid rgba(255,255,255,.35);
+  color: var(--text-muted);
+  border: 1px solid var(--iu-grey);
   border-radius: var(--radius-btn);
-  padding: 6px 14px;
+  min-height: 40px;
+  padding: 6px 18px;
+  margin-top: 8px;
   font: inherit;
   font-size: 14px;
   cursor: pointer;
 }
-.auth-btn:hover { border-color: var(--iu-white); }
+.auth-btn:hover { border-color: #C8C8C8; color: var(--iu-black); background: var(--iu-white); }
 
 /* ---------- Seitenrahmen ---------- */
 .container { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
@@ -126,6 +101,16 @@ h3 { font-size: 18px; font-weight: 600; }
   letter-spacing: .02em;
   line-height: 1.1;
   padding: .35em .5em;
+  display: inline-flex;
+  align-items: center;
+  gap: .45em;
+}
+.header h1 .brand-logo {
+  height: 1.6em;
+  width: auto;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--iu-white);
 }
 /* „The Line“ – kurz, 4° geneigt, nur dekorativ */
 .header .the-line {
@@ -510,9 +495,8 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 
 /* ---------- Mobil ---------- */
 @media (max-width: 600px) {
-  .topbar-title .long { display: none; }
-  .topbar-title .short { display: inline; }
-  .header h1 { font-size: 18px; }
+  .header h1 .brand-logo { height: 2.5em; }
+  .header h1 { font-size: 16px; gap: .55em; }
   .header-row { gap: 8px; }
   .season-select { font-size: 13px; padding: 6px 26px 6px 8px; background-position: calc(100% - 13px) 55%, calc(100% - 8px) 55%; }
   .section { padding: 16px; }
@@ -578,6 +562,7 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 /* sehr schmale Displays (iPhone SE 1. Gen.): Überschrift kleiner, damit sie neben dem Saison-Wähler passt */
 @media (max-width: 360px) {
   .header h1 { font-size: 15px; }
+  .header h1 .brand-logo { display: none; }
 }
 
 /* Statistik-Filter */

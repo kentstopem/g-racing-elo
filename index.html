@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="G!RP">
-    <meta name="theme-color" content="#1D1D1F">
+    <meta name="theme-color" content="#F6F6F6">
     <title>G!lashammer Racing Points</title>
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
@@ -39,17 +39,10 @@
       <symbol id="i-wheel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7"/><path d="M12 14v7"/><path d="M3 12h7"/><path d="M14 12h7"/><path d="m5.6 5.6 5 5"/><path d="m13.4 13.4 5 5"/><path d="m18.4 5.6-5 5"/><path d="m10.6 13.4-5 5"/></symbol>
       <symbol id="i-slot" viewBox="0 0 24 24"><rect x="2" y="5" width="16" height="15" rx="2"/><path d="M2 10h16"/><path d="M2 15h16"/><path d="M7.33 10v5"/><path d="M12.67 10v5"/><path d="M21 9v5h-3"/><circle cx="21" cy="6.5" r="1.5"/></symbol>
     </svg>
-    <header class="topbar">
-        <div class="topbar-inner">
-            <img src="assets/logo.png" alt="" class="topbar-logo">
-            <span class="topbar-title"><span class="long">G!lashammer Racing Points</span><span class="short">G!RP</span></span>
-            <button id="authBtn" class="auth-btn">Admin</button>
-        </div>
-    </header>
     <div class="container">
         <div class="header">
             <div class="header-row">
-                <h1>G!lashammer Racing Points</h1>
+                <h1><img src="assets/logo.png" alt="" class="brand-logo"><span>G!lashammer Racing Points</span></h1>
                 <div class="season-bar hidden">
                     <label for="seasonSelect" class="sr-only">Saison</label>
                     <select id="seasonSelect" class="season-select"></select>
@@ -345,6 +338,7 @@
     <footer class="site-footer">
         <p>Version <span id="appVersion">2.0</span> · Copyright © 2025<span id="copyrightYear"></span> by Tris · Nur für den privaten G!brauch</p>
         <p>Contact &amp; Donations (Paypal): rennstall@saeuferleber.de</p>
+        <p><button id="authBtn" class="auth-btn">Login</button></p>
     </footer>
 
     <!-- Firebase SDKs -->
