@@ -2,11 +2,12 @@
 //
 // Strategie:
 // • Eigene Dateien (HTML/JS/CSS/Bilder): zuerst Netz, bei Fehler aus dem Cache.
+//   Dabei wird der Browser-Cache umgangen (no-cache), damit Updates sofort ankommen.
 //   So ist online immer die neueste Version aktiv, offline die zuletzt geladene.
 // • Bibliotheken von CDNs (Firebase, Chart.js, Schrift): aus dem Cache, im Hintergrund aktualisieren.
 // • Firestore-/Login-Anfragen werden NICHT angefasst (die Daten puffert Firestore selbst).
 
-const CACHE = 'grp-v4';
+const CACHE = 'grp-v5';
 
 const APP_SHELL = [
   './',
@@ -41,7 +42,7 @@ self.addEventListener('fetch', event => {
   // Eigene Dateien: Netz zuerst, Cache als Fallback
   if (url.origin === self.location.origin) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })  // immer beim Server nachfragen (GitHub Pages cacht sonst bis zu 10 Min.)
         .then(res => {
           if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
           return res;
