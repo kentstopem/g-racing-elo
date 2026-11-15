@@ -25,7 +25,7 @@
     const S=window.Seasons;
     const minRaces=isDriver?(filterMin||DEFAULT_MIN):1;
     const pool=(isDriver?window.appData.drivers:window.appData.cars)
-      .filter(x=>!x.archived && (isDriver||!x.hideFromRanking) && x.races>=minRaces);
+      .filter(x=>window.Elo.isActive(x) && x.races>=minRaces);
     const sorted=[...pool].sort(all
       ? (a,b)=>(b.wins-a.wins)||(b.races-a.races)||(b.totalRounds-a.totalRounds)
       : (a,b)=>b.elo-a.elo);

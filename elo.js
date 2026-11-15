@@ -89,10 +89,13 @@
     return k;
   }
 
+  // „aktiv“ = nicht archiviert und Haken „aktiv“ gesetzt (Feld hideFromRanking, gilt für Fahrer und Fahrzeuge)
+  const isActive = x => !!x && !x.archived && !x.hideFromRanking;
+
   // Gesamtrang aller aktiven Fahrer/Fahrzeuge nach einem Rennen im Ergebnis festhalten
   function storeOverallPositions(race, drivers, cars) {
-    const activeD = drivers.filter(d => d.races >= MIN_RACES_FOR_RANK && !d.archived).sort((a, b) => b.elo - a.elo);
-    const activeC = cars.filter(c => c.races >= MIN_RACES_FOR_CAR_RANK && !c.hideFromRanking && !c.archived).sort((a, b) => b.elo - a.elo);
+    const activeD = drivers.filter(d => d.races >= MIN_RACES_FOR_RANK && isActive(d)).sort((a, b) => b.elo - a.elo);
+    const activeC = cars.filter(c => c.races >= MIN_RACES_FOR_CAR_RANK && isActive(c)).sort((a, b) => b.elo - a.elo);
     const drvRank = new Map(activeD.map((d, i) => [d.id, i + 1]));
     const carRank = new Map(activeC.map((c, i) => [c.id, i + 1]));
     (race.results || []).forEach(res => {
@@ -139,6 +142,6 @@
   window.Elo = {
     START_ELO, MIN_RACES_FOR_RANK, MIN_RACES_FOR_CAR_RANK,
     calculateExpectedScore, calculateActualScore, calculateKFactor,
-    sortChronologically, applyRace, storeOverallPositions, recomputeSeasons, recomputeAll
+    sortChronologically, applyRace, storeOverallPositions, recomputeSeasons, recomputeAll, isActive
   };
 })();

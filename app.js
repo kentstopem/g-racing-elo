@@ -25,8 +25,8 @@ let currentChartType='pos';let currentEntityType=null;let currentEntityId=null;
 function activeRanking(type){
   const min=window.Elo.MIN_RACES_FOR_RANK;
   const list = type==='driver'
-      ? appData.drivers.filter(d=>d.races>=min && !d.archived)
-      : appData.cars.filter(c=>c.races>=window.Elo.MIN_RACES_FOR_CAR_RANK && !c.hideFromRanking && !c.archived);
+      ? appData.drivers.filter(d=>d.races>=min && window.Elo.isActive(d))
+      : appData.cars.filter(c=>c.races>=window.Elo.MIN_RACES_FOR_CAR_RANK && window.Elo.isActive(c));
   return [...list].sort((a,b)=>b.elo-a.elo);
 }
 
@@ -517,6 +517,10 @@ function updateDriversList() {
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap:8px;">
+                ${window.isAdmin && !driver.archived?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;">
+                    <input type="checkbox" class="toggle-hide" data-id="${driver.id}" ${driver.hideFromRanking?'' :'checked'}>
+                    aktiv
+                </label>`:''}
                 <span class="elo-score">${driver.elo}</span>
                 ${hasRaces('driverId', driver.id)
                   ? `<button class="btn archive-driver" data-id="${driver.id}">${driver.archived?'Reaktivieren':'Archivieren'}</button>`
@@ -531,6 +535,13 @@ function updateDriversList() {
             const id = parseInt(e.target.dataset.id, 10);
             if (e.target.classList.contains('delete-driver')) deleteDriver(id);
             if (e.target.classList.contains('archive-driver')) toggleArchiveDriver(id);
+        });
+        list.addEventListener('change',(e)=>{
+            if(e.target.classList.contains('toggle-hide')){
+               const id=parseInt(e.target.dataset.id,10);
+               const driver=appData.drivers.find(d=>d.id===id);
+               if(driver){driver.hideFromRanking=!e.target.checked;persist(window.Storage.updateDriverFields(id,{hideFromRanking:driver.hideFromRanking}));RankingUI.update();}
+            }
         });
         list._delegationBound = true;
     }
@@ -615,7 +626,7 @@ function updateCarsList() {
             <div style="display: flex; align-items: center; gap:8px;">
                 ${window.isAdmin && !car.archived?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;">
                     <input type="checkbox" class="toggle-hide" data-id="${car.id}" ${car.hideFromRanking?'' :'checked'}>
-                    im Ranking
+                    aktiv
                 </label>`:''}
                 <span class="elo-score">${car.elo}</span>
                 ${hasRaces('carId', car.id)

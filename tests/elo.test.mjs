@@ -116,3 +116,15 @@ test('Helpers: Datum parsen und HTML escapen', () => {
   assert.ok(Helpers.tsForRace({ date: '02.01.2026', time: '10:00' }) > Helpers.tsForRace({ date: '01.01.2026', time: '23:59' }));
   assert.equal(Helpers.escapeHtml('<img src=x onerror="a">&'), '&lt;img src=x onerror=&quot;a&quot;&gt;&amp;');
 });
+
+test('Inaktive Fahrer/Fahrzeuge (Haken „aktiv“ aus) zählen nicht in der Gesamtrangliste', () => {
+  const W = loadApp();
+  const drivers = [{ id: 1, elo: 1100, races: 3 }, { id: 2, elo: 1050, races: 3, hideFromRanking: true }, { id: 3, elo: 1000, races: 3 }];
+  const cars = [{ id: 11, elo: 1100, races: 3, hideFromRanking: true }, { id: 12, elo: 1000, races: 3 }];
+  const race = { results: [{ driverId: 3, carId: 12 }, { driverId: 2, carId: 11 }] };
+  W.Elo.storeOverallPositions(race, drivers, cars);
+  assert.equal(race.results[0].positionOverallDriver, 2);
+  assert.equal(race.results[0].positionOverallCar, 1);
+  assert.equal(race.results[1].positionOverallDriver, null);
+  assert.equal(race.results[1].positionOverallCar, null);
+});

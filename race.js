@@ -372,11 +372,11 @@
     if(!setupModal)return;
     selectedCars=[];
     // zuletzt gewählte (noch vorhandene) Fahrer sind vorausgewählt
-    selectedDrivers=prevSelectedDrivers.filter(id=>window.appData.drivers.some(d=>d.id===id&&!d.archived));
-    // Build driver checklist (alphabetisch)
-    driverListDiv.innerHTML=[...window.appData.drivers].filter(d=>!d.archived)
+    selectedDrivers=prevSelectedDrivers.filter(id=>window.appData.drivers.some(d=>d.id===id&&window.Elo.isActive(d)));
+    // Build driver checklist (alphabetisch, nur aktive)
+    driverListDiv.innerHTML=[...window.appData.drivers].filter(d=>window.Elo.isActive(d))
       .sort((a,b)=>a.name.localeCompare(b.name))
-      .map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${prevSelectedDrivers.includes(d.id)?'checked':''}>${esc(d.name)}</label>`)
+      .map(d=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${d.id}' ${selectedDrivers.includes(d.id)?'checked':''}>${esc(d.name)}</label>`)
       .join('');
     nextBtn.disabled=selectedDrivers.length<2||selectedDrivers.length>6;
     step1.classList.remove('hidden');
@@ -395,9 +395,9 @@
   nextBtn?.addEventListener('click',()=>{
     if(selectedDrivers.length<2||selectedDrivers.length>6){showToast('Bitte 2 bis 6 Fahrer auswählen');return;}
     prevSelectedDrivers=[...selectedDrivers];
-    // Build car checklist (alphabetisch, nur im Ranking)
+    // Build car checklist (alphabetisch, nur aktive)
     carListDiv.classList.remove('hidden');
-    carListDiv.innerHTML=[...window.appData.cars].filter(c=>!c.hideFromRanking&&!c.archived)
+    carListDiv.innerHTML=[...window.appData.cars].filter(c=>window.Elo.isActive(c))
       .sort((a,b)=>a.name.localeCompare(b.name))
       .map(c=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${c.id}'>${esc(c.name)}</label>`)
       .join('');
@@ -458,13 +458,13 @@
   });
 
   function strengthKeyDriver(d){
-    const rank=window.appData.drivers.filter(x=>x.races>=MIN_RACES_FOR_RANK&&!x.archived).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===d.id);
+    const rank=window.appData.drivers.filter(x=>x.races>=MIN_RACES_FOR_RANK&&window.Elo.isActive(x)).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===d.id);
     const rankVal=rank===-1?Number.POSITIVE_INFINITY:rank;
     return [rankVal, -d.races, -d.elo, d.name];
   }
   // Matching: Fahrzeuge werden ab dem ersten Rennen nach ihren G!RP-Punkten eingestuft.
   function strengthKeyCar(c){
-    const rank=window.appData.cars.filter(x=>!x.hideFromRanking&&!x.archived).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===c.id);
+    const rank=window.appData.cars.filter(x=>window.Elo.isActive(x)).sort((a,b)=>b.elo-a.elo).findIndex(x=>x.id===c.id);
     const rankVal=rank===-1?Number.POSITIVE_INFINITY:rank;
     return [ -rankVal, c.races, c.elo, c.name]; // sort ascending later => weakest first
   }

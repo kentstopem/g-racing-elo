@@ -57,11 +57,9 @@
   function render(){
      if(!tblWrap) return;
      const stats=calcStats()[current];
-     // remove hidden
-     for(const key in stats){
-        const master=(current==='driver'?appData.drivers.find(d=>d.id==key):appData.cars.find(c=>c.id==key));
-        if(master?.hideInStats) delete stats[key];
-     }
+     // Filter: standardmäßig nur aktive; inaktive lassen sich im Filter zuschalten
+     for(const key in stats){ if(!isShown(current, key)) delete stats[key]; }
+     updateFilterBtn();
      let rows=Object.values(stats).map(o=>{
         const winRate=o.races?(o.wins/o.races*100):0;
         return {...o,winRate};
@@ -97,7 +95,7 @@
      });
      html+=`</tr></thead><tbody>`;
      rows.forEach(r=>{
-        html+=`<tr><td>${r.name||'-'}</td><td>${r.races}</td><td>${r.wins}</td><td>${r.winRate.toFixed(1)}</td><td>${r.rounds}</td><td>${r.firstDate||'-'}</td><td>${r.lastDate||'-'}</td><td>${r.best? r.best.toFixed(3):'-'}</td><td>${r.elo}</td></tr>`;
+        html+=`<tr><td>${r.name?window.Helpers.escapeHtml(r.name):'-'}</td><td>${r.races}</td><td>${r.wins}</td><td>${r.winRate.toFixed(1)}</td><td>${r.rounds}</td><td>${r.firstDate||'-'}</td><td>${r.lastDate||'-'}</td><td>${r.best? r.best.toFixed(3):'-'}</td><td>${r.elo}</td></tr>`;
      });
      html+=`</tbody></table>`;
      tblWrap.innerHTML=html;
@@ -109,43 +107,59 @@
      });
   }
 
-  async function saveFilter(){
-   const checks=[...filterList.querySelectorAll('input')];
-   const batch=window.db.batch();
-   for(const cb of checks){
-       const id=cb.dataset.id;
-       const hide=!cb.checked;
-       if(current==='driver'){
-           const ref=window.db.collection('drivers').doc(String(id));
-           batch.update(ref,{hideInStats:hide});
-       }else{
-           const ref=window.db.collection('cars').doc(String(id));
-           batch.update(ref,{hideInStats:hide});
-       }
-   }
-   try{await batch.commit();}
-   catch(e){console.error(e);window.Helpers.showToast('Speichern fehlgeschlagen');return;}
-   filterModal.classList.add('hidden');
-   // Anzeige aktualisiert sich über den Live-Listener
-   render();
- }
+  // ---------- Filter ----------
+  // Vorauswahl: alle aktiven (Haken „aktiv“ bei Fahrer/Fahrzeug, nicht archiviert).
+  // Abweichungen davon merkt sich jedes Gerät selbst (localStorage):
+  //   show = inaktive, die trotzdem angezeigt werden; hide = aktive, die ausgeblendet werden.
+  const STORE_KEY = 'statsFilter';
+  function loadOverrides(){
+    try{ const o=JSON.parse(localStorage.getItem(STORE_KEY)||'{}'); return { driver:o.driver||{show:[],hide:[]}, car:o.car||{show:[],hide:[]} }; }
+    catch(e){ return { driver:{show:[],hide:[]}, car:{show:[],hide:[]} }; }
+  }
+  let overrides=loadOverrides();
+  function saveOverrides(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(overrides)); }catch(e){} }
+  function entity(kind,id){ return (kind==='driver'?appData.drivers:appData.cars).find(x=>x.id==id); }
+  function isShown(kind,id){
+    const o=overrides[kind]; const n=Number(id);
+    return window.Elo.isActive(entity(kind,id)) ? !o.hide.includes(n) : o.show.includes(n);
+  }
+  function updateFilterBtn(){
+    const o=overrides[current];
+    filterBtn?.classList.toggle('filter-active', o.show.length>0 || o.hide.length>0);
+  }
 
- function openFilter(){
-   buildFilterList();
-   filterModal.classList.remove('hidden');
- }
- function buildFilterList(){
-   filterList.innerHTML='';
-   const arr=current==='driver'?appData.drivers:appData.cars;
-   arr.forEach(e=>{
-      const row=document.createElement('div'); row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.margin='4px 0';
-      const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!e.hideInStats;
-      cb.dataset.id=e.id;
-      const label=document.createElement('span'); label.textContent=e.name;
-      row.appendChild(cb); row.appendChild(label);
-      filterList.appendChild(row);
-   });
- }
+  function saveFilter(){
+    const show=[], hide=[];
+    filterList.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      const id=Number(cb.dataset.id);
+      const active=window.Elo.isActive(entity(current,id));
+      if(active && !cb.checked) hide.push(id);
+      if(!active && cb.checked) show.push(id);
+    });
+    overrides[current]={show,hide};
+    saveOverrides();
+    filterModal.classList.add('hidden');
+    render();
+  }
+
+  function openFilter(){
+    buildFilterList();
+    filterModal.classList.remove('hidden');
+  }
+  function buildFilterList(){
+    const ids=Object.keys(calcStats()[current]);   // nur wer in der Ansicht Rennen gefahren ist
+    const items=ids.map(id=>entity(current,id)).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
+    const row=e=>`<label class="filter-row"><input type="checkbox" data-id="${e.id}" ${isShown(current,e.id)?'checked':''}>${window.Helpers.escapeHtml(e.name)}${e.archived?' <span class="status-inactive">archiviert</span>':''}</label>`;
+    const active=items.filter(e=>window.Elo.isActive(e)), inactive=items.filter(e=>!window.Elo.isActive(e));
+    filterList.innerHTML=
+      `<div class="filter-quick"><button type="button" class="btn" data-pick="active">Nur aktive</button><button type="button" class="btn" data-pick="all">Alle</button></div>`+
+      `<div class="filter-group">Aktiv</div>`+(active.map(row).join('')||'<p class="muted">–</p>')+
+      `<div class="filter-group">Inaktiv</div>`+(inactive.map(row).join('')||'<p class="muted">–</p>');
+    filterList.querySelectorAll('[data-pick]').forEach(btn=>btn.onclick=()=>{
+      const all=btn.dataset.pick==='all';
+      filterList.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked = all || window.Elo.isActive(entity(current,cb.dataset.id)); });
+    });
+  }
 
   function compareDate(a,b){
      const [y1,m1,d1]=a.split(/[-.]/).reverse().map(Number);
