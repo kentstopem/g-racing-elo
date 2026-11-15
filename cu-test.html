@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>G!RP – CU-Test</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, -apple-system, sans-serif; background: var(--iu-light-grey); color: var(--iu-black); }
+    h1 { font-size: 1.4rem; margin: 0 0 4px; }
+    .muted { color: var(--text-muted); font-size: .9rem; }
+    .card { background: var(--iu-white); border: 1px solid var(--iu-grey); border-radius: var(--radius); padding: 14px; margin: 12px 0; }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btns button { font: inherit; padding: 10px 16px; border-radius: var(--radius-btn); border: 1px solid var(--iu-black); background: var(--iu-white); color: var(--iu-black); }
+    .btns button.primary { background: var(--iu-black); color: var(--iu-white); }
+    .btns button:disabled { opacity: .4; }
+    .warn { background: var(--status-warning-bg); color: var(--status-warning); border-radius: var(--radius-btn); padding: 10px 12px; }
+    .ok { color: var(--status-ok); }
+    .err { color: var(--status-error); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+    .stats div { font-size: .85rem; color: var(--text-muted); }
+    .stats b { display: block; font-size: 1.1rem; color: var(--iu-black); }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: right; padding: 8px 6px; border-bottom: 1px solid var(--iu-grey); }
+    th:first-child, td:first-child { text-align: left; }
+    td.big { font-size: 1.6rem; font-weight: 600; }
+    tr.flash td { background: var(--iu-accent-light); }
+    pre { font-size: .75rem; max-height: 260px; overflow: auto; background: var(--iu-light-grey); padding: 8px; border-radius: var(--radius-btn); margin: 8px 0 0; white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>CU-Test</h1>
+  <div class="muted">Liest Rundenzeiten direkt von der Control Unit. Es wird nichts gespeichert.</div>
+
+  <div id="noBt" class="warn" hidden>
+    Dieser Browser kann kein Bluetooth. Auf iPhone/iPad diese Seite in <b>Bluefy</b> öffnen,
+    am Mac/PC in Chrome oder Edge.
+  </div>
+
+  <div class="card">
+    <div class="btns">
+      <button id="connectBtn" class="primary">Mit CU verbinden</button>
+      <button id="disconnectBtn" disabled>Trennen</button>
+      <button id="resetBtn">Zeiten zurücksetzen</button>
+      <button id="copyBtn">Protokoll kopieren</button>
+    </div>
+    <p id="connState" class="muted">Nicht verbunden. SmartRace vorher schließen, die CU nimmt nur eine Verbindung an.</p>
+    <div class="stats">
+      <div>Firmware<b id="stVersion">–</b></div>
+      <div>Startampel<b id="stStart">–</b></div>
+      <div>Modus<b id="stMode">–</b></div>
+      <div>Antworten<b id="stCount">0</b></div>
+      <div>Prüfsummenfehler<b id="stBad">0</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>Regler</th><th>Runden</th><th>Letzte</th><th>Beste</th></tr></thead>
+      <tbody id="lapBody"><tr><td colspan="4" class="muted">Noch keine Durchfahrt.</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <b>Protokoll</b> <span class="muted">(Durchfahrten, Statuswechsel, Unbekanntes)</span>
+    <pre id="log"></pre>
+  </div>
+
+  <script src="cu.js"></script>
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const fmt = ms => ms == null ? '–' : (ms / 1000).toFixed(3) + ' s';
+    const tracker = new CU.LapTracker();
+    const logLines = [];
+    let count = 0, bad = 0, lastStatus = '', flashAddr = null, wakeLock = null;
+
+    function log (line) {
+      const t = new Date().toLocaleTimeString('de-DE');
+      logLines.push(`${t}  ${line}`);
+      if (logLines.length > 300) logLines.shift();
+      $('log').textContent = logLines.slice(-80).join('\n');
+      $('log').scrollTop = 1e9;
+    }
+
+    const modeText = m => [m & 1 && 'Tank', m & 2 && 'Real-Tank', m & 4 && 'Boxengasse', m & 8 && 'Rundenzähler']
+      .filter(Boolean).join(', ') || 'Standard';
+
+    function renderLaps () {
+      const rows = Object.entries(tracker.cars).sort((a, b) => a[0] - b[0]);
+      $('lapBody').innerHTML = rows.length ? rows.map(([a, c]) =>
+        `<tr class="${+a === flashAddr ? 'flash' : ''}"><td class="big">${a}</td><td>${c.laps}</td><td class="big">${fmt(c.last)}</td><td>${fmt(c.best)}</td></tr>`
+      ).join('') : '<tr><td colspan="4" class="muted">Noch keine Durchfahrt.</td></tr>';
+    }
+
+    function onMessage (raw) {
+      count++;
+      $('stCount').textContent = count;
+      const ev = CU.parse(raw);
+      if (ev.ok === false) { bad++; $('stBad').textContent = bad; log(`Prüfsumme falsch: ${raw}`); }
+      if (ev.type === 'status') {
+        $('stStart').textContent = ev.start;
+        $('stMode').textContent = modeText(ev.mode);
+        const key = `${ev.start}/${ev.mode}/${ev.pit.join()}`;
+        if (key !== lastStatus) { lastStatus = key; log(`Status: Ampel ${ev.start}, ${modeText(ev.mode)}, Tank ${ev.fuel.join(' ')}  [${raw}]`); }
+      } else if (ev.type === 'timer') {
+        const lap = tracker.add(ev);
+        log(`Regler ${ev.address}, Sensor ${ev.sector}, Zeit ${ev.timestamp}${lap ? ` → Runde ${lap.lap}: ${fmt(lap.time)}${lap.isBest ? ' (Bestzeit)' : ''}` : ''}  [${raw}]`);
+        if (lap) { flashAddr = lap.address; renderLaps(); setTimeout(() => { flashAddr = null; renderLaps(); }, 600); }
+      } else if (ev.type === 'version') {
+        $('stVersion').textContent = ev.version;
+        log(`Firmware: ${ev.version}`);
+      } else {
+        log(`Unbekannt: ${raw}`);
+      }
+    }
+
+    const conn = new CU.Connection({
+      onMessage,
+      log,
+      onDisconnect () {
+        $('connState').innerHTML = '<span class="err">Verbindung getrennt.</span>';
+        $('connectBtn').disabled = false; $('disconnectBtn').disabled = true;
+        log('Verbindung getrennt');
+      }
+    });
+
+    if (!CU.Connection.available()) { $('noBt').hidden = false; $('connectBtn').disabled = true; }
+
+    $('connectBtn').addEventListener('click', async () => {
+      $('connState').textContent = 'Suche Control Unit …';
+      try {
+        const name = await conn.connect();
+        $('connState').innerHTML = `<span class="ok">Verbunden mit ${name}.</span> Jetzt einfach fahren.`;
+        $('connectBtn').disabled = true; $('disconnectBtn').disabled = false;
+        log(`Verbunden mit ${name}`);
+        conn.startPolling();
+        conn.requestVersion();
+        try { wakeLock = await navigator.wakeLock?.request('screen'); } catch (e) {}
+      } catch (err) {
+        $('connState').innerHTML = `<span class="err">Verbinden fehlgeschlagen: ${err.message}</span>`;
+        log(`Fehler: ${err.name}: ${err.message}`);
+      }
+    });
+    $('disconnectBtn').addEventListener('click', () => { conn.disconnect(); wakeLock?.release?.(); });
+    $('resetBtn').addEventListener('click', () => { tracker.reset(); renderLaps(); log('Zeiten zurückgesetzt'); });
+    $('copyBtn').addEventListener('click', async () => {
+      const text = `CU-Test ${new Date().toISOString()}\nUA: ${navigator.userAgent}\n\n${logLines.join('\n')}`;
+      try { await navigator.clipboard.writeText(text); $('copyBtn').textContent = 'Kopiert ✓'; }
+      catch (e) { $('copyBtn').textContent = 'Kopieren nicht möglich'; }
+      setTimeout(() => { $('copyBtn').textContent = 'Protokoll kopieren'; }, 2000);
+    });
+  })();
+  </script>
+</body>
+</html>
