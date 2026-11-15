@@ -373,10 +373,13 @@
     selectedCars=[];
     // zuletzt gewählte (noch vorhandene) Fahrer sind vorausgewählt
     selectedDrivers=prevSelectedDrivers.filter(id=>window.appData.drivers.some(d=>d.id===id&&window.Elo.isActive(d)));
-    // Fahrerliste: meiste Rennen (gewählte Saison) zuerst, bei Gleichstand alphabetisch; nur aktive
+    // Fahrerliste: meiste Rennen insgesamt (alle Saisons) zuerst, bei Gleichstand alphabetisch; nur aktive
+    const total=new Map();
+    (window.appData.allRaces||window.appData.races||[]).forEach(r=>(r.results||[]).forEach(res=>total.set(res.driverId,(total.get(res.driverId)||0)+1)));
+    const cnt=d=>total.get(d.id)||0;
     driverListDiv.innerHTML=[...window.appData.drivers].filter(d=>window.Elo.isActive(d))
-      .sort((a,b)=>((b.races||0)-(a.races||0))||a.name.localeCompare(b.name))
-      .map(d=>{const n=d.races||0;return `<label class='pick-row'><input type='checkbox' value='${d.id}' ${selectedDrivers.includes(d.id)?'checked':''}><span class='pick-check' aria-hidden='true'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></span><span class='pick-name'>${esc(d.name)}</span><span class='pick-meta'>${n} Rennen</span></label>`;})
+      .sort((a,b)=>(cnt(b)-cnt(a))||a.name.localeCompare(b.name))
+      .map(d=>{const n=cnt(d);return `<label class='pick-row'><input type='checkbox' value='${d.id}' ${selectedDrivers.includes(d.id)?'checked':''}><span class='pick-check' aria-hidden='true'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></span><span class='pick-name'>${esc(d.name)}</span><span class='pick-meta'>${n} Rennen</span></label>`;})
       .join('');
     updateDriverCount();
     nextBtn.disabled=selectedDrivers.length<2||selectedDrivers.length>6;
