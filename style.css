@@ -610,3 +610,6 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .pick-count.warn { color: var(--status-error); font-weight: 600; }
 .setup-actions { display: flex; gap: 8px; margin-left: auto; }
 .setup-actions .btn { margin: 0; }
+.setup-foot > .btn { margin: 0; }
+.setup-draw { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.setup-draw .btn { margin: 0; }

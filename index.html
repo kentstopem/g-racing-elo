@@ -290,18 +290,24 @@
           </div>
                                 </div>
         <div id="setupStep2" class="hidden">
-          <h3 style="margin-bottom:10px;">Schritt 2: Fahrzeuge wählen</h3>
-          <div id="pairTable" style="margin-bottom:10px;"></div>
-          <div id="setupCarList" class="hidden"></div>
-          <div style="display:flex;gap:8px;justify-content:center;margin-top:15px;flex-wrap:wrap;">
-            <div style="display:flex;gap:8px;justify-content:center;width:100%;">
-              <button class="btn" id="setupLuckyWheelBtn"><svg class="ic" aria-hidden="true"><use href="#i-wheel"/></svg>Glücksrad</button>
-              <button class="btn" id="setupSlotBtn"><svg class="ic" aria-hidden="true"><use href="#i-slot"/></svg>Slotmachine</button>
-            </div>
-            <div style="display:flex;gap:8px;justify-content:center;width:100%;margin-top:6px;">
-              <button class="btn" id="setupBackBtn">Zurück</button>
-              <button class="btn btn-primary" id="setupFinishBtn" disabled>Fertig</button>
-              <button class="btn" id="setupCancelBtn2">Abbrechen</button>
+          <div class="setup-head">
+            <span class="setup-step">Schritt 2 von 2</span>
+            <h3><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge wählen</h3>
+          </div>
+          <div id="pairTable"></div>
+          <div id="setupCarList" class="pick-list hidden"></div>
+          <div class="setup-foot">
+            <span id="setupCarCount" class="pick-count"></span>
+          </div>
+          <div class="setup-draw">
+            <button class="btn btn-modal" id="setupLuckyWheelBtn"><svg class="ic" aria-hidden="true"><use href="#i-wheel"/></svg>Glücksrad</button>
+            <button class="btn btn-modal" id="setupSlotBtn"><svg class="ic" aria-hidden="true"><use href="#i-slot"/></svg>Slotmachine</button>
+          </div>
+          <div class="setup-foot">
+            <button class="btn btn-modal" id="setupBackBtn">Zurück</button>
+            <div class="setup-actions">
+              <button class="btn btn-modal" id="setupCancelBtn2">Abbrechen</button>
+              <button class="btn btn-primary btn-modal" id="setupFinishBtn" disabled>Fertig</button>
             </div>
           </div>
                                     </div>

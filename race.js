@@ -411,20 +411,29 @@
     carListDiv.classList.remove('hidden');
     carListDiv.innerHTML=[...window.appData.cars].filter(c=>window.Elo.isActive(c))
       .sort((a,b)=>a.name.localeCompare(b.name))
-      .map(c=>`<label style='display:flex;align-items:center;gap:6px;margin:4px 0;'><input type='checkbox' value='${c.id}'>${esc(c.name)}</label>`)
+      .map(c=>`<label class='pick-row'><input type='checkbox' value='${c.id}'><span class='pick-check' aria-hidden='true'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></span><span class='pick-name'>${esc(c.name)}</span></label>`)
       .join('');
-    finishBtn.disabled=true;
+    selectedCars=[];
+    updateCarCount();
     step1.classList.add('hidden');
     step2.classList.remove('hidden');
   });
 
   carListDiv?.addEventListener('change',()=>{
     selectedCars=[...carListDiv.querySelectorAll('input:checked')].map(i=>parseInt(i.value));
-    finishBtn.disabled=selectedCars.length!==selectedDrivers.length;
-    if(selectedCars.length!==selectedDrivers.length){
-        showToast(`Bitte genau ${selectedDrivers.length} Fahrzeuge wählen`);
-    }
+    updateCarCount();
   });
+
+  function updateCarCount(){
+    const n=selectedCars.length, need=selectedDrivers.length;
+    const el=document.getElementById('setupCarCount');
+    if(el){
+      el.textContent=n===0?`${need} Fahrzeuge antippen oder auslosen`:n>need?`${n} von ${need} gewählt – zu viele`:`${n} von ${need} Fahrzeugen gewählt`;
+      el.classList.toggle('ok',n===need);
+      el.classList.toggle('warn',n>need);
+    }
+    finishBtn.disabled=n!==need;
+  }
 
   wheelBtn?.addEventListener('click',()=>{
      // choose cars randomly among selectable cars not yet picked
