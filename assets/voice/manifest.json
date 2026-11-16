@@ -1,0 +1,148 @@
+{
+ "drivers": {
+  "1753130526417": {
+   "name": "Tris",
+   "text": "Tris"
+  },
+  "1753130944562": {
+   "name": "Jesu.S",
+   "text": "Jesu.S"
+  },
+  "1753130950366": {
+   "name": "Scoob",
+   "text": "Scoob"
+  },
+  "1753130957800": {
+   "name": "Dani",
+   "text": "Dani"
+  },
+  "1753219109453": {
+   "name": "Tsmoner",
+   "text": "Tsmoner"
+  },
+  "1753219221210": {
+   "name": "Emil",
+   "text": "Emil"
+  },
+  "1753220856540": {
+   "name": "NRookie23",
+   "text": "NRookie23"
+  },
+  "1753220862506": {
+   "name": "Magnus",
+   "text": "Magnus"
+  },
+  "1753220865941": {
+   "name": "Sven",
+   "text": "Sven"
+  },
+  "1753223219072": {
+   "name": "Basti",
+   "text": "Basti"
+  },
+  "1753223962014": {
+   "name": "Lili",
+   "text": "Lili"
+  },
+  "1753224093903": {
+   "name": "Markus L.",
+   "text": "Markus L."
+  },
+  "1753224101066": {
+   "name": "DBet",
+   "text": "DBet"
+  },
+  "1753224305872": {
+   "name": "Alekz",
+   "text": "Alekz"
+  },
+  "1753224408986": {
+   "name": "Exe",
+   "text": "Exe"
+  },
+  "1753224755364": {
+   "name": "Fabster",
+   "text": "Fabster"
+  },
+  "1753224892079": {
+   "name": "Clari",
+   "text": "Clari"
+  },
+  "1753225342329": {
+   "name": "Möschen",
+   "text": "Möschen"
+  },
+  "1753225617117": {
+   "name": "JR",
+   "text": "JR"
+  },
+  "1753458697350": {
+   "name": "Marty McFly",
+   "text": "Marty McFly"
+  },
+  "1753465404754": {
+   "name": "Kilian",
+   "text": "Kilian"
+  },
+  "1753972514570": {
+   "name": "Titus",
+   "text": "Titus"
+  },
+  "1754159582517": {
+   "name": "Magic Mike",
+   "text": "Magic Mike"
+  },
+  "1754159600703": {
+   "name": "Hirschel",
+   "text": "Hirschel"
+  },
+  "1754159673555": {
+   "name": "Janker Mes",
+   "text": "Janker Mes"
+  },
+  "1755108491312": {
+   "name": "Puschi",
+   "text": "Puschi"
+  },
+  "1756233187234": {
+   "name": "Meisi",
+   "text": "Meisi"
+  },
+  "1756234095514": {
+   "name": "Torsten",
+   "text": "Torsten"
+  },
+  "1759587030073": {
+   "name": "Tim K.",
+   "text": "Tim K."
+  },
+  "1768414008745": {
+   "name": "Tobi",
+   "text": "Tobi"
+  }
+ },
+ "phrases": {
+  "count_1": "Eins.",
+  "count_2": "Zwei.",
+  "count_3": "Drei.",
+  "count_4": "Vier.",
+  "count_5": "Fünf.",
+  "count_go": "Los!",
+  "false_start": "Fehlstart!",
+  "fastest_lap": "Schnellste Runde!",
+  "in_pit": "ist in der Box.",
+  "last_lap": "Letzte Runde!",
+  "penalty_served": "Strafe abgesessen.",
+  "personal_record": "Persönliche Bestzeit!",
+  "pit_call": "Tank fast leer, bitte an die Box!",
+  "pole": "holt sich die Pole-Position. Glückwunsch!",
+  "race_resume": "Weiter geht's!",
+  "race_win": "gewinnt das Rennen! Herzlichen Glückwunsch!",
+  "red_flag": "Rote Flagge! Rennen unterbrochen.",
+  "refueled": "Vollgetankt!",
+  "track_record": "Neuer Streckenrekord!"
+ },
+ "pitch": "+0Hz",
+ "rate": "+5%",
+ "voice": "de-AT-IngridNeural"
+}
