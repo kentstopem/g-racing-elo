@@ -664,3 +664,8 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .bal-details[open] > summary::before { transform: rotate(90deg); }
 .tick.major { height: 22px; }
 .tick-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Filter über Listen (z. B. Fahrer verwalten) */
+.list-filter { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin: 4px 0 10px; }
+.list-filter label { margin: 0; font-size: 13px; color: var(--text-muted); }
+.list-filter select { width: auto; padding: 6px 10px; font-size: 14px; }
