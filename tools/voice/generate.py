@@ -19,11 +19,6 @@ OUT = os.path.join(ROOT, 'assets', 'voice')
 MANIFEST = os.path.join(OUT, 'manifest.json')
 PROJECT, API_KEY = 'g-racing-elo', 'AIzaSyCgpQQQ4OW_HGLqCYmn8WRwclUW8DXqJC0'
 
-SAMPLE_VOICES = [
-    'de-DE-ConradNeural', 'de-DE-KillianNeural', 'de-DE-FlorianMultilingualNeural',
-    'de-DE-KatjaNeural', 'de-DE-AmalaNeural', 'de-DE-SeraphinaMultilingualNeural',
-    'de-AT-JonasNeural', 'de-AT-IngridNeural', 'de-CH-JanNeural', 'de-CH-LeniNeural',
-]
 SAMPLE_TEXT = 'Drei. Zwei. Eins. Los! … {name}: Neuer Streckenrekord! … Tank fast leer, bitte an die Box!'
 
 
@@ -66,7 +61,7 @@ async def main():
     ap.add_argument('--driver', default='')
     a = ap.parse_args()
 
-    man = load_json(MANIFEST, {'voice': 'de-DE-ConradNeural', 'rate': '+0%', 'pitch': '+0Hz', 'phrases': {}, 'drivers': {}})
+    man = load_json(MANIFEST, {'voice': 'de-DE-ChristophNeural', 'rate': '+0%', 'pitch': '+0Hz', 'phrases': {}, 'drivers': {}})
     voice_changed = bool(a.voice) and a.voice != man['voice']
     man['voice'] = a.voice or man['voice']
     man['rate'] = a.rate or man.get('rate', '+0%')

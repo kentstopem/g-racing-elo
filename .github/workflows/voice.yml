@@ -15,7 +15,7 @@ on:
         description: 'Fahrer-ID (nur bei „driver“)'
         required: false
       voice:
-        description: 'Stimme (leer = bisherige), z. B. de-DE-ConradNeural'
+        description: 'Stimme (leer = bisherige), z. B. de-DE-ChristophNeural'
         required: false
       rate:
         description: 'Tempo (leer = bisheriges), z. B. +10%'
