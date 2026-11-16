@@ -61,7 +61,7 @@ async def main():
     ap.add_argument('--driver', default='')
     a = ap.parse_args()
 
-    man = load_json(MANIFEST, {'voice': 'de-DE-ChristophNeural', 'rate': '+0%', 'pitch': '+0Hz', 'phrases': {}, 'drivers': {}})
+    man = load_json(MANIFEST, {'voice': 'de-AT-IngridNeural', 'rate': '+5%', 'pitch': '+0Hz', 'phrases': {}, 'drivers': {}})
     voice_changed = bool(a.voice) and a.voice != man['voice']
     man['voice'] = a.voice or man['voice']
     man['rate'] = a.rate or man.get('rate', '+0%')
