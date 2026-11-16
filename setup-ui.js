@@ -406,8 +406,7 @@
 
   function renderRace (el) {
     const s = window.appData.raceSettings || M.raceSettings();
-    const factorOpts = [[0, 'unabhängig vom Tempo'], [0.5, 'schwach'], [1, 'proportional (Standard)'], [1.5, 'stark'], [2, 'sehr stark']];
-    if (!factorOpts.some(([v]) => v === s.fuelSpeedFactor)) factorOpts.push([s.fuelSpeedFactor, `eigener Wert (${fmtNum(s.fuelSpeedFactor)})`]);
+    const fPct = Math.round(Math.min(2, s.fuelSpeedFactor) * 10) * 10;   // 0–200 % in 10er-Schritten
     el.innerHTML = `
       <form id="raceSettingsForm">
         <h3 class="setup-h">Box &amp; Tank</h3>
@@ -416,8 +415,12 @@
           <div class="form-group"><label for="rsRefuel">Tanken (% pro Sekunde)</label><input id="rsRefuel" name="refuel" inputmode="decimal" value="${fmtNum(s.refuelPctPerSec, 1)}"></div>
           <div class="form-group"><label for="rsPitCall">„Muss an die Box“ ab Tank (%)</label><input id="rsPitCall" name="pitCall" type="number" min="0" max="100" value="${s.pitCallFuelPct}"></div>
         </div>
-        <div class="form-group"><label for="rsFactor">Mehrverbrauch bei schnelleren Runden</label>
-          <select id="rsFactor" name="factor">${factorOpts.map(([v, l]) => `<option value="${v}" ${v === s.fuelSpeedFactor ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <div class="form-group"><label for="rsFactor">Einfluss des Tempos auf den Verbrauch <strong id="rsFactorVal">${fPct} %</strong></label>
+          <div class="tick-range" style="--pct:${fPct / 2}%">
+            <div class="tick-track"><div class="tick-fill"></div>${Array.from({ length: 21 }, (_, i) => `<span class="tick${i * 10 <= fPct ? ' on' : ''}${i % 5 === 0 ? ' major' : ''}"></span>`).join('')}</div>
+            <input type="range" class="level-range" id="rsFactor" name="factor" min="0" max="200" step="10" value="${fPct}">
+          </div>
+          <div class="tick-labels"><span>0 % · Tempo egal</span><span>100 % · proportional</span><span>200 %</span></div>
           <p class="muted edit-note" id="rsFactorNote"></p>
         </div>
         <h3 class="setup-h">Strafen</h3>
@@ -439,16 +442,20 @@
       </details>`;
     const form = el.querySelector('#raceSettingsForm');
     const note = () => {
-      const f = Number(form.factor.value);
+      const f = Number(form.factor.value) / 100;
+      const box = form.factor.closest('.tick-range');
+      box.style.setProperty('--pct', `${form.factor.value / 2}%`);
+      box.querySelectorAll('.tick').forEach((t, i) => t.classList.toggle('on', i * 10 <= form.factor.value));
+      el.querySelector('#rsFactorVal').textContent = `${form.factor.value} %`;
       const laps = Math.max(1, Math.round(parseNum(form.tank.value) || M.RACE_DEFAULTS.fullTankLaps));
-      const ex = M.lapsPerTank(0.95, { refLapMs: 1 }, { fullTankLaps: laps, fuelSpeedFactor: f });
-      el.querySelector('#rsFactorNote').textContent = `Beispiel: Reicht der Tank bei Referenztempo ${laps} Runden, sind es 5 % schneller ${fmtNum(ex, 1)} Runden.`;
+      const ex = d => fmtNum(M.lapsPerTank(1 + d, { refLapMs: 1 }, { fullTankLaps: laps, fuelSpeedFactor: f }), 1);
+      el.querySelector('#rsFactorNote').textContent = `Bei Referenztempo reicht der Tank ${laps} Runden, 5 % schneller ${ex(-0.05)} Runden, 5 % langsamer ${ex(0.05)} Runden.`;
     };
     const balance = () => {
       const track = window.Seasons.track(window.Seasons.current().trackId);
       const ref = M.trackSetup(track).refLapMs || 6500;
       const settings = {
-        fullTankLaps: parseNum(form.tank.value), refuelPctPerSec: parseNum(form.refuel.value), fuelSpeedFactor: Number(form.factor.value)
+        fullTankLaps: parseNum(form.tank.value), refuelPctPerSec: parseNum(form.refuel.value), fuelSpeedFactor: Number(form.factor.value) / 100
       };
       const laps = Math.max(1, Math.round(parseNum(el.querySelector('#balLaps').value) || 70));
       const pitLoss = Math.max(0, parseNum(el.querySelector('#balPit').value) ?? 4);
@@ -482,7 +489,7 @@
         fullTankLaps: parseNum(form.tank.value),
         refuelPctPerSec: parseNum(form.refuel.value),
         pitCallFuelPct: parseNum(form.pitCall.value),
-        fuelSpeedFactor: Number(form.factor.value),
+        fuelSpeedFactor: Number(form.factor.value) / 100,
         falseStartPenaltySec: parseNum(form.falseStart.value),
         penaltyOptionsSec: opts
       });

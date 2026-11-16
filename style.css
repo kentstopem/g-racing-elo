@@ -662,3 +662,5 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .bal-details > summary { font-weight: 700; }
 .bal-details > summary::before { content: ""; width: 0; height: 0; border-left: 7px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent; transition: transform .15s; }
 .bal-details[open] > summary::before { transform: rotate(90deg); }
+.tick.major { height: 22px; }
+.tick-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
