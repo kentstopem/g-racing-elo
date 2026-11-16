@@ -652,3 +652,5 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .tuning-row label strong { color: var(--iu-black); }
 .setup-h { font-size: 17px; margin: 8px 0 12px; }
 .form-group input.level-range, .form-group input.level-range:focus { padding: 0; border: 0; background: transparent; box-shadow: none; outline: none; }
+.bal-table td:first-child { font-weight: 600; }
+.bal-table tr.bal-ref td { background: var(--iu-accent-light); }

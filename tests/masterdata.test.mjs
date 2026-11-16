@@ -69,3 +69,21 @@ test('Rundenzeit-Eingabe mit Komma oder Punkt', () => {
   assert.equal(M.parseLapTime(''), null);
   assert.equal(M.formatLapTime(6512), '6,512');
 });
+
+test('Mindest-Rundenzeit: kürzere Durchfahrten zählen nicht', () => {
+  assert.equal(M.isValidLap(4000, { minLapMs: 5000 }), false);
+  assert.equal(M.isValidLap(5000, { minLapMs: 5000 }), true);
+  assert.equal(M.isValidLap(1200, {}), true);
+  assert.equal(M.isValidLap(0, {}), false);
+});
+
+test('Sprit-Plan fürs Rennen: Stopps und Tankzeit', () => {
+  const track = { refLapMs: 6500 };
+  const ref = M.raceFuelPlan(70, 6500, track);
+  assert.equal(Math.round(ref.fuelPct), 280);
+  assert.equal(ref.stops, 2);
+  assert.equal(Math.round(ref.refuelSec), 18);
+  assert.equal(M.raceFuelPlan(75, 6500, track).stops, 2);   // genau 3 Tankfüllungen
+  assert.equal(M.raceFuelPlan(75, 6175, track).stops, 3);   // 5 % schneller → ein Stopp mehr
+  assert.equal(M.raceFuelPlan(20, 6500, track).stops, 0);
+});

@@ -6,7 +6,7 @@
 //                    voiceRev (Zeitstempel, wenn ein Namens-Ton hinterlegt ist)
 //   cars/{id}      + tuning { speed: 0–15, brake: 0–15 } (CU-Stufen; fehlt = nicht festgelegt),
 //                    imageRev (eigenes Bild hochgeladen), practiceLaps (Runden außerhalb gewerteter Rennen)
-//   tracks/{id}    + lengthOuterM, lengthInnerM, refLapMs, imageRev
+//   tracks/{id}    + lengthOuterM, lengthInnerM, refLapMs, minLapMs (kürzere Runden werden ignoriert), imageRev
 //   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor }
 //   media/{key}    { data (Data-URL), type, bytes, updatedAt } – Bilder/Töne getrennt von den Stammdaten,
 //                  key: car_<id> | driver_voice_<id> | track_<id>
@@ -38,6 +38,7 @@
 
   const TRACK_DEFAULTS = Object.freeze({
     refLapMs: null,
+    minLapMs: null,
     lengthOuterM: null,
     lengthInnerM: null
   });
@@ -65,6 +66,7 @@
     const t = track || {};
     return {
       refLapMs:     num(t.refLapMs, null) > 0 ? Number(t.refLapMs) : null,
+      minLapMs:     num(t.minLapMs, null) > 0 ? Number(t.minLapMs) : null,
       lengthOuterM: num(t.lengthOuterM, null),
       lengthInnerM: num(t.lengthInnerM, null)
     };
@@ -114,6 +116,25 @@
     return { assignments: out, conflicts };
   }
 
+  /**
+   * Zählt eine Start/Ziel-Durchfahrt als Runde? Zeiten unter der Mindest-Rundenzeit der Strecke
+   * (z. B. nach einer Unterbrechung nahe Start/Ziel) werden ignoriert – keine falschen Rekorde.
+   */
+  const isValidLap = (lapMs, track) => lapMs > 0 && lapMs >= (trackSetup(track).minLapMs || 0);
+
+  /**
+   * Sprit-Plan für ein Rennen (Start mit vollem Tank, getankt wird nur so viel wie nötig).
+   * Liefert Spritbedarf gesamt (%), Runden pro Tank, nötige Boxenstopps und reine Tankzeit (s).
+   */
+  function raceFuelPlan (laps, lapMs, track, settings) {
+    const s = raceSettings(settings);
+    const per = fuelPerLap(lapMs, track, settings);
+    const fuelPct = per * laps;
+    const refill = Math.max(0, fuelPct - 100);
+    const stops = refill > 1e-9 ? Math.ceil(refill / 100 - 1e-9) : 0;
+    return { fuelPct, lapsPerTank: 100 / per, stops, refuelSec: refill / s.refuelPctPerSec };
+  }
+
   /** Runden und Rennen eines Fahrzeugs über alle Saisons (aus den gewerteten Rennen + Training) */
   function carTotals (carId, races = [], car = {}) {
     let racesCount = 0, laps = 0;
@@ -133,7 +154,7 @@
   window.MasterData = {
     CONTROLLERS, controller, MAX_LEVEL, clampLevel, levelToPct,
     RACE_DEFAULTS, TRACK_DEFAULTS, raceSettings, trackSetup,
-    fuelPerLap, lapsPerTank, suggestControllers, carTotals,
+    fuelPerLap, lapsPerTank, raceFuelPlan, isValidLap, suggestControllers, carTotals,
     parseLapTime, formatLapTime
   };
 })();
