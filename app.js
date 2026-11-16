@@ -463,6 +463,8 @@ function initDriverManagement() {
     const input = document.getElementById('newDriverName');
 
     addBtn.addEventListener('click', addDriver);
+    // Mit Feature „live“ (Setup): „+ Neuer Fahrer“ öffnet den Bearbeiten-Dialog zum Anlegen
+    document.getElementById('newDriverBtn')?.addEventListener('click', () => window.SetupUI?.editDriver(null));
     input.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             addDriver();
@@ -491,8 +493,13 @@ function addDriver() {
     persist(window.Storage.addDriver(driver));
     updateDriversList();
     RaceUI.updateForm();
-    // Mit Feature „live“ gleich den Dialog öffnen, um den gesprochenen Namen zu erzeugen
-    if (window.SetupUI?.enabled()) window.SetupUI.editDriver(driver.id);
+}
+
+// Mit Feature „live“ wird über den +-Button im Dialog angelegt, sonst über das Eingabefeld oben
+function toggleAddUI(box, plus) {
+    const setup = !!window.SetupUI?.enabled();
+    document.getElementById(box)?.classList.toggle('hidden', setup);
+    document.getElementById(plus)?.classList.toggle('hidden', !setup);
 }
 
 // Fahrer/Fahrzeuge mit Rennen werden archiviert statt gelöscht, damit die Historie vollständig bleibt.
@@ -526,6 +533,7 @@ function toggleArchiveDriver(id) {
 function updateDriversList() {
     const list = document.getElementById('driversList');
     if (!list) return;
+    toggleAddUI('driverAddBox', 'newDriverBtn');
 
     if (appData.drivers.length === 0) {
         list.innerHTML = '<p style="text-align: center; color:var(--text-muted);">Noch keine Fahrer hinzugefügt.</p>';
@@ -594,6 +602,7 @@ function initCarManagement() {
     const input = document.getElementById('newCarName');
 
     addBtn.addEventListener('click', addCar);
+    document.getElementById('newCarBtn')?.addEventListener('click', () => window.SetupUI?.editCar(null));
     input.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             addCar();
@@ -649,6 +658,7 @@ function toggleArchiveCar(id) {
 function updateCarsList() {
     const list = document.getElementById('carsList');
     if (!list) return;
+    toggleAddUI('carAddBox', 'carTools');
 
     if (appData.cars.length === 0) {
         list.innerHTML = '<p style="text-align: center; color:var(--text-muted);">Noch keine Fahrzeuge hinzugefügt.</p>';

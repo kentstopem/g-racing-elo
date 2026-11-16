@@ -88,7 +88,7 @@
         <!-- Fahrer Section -->
         <div id="drivers" class="section">
             <h2><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer verwalten</h2>
-            <div class="form-group">
+            <div class="form-group" id="driverAddBox">
                 <label>Neuer Fahrer:</label>
                 <div class="input-button-group">
                     <input type="text" id="newDriverName" placeholder="Name eingeben...">
@@ -96,6 +96,7 @@
                 </div>
             </div>
             <div class="list-filter">
+                <button class="btn btn-add hidden" id="newDriverBtn" title="Neuer Fahrer" aria-label="Neuer Fahrer"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Neuer Fahrer</button>
                 <label for="driverFilter">Anzeigen</label>
                 <select id="driverFilter">
                     <option value="active">Nur aktive</option>
@@ -120,12 +121,15 @@
         <!-- Fahrzeuge Section -->
         <div id="cars" class="section">
             <h2><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge verwalten</h2>
-            <div class="form-group">
+            <div class="form-group" id="carAddBox">
                 <label>Neues Fahrzeug:</label>
                 <div class="input-button-group">
                     <input type="text" id="newCarName" placeholder="Fahrzeugname eingeben...">
                     <button class="btn" id="addCarBtn">Hinzufügen</button>
                 </div>
+            </div>
+            <div class="list-filter hidden" id="carTools">
+                <button class="btn btn-add" id="newCarBtn" title="Neues Fahrzeug" aria-label="Neues Fahrzeug"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Neues Fahrzeug</button>
             </div>
             <div id="carsList"></div>
         </div>

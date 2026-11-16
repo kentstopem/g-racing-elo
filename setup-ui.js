@@ -100,18 +100,21 @@
 
   // ---------- Fahrer ----------
 
+  // id = null → neuen Fahrer anlegen (gleicher Dialog, wird erst beim Speichern erstellt)
   function editDriver (id) {
-    const d = window.appData.drivers.find(x => x.id === id);
+    const isNew = id == null;
+    if (isNew) id = Date.now();
+    const d = isNew ? { id, name: '' } : window.appData.drivers.find(x => x.id === id);
     if (!d) return;
     const others = n => window.appData.drivers.filter(x => x.id !== id && !x.archived && x.preferredController === n).map(x => x.name);
     const chips = [`<label class="ctrl-pick" title="keiner"><input type="radio" name="ctrl" value="" aria-label="keiner" ${d.preferredController ? '' : 'checked'}><span class="ctrl-swatch ctrl-none"></span></label>`]
       .concat(M.CONTROLLERS.map(c => `<label class="ctrl-pick" title="${c.name}"><input type="radio" name="ctrl" value="${c.n}" aria-label="${c.name}" ${d.preferredController === c.n ? 'checked' : ''}><span class="ctrl-swatch" style="background:${c.color}"></span></label>`)).join('');
 
-    const body = openModal(d.name, `
+    const body = openModal(isNew ? 'Neuer Fahrer' : d.name, `
       <form id="driverForm">
         <div class="form-group">
           <label for="drvName">Name</label>
-          <input id="drvName" name="dname" value="${esc(d.name)}" required>
+          <input id="drvName" name="dname" value="${esc(d.name)}" placeholder="Name eingeben..." required>
         </div>
         <div class="form-group">
           <label>Bevorzugter Controller: <strong id="ctrlName"></strong></label>
@@ -121,7 +124,7 @@
         <div class="form-group">
           <label for="drvPron">Gesprochener Name</label>
           <div class="media-row">
-            <input id="drvPron" name="pron" value="${esc(d.pronunciation || '')}" placeholder="${esc(d.name)}" style="flex:1;min-width:0;">
+            <input id="drvPron" name="pron" value="${esc(d.pronunciation || '')}" placeholder="${esc(d.name || 'wie der Name')}" style="flex:1;min-width:0;">
             <button type="button" class="btn btn-small" id="voicePlay" style="align-self:stretch;">Anhören</button>
           </div>
         </div>
@@ -142,11 +145,13 @@
     // neu erzeugt. Ein neu erzeugter Ton wird erst beim Speichern übernommen.
     let pending = null;   // { data, text }
     const pronText = () => form.pron.value.trim() || form.dname.value.trim() || d.name;
-    form.dname.addEventListener('input', () => { form.pron.placeholder = form.dname.value.trim() || d.name; });
+    if (isNew) setTimeout(() => form.dname.focus(), 50);
+    form.dname.addEventListener('input', () => { form.pron.placeholder = form.dname.value.trim() || d.name || 'wie der Name'; });
     const playBtn = body.querySelector('#voicePlay');
     playBtn.onclick = async () => {
       const cur = window.appData.drivers.find(x => x.id === id);
       const text = pronText();
+      if (!text) { showToast('Bitte zuerst einen Namen eingeben!'); return; }
       if (pending?.text === text) return window.Voice.playSources([pending.data]);
       if (window.Voice.savedText(cur) === text) {
         const src = await window.Voice.nameSrc(cur);
@@ -174,7 +179,11 @@
       if (!name) { showToast('Bitte einen Namen eingeben!'); return; }
       if (window.appData.drivers.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) { showToast('Fahrer existiert bereits!'); return; }
       const fields = { name, preferredController: ctrl, pronunciation: pron || del() };
-      const save = (async () => {
+      // Neu: Fahrer zuerst anlegen (Startwerte wie bisher beim Hinzufügen), dann wie beim Bearbeiten weiter
+      const created = isNew
+        ? window.Storage.addDriver({ id, name, elo: 1000, races: 0, wins: 0, totalRounds: 0, preferredController: ctrl, ...(pron ? { pronunciation: pron } : {}) })
+        : Promise.resolve();
+      const save = created.then(async () => {
         const cur = window.appData.drivers.find(x => x.id === id);
         const text = pronText();
         // Noch kein eigener Ton oder Schreibweise geändert, aber nicht angehört → beim Speichern erzeugen
@@ -186,8 +195,8 @@
         await window.Storage.setMedia(v.media(id), pending.data, 'audio/mpeg');
         fields[v.rev] = Date.now();
         fields[v.text] = pending.text;
-      })();
-      persist(save.then(() => window.Storage.updateDriverFields(id, fields)), 'Fahrer gespeichert').catch(() => {});
+      });
+      persist(save.then(() => window.Storage.updateDriverFields(id, fields)), isNew ? 'Fahrer angelegt' : 'Fahrer gespeichert').catch(() => {});
       window.Voice.stop();
       closeModal();
     };
@@ -195,10 +204,14 @@
 
   // ---------- Fahrzeuge ----------
 
+  // id = null → neues Fahrzeug anlegen (gleicher Dialog, Bild wird erst beim Speichern übernommen)
   function editCar (id) {
-    const c = window.appData.cars.find(x => x.id === id);
+    const isNew = id == null;
+    if (isNew) id = Date.now();
+    const c = isNew ? { id, name: '' } : window.appData.cars.find(x => x.id === id);
     if (!c) return;
-    const tot = M.carTotals(id, window.appData.allRaces || window.appData.races, c);
+    let newImage = null;   // nur beim Anlegen: gewähltes Bild bis zum Speichern
+    const tot = isNew ? null : M.carTotals(id, window.appData.allRaces || window.appData.races, c);
     const t = c.tuning || { speed: M.MAX_LEVEL, brake: M.MAX_LEVEL };
     const slider = (name, label, val) => `
       <div class="form-group tuning-row">
@@ -209,17 +222,21 @@
         </div>
       </div>`;
 
-    const body = openModal(c.name, `
+    const body = openModal(isNew ? 'Neues Fahrzeug' : c.name, `
       <form id="carForm">
+        ${isNew ? `<div class="form-group">
+          <label for="carName">Name</label>
+          <input id="carName" name="cname" placeholder="(Startnummer) Fahrzeugname" required>
+        </div>` : ''}
         <div class="car-edit-top">
           <div class="media-preview" id="carImgBox"><span class="muted">Kein Bild</span></div>
           <div>
-            <p class="car-stats"><strong>${tot.races}</strong> Rennen · <strong>${tot.laps}</strong> Runden gefahren${tot.practiceLaps ? ` <span class="muted">(davon ${tot.practiceLaps} im Training)</span>` : ''}</p>
+            ${tot ? `<p class="car-stats"><strong>${tot.races}</strong> Rennen · <strong>${tot.laps}</strong> Runden gefahren${tot.practiceLaps ? ` <span class="muted">(davon ${tot.practiceLaps} im Training)</span>` : ''}</p>` : ''}
             <div class="media-row">
               <label class="btn btn-small">Bild wählen<input type="file" id="carImgFile" accept="image/*" hidden></label>
               <button type="button" class="btn btn-small btn-danger" id="carImgDel" ${c.imageRev ? '' : 'disabled'}>Eigenes Bild entfernen</button>
             </div>
-            <p class="muted edit-note">${carAssetSrc(c) ? 'Ohne eigenes Bild wird das Standardbild zur Startnummer verwendet.' : ''}</p>
+            <p class="muted edit-note" id="carImgNote">${carAssetSrc(c) || isNew ? 'Ohne eigenes Bild wird das Standardbild zur Startnummer verwendet.' : ''}</p>
           </div>
         </div>
         <div class="form-group" style="margin-top:12px;">
@@ -234,10 +251,15 @@
 
     const form = body.querySelector('#carForm');
     const showImg = async car => {
-      const src = await carImageSrc(car);
+      const src = newImage || await carImageSrc(car);
       body.querySelector('#carImgBox').innerHTML = src ? `<img src="${src}" alt="">` : '<span class="muted">Kein Bild</span>';
     };
     showImg(c);
+    if (isNew) {
+      setTimeout(() => form.cname.focus(), 50);
+      // Standardbild zur Startnummer schon beim Tippen zeigen
+      form.cname.addEventListener('input', () => { if (!newImage) showImg({ id, name: form.cname.value.trim() }); });
+    }
     form.hasTuning.onchange = () => body.querySelector('#tuningFields').classList.toggle('hidden', !form.hasTuning.checked);
     ['speed', 'brake'].forEach(n => {
       form[n].oninput = () => {
@@ -253,6 +275,7 @@
       if (!file) return;
       try {
         const data = await imageToDataUrl(file, { max: 640, alpha: true });
+        if (isNew) { newImage = data; showImg(c); body.querySelector('#carImgDel').disabled = false; return; }
         await window.Storage.setMedia(`car_${id}`, data, data.slice(5, data.indexOf(';')));
         const rev = Date.now();
         await persist(window.Storage.updateCarFields(id, { imageRev: rev }), 'Bild gespeichert');
@@ -261,6 +284,7 @@
       } catch (err) { console.error(err); showToast('Bild konnte nicht gespeichert werden', { icon: 'alert' }); }
     };
     body.querySelector('#carImgDel').onclick = async () => {
+      if (isNew) { newImage = null; body.querySelector('#carImgFile').value = ''; showImg({ id, name: form.cname.value.trim() }); body.querySelector('#carImgDel').disabled = true; return; }
       if (!confirm('Eigenes Bild entfernen?')) return;
       await window.Storage.deleteMedia(`car_${id}`).catch(console.error);
       await persist(window.Storage.updateCarFields(id, { imageRev: del() }), 'Bild entfernt');
@@ -271,6 +295,25 @@
     form.onsubmit = e => {
       e.preventDefault();
       const tuning = form.hasTuning.checked ? { speed: M.clampLevel(form.speed.value), brake: M.clampLevel(form.brake.value) } : del();
+      if (isNew) {
+        const name = form.cname.value.trim();
+        if (!name) { showToast('Bitte einen Namen eingeben!'); return; }
+        if (window.appData.cars.some(x => x.name.toLowerCase() === name.toLowerCase())) { showToast('Fahrzeug existiert bereits!'); return; }
+        // Startwerte wie bisher beim Hinzufügen; Bild zuerst speichern, damit imageRev nie ins Leere zeigt
+        const car = { id, name, elo: 1000, races: 0, wins: 0, totalRounds: 0, hideFromRanking: false };
+        if (form.hasTuning.checked) car.tuning = tuning;
+        const img = newImage;
+        const save = (async () => {
+          if (img) {
+            try { await window.Storage.setMedia(`car_${id}`, img, img.slice(5, img.indexOf(';'))); car.imageRev = Date.now(); }
+            catch (err) { console.error(err); showToast('Bild konnte nicht gespeichert werden', { icon: 'alert' }); }
+          }
+          await window.Storage.addCar(car);
+        })();
+        persist(save, 'Fahrzeug angelegt').catch(() => {});
+        closeModal();
+        return;
+      }
       persist(window.Storage.updateCarFields(id, { tuning }), 'Fahrzeug gespeichert');
       closeModal();
     };
@@ -403,8 +446,8 @@
     }).join('');
     el.innerHTML = `
       <p class="muted" style="margin-bottom:12px;">Die Referenz-Rundenzeit bestimmt später im Rennen den Spritverbrauch: Wer schneller als die Referenz fährt, verbraucht mehr, wer langsamer ist, weniger. Eine neue Strecke bekommt ihre Saison weiterhin unter „Saisons“.</p>
-      ${rows || '<p class="muted">Noch keine Strecken.</p>'}
-      <button class="btn" id="newTrackBtn" style="margin-top:12px;">${icon('plus')}Neue Strecke</button>`;
+      <div class="list-filter"><button class="btn btn-add" id="newTrackBtn">${icon('plus')}Neue Strecke</button></div>
+      ${rows || '<p class="muted">Noch keine Strecken.</p>'}`;
     el.querySelectorAll('.edit-track').forEach(b => { b.onclick = () => editTrack(b.dataset.id); });
     el.querySelector('#newTrackBtn').onclick = () => editTrack(null);
   }
