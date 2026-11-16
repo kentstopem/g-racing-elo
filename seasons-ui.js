@@ -25,7 +25,7 @@
     a.download = `GRP-Backup_${todayIso()}.json`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    const n = ['drivers', 'cars', 'races', 'lapRecords', 'seasons', 'tracks'].map(k => `${data[k].length} ${k}`).join(', ');
+    const n = Object.keys(data).filter(k => Array.isArray(data[k])).map(k => `${data[k].length} ${k}`).join(', ');
     showToast(`Backup gespeichert (${n})`);
     return data;
   }

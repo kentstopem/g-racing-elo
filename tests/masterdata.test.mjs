@@ -1,0 +1,71 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { loadApp } from './load.mjs';
+
+const plain = v => JSON.parse(JSON.stringify(v));
+const { MasterData: M } = loadApp(['helpers.js', 'masterdata.js']);
+
+test('Controller heißen nach Farben', () => {
+  assert.deepEqual(plain(M.CONTROLLERS.map(c => c.name)), ['Gelb', 'Rot', 'Blau', 'Grün', 'Schwarz', 'Grau']);
+  assert.equal(M.controller(3).color, '#6666FF');
+  assert.equal(M.controller(null), null);
+  assert.equal(M.controller(7), null);
+});
+
+test('CU-Stufen 0–15 als Prozent', () => {
+  assert.equal(M.levelToPct(0), 0);
+  assert.equal(M.levelToPct(15), 100);
+  assert.equal(M.levelToPct(8), 53);
+  assert.equal(M.levelToPct(20), 100);
+  assert.equal(M.clampLevel(-3), 0);
+});
+
+test('Renneinstellungen: Standardwerte und Bereinigung', () => {
+  assert.deepEqual(plain(M.raceSettings()), { refuelPctPerSec: 10, falseStartPenaltySec: 5, penaltyOptionsSec: [2, 5, 7, 10], pitCallFuelPct: 20, fuelSpeedFactor: 1 });
+  const s = M.raceSettings({ refuelPctPerSec: 12.5, penaltyOptionsSec: [10, 3, 3, 0], pitCallFuelPct: 150, falseStartPenaltySec: '' });
+  assert.equal(s.refuelPctPerSec, 12.5);
+  assert.deepEqual(plain(s.penaltyOptionsSec), [3, 10]);
+  assert.equal(s.pitCallFuelPct, 100);
+  assert.equal(s.falseStartPenaltySec, 5);
+});
+
+test('Spritverbrauch: schneller als Referenz = mehr Verbrauch', () => {
+  const track = { fullTankLaps: 25, refLapMs: 6000 };
+  assert.equal(M.fuelPerLap(6000, track), 4);
+  assert.ok(M.fuelPerLap(5500, track) > 4);
+  assert.ok(M.fuelPerLap(6500, track) < 4);
+  assert.equal(Math.round(M.lapsPerTank(6000, track) * 100) / 100, 25);
+  // ohne Referenzzeit oder Faktor 0: fester Verbrauch
+  assert.equal(M.fuelPerLap(3000, { fullTankLaps: 20 }), 5);
+  assert.equal(M.fuelPerLap(3000, track, { fuelSpeedFactor: 0 }), 4);
+  // Ausreißer (abgeflogen) werden begrenzt
+  assert.equal(M.fuelPerLap(60000, track), 2);
+});
+
+test('Controller-Vorschlag nach bevorzugtem Controller, Rest auffüllen', () => {
+  const drivers = [
+    { id: 1, preferredController: 2 }, { id: 2, preferredController: 2 },
+    { id: 3 }, { id: 4, preferredController: 1 }
+  ];
+  const entries = [1, 2, 3, 4].map(d => ({ driverId: d, carId: 10 + d }));
+  const { assignments, conflicts } = M.suggestControllers(entries, drivers);
+  assert.deepEqual(plain(assignments.map(a => a.controller)), [2, 3, 4, 1]);
+  assert.deepEqual(plain(assignments.map(a => a.preferred)), [true, false, false, true]);
+  assert.deepEqual(plain(conflicts), [{ controller: 2, driverIds: [1, 2] }]);
+});
+
+test('Fahrzeug-Runden über alle Rennen plus Training', () => {
+  const races = [
+    { rounds: 40, results: [{ carId: 5 }, { carId: 6 }] },
+    { rounds: 20, results: [{ carId: 6 }] },
+    { rounds: 30, results: [{ carId: 5 }] }
+  ];
+  assert.deepEqual(plain(M.carTotals(5, races, { practiceLaps: 12 })), { races: 2, raceLaps: 70, practiceLaps: 12, laps: 82 });
+});
+
+test('Rundenzeit-Eingabe mit Komma oder Punkt', () => {
+  assert.equal(M.parseLapTime('6,512'), 6512);
+  assert.equal(M.parseLapTime('6.5'), 6500);
+  assert.equal(M.parseLapTime(''), null);
+  assert.equal(M.formatLapTime(6512), '6,512');
+});

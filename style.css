@@ -608,3 +608,28 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .setup-foot > .btn { margin: 0; }
 .setup-draw { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .setup-draw .btn { margin: 0; }
+
+/* ---------- Stammdaten & Setup (Feature Flag "live") ---------- */
+.ctrl-chip { display: inline-block; min-width: 64px; text-align: center; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(0,0,0,.18); vertical-align: middle; }
+.ctrl-chip-sm { min-width: 0; font-size: 11px; padding: 1px 8px; }
+.ctrl-none { background: var(--iu-white); color: var(--text-muted); }
+.ctrl-picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.ctrl-pick { cursor: pointer; display: inline-flex; margin: 0 !important; }
+.ctrl-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.ctrl-pick .ctrl-chip { min-height: 36px; line-height: 26px; min-width: 76px; }
+.ctrl-pick input:checked + .ctrl-chip { outline: 3px solid var(--iu-black); outline-offset: 2px; }
+.ctrl-pick input:focus-visible + .ctrl-chip { box-shadow: 0 0 0 6px var(--iu-accent); }
+.edit-modal { max-width: 560px !important; }
+.edit-note { font-size: 13px; margin-top: 6px; }
+.edit-note:empty { display: none; }
+.edit-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 20px; }
+.media-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.media-row label.btn { margin: 0; font-size: 13px; font-weight: 600; color: var(--iu-black); }
+.media-preview { width: 180px; height: 120px; flex-shrink: 0; border: 1px solid var(--iu-grey); border-radius: var(--radius-btn); background: var(--iu-light-grey); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.media-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.media-preview-wide { width: 100%; height: 200px; }
+.car-edit-top { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.car-stats { margin: 0 0 10px; }
+.check-label { display: flex !important; align-items: center; gap: 8px; color: var(--iu-black) !important; font-size: 15px !important; font-weight: 400 !important; }
+.tuning-row label strong { color: var(--iu-black); }
+.setup-h { font-size: 17px; margin: 8px 0 12px; }

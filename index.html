@@ -37,6 +37,7 @@
       <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
       <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
       <symbol id="i-wheel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7"/><path d="M12 14v7"/><path d="M3 12h7"/><path d="M14 12h7"/><path d="m5.6 5.6 5 5"/><path d="m13.4 13.4 5 5"/><path d="m18.4 5.6-5 5"/><path d="m10.6 13.4-5 5"/></symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M2 14h4"/><path d="M10 8h4"/><path d="M18 16h4"/></symbol>
       <symbol id="i-slot" viewBox="0 0 24 24"><rect x="2" y="5" width="16" height="15" rx="2"/><path d="M2 10h16"/><path d="M2 15h16"/><path d="M7.33 10v5"/><path d="M12.67 10v5"/><path d="M21 9v5h-3"/><circle cx="21" cy="6.5" r="1.5"/></symbol>
     </svg>
     <div class="container">
@@ -61,6 +62,7 @@
             <button class="nav-btn admin-only" data-section="live" data-feature="live" style="display:none"><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg>Live</button>
             <button class="nav-btn admin-only" data-section="drivers"><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer</button>
             <button class="nav-btn admin-only" data-section="cars"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge</button>
+            <button class="nav-btn admin-only" data-section="setup" data-feature="live" style="display:none"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Setup</button>
             <button class="nav-btn admin-only" data-section="seasons"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Saisons</button>
         </div>
 
@@ -92,6 +94,12 @@
         <div id="seasons" class="section">
             <h2><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Saisons &amp; Strecken</h2>
             <div id="seasonAdmin"></div>
+        </div>
+
+        <!-- Setup Section (Feature Flag "live", nur Admin): Strecken & Renneinstellungen -->
+        <div id="setup" class="section">
+            <h2><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Setup <span class="live-beta">Test</span></h2>
+            <div id="setupRoot"></div>
         </div>
 
         <!-- Fahrzeuge Section -->
@@ -360,6 +368,7 @@
     <script src="helpers.js"></script>
     <script src="elo.js"></script>
     <script src="seasons.js"></script>
+    <script src="masterdata.js"></script>
     <script src="sync.js"></script>
 
     <!-- Haupt-App-Logik -->
@@ -372,6 +381,7 @@
     <script src="wheel.js" defer></script>
     <script src="slot.js"  defer></script>
     <script src="seasons-ui.js" defer></script>
+    <script src="setup-ui.js" defer></script>
     <script src="cu.js" defer></script>
     <script src="live.js" defer></script>
 

@@ -17,7 +17,10 @@
   const recordsCol = db.collection('lapRecords');
   const seasonsCol = db.collection('seasons');
   const tracksCol  = db.collection('tracks');
-  const ALL_COLLECTIONS = { drivers: driversCol, cars: carsCol, races: racesCol, lapRecords: recordsCol, seasons: seasonsCol, tracks: tracksCol };
+  const settingsCol = db.collection('settings');  // settings/race: Renneinstellungen
+  const mediaCol   = db.collection('media');      // Bilder/Töne als Data-URL (nur bei Bedarf geladen)
+  const ALL_COLLECTIONS = { drivers: driversCol, cars: carsCol, races: racesCol, lapRecords: recordsCol, seasons: seasonsCol, tracks: tracksCol, settings: settingsCol, media: mediaCol };
+  const mediaCache = new Map();
 
 
   function docsToArray (snap) {
@@ -43,7 +46,7 @@
      * Liefert ein Promise, das nach dem ersten vollständigen Datenstand erfüllt ist.
      */
     subscribe (onChange) {
-      const state = { drivers: null, cars: null, races: null, lapRecords: [], seasons: null, tracks: null };
+      const state = { drivers: null, cars: null, races: null, lapRecords: [], seasons: null, tracks: null, settings: [] };
       const meta  = { drivers: true, cars: true, races: true, seasons: true, tracks: true };
       const serverSynced = {};
       let resolveReady;
@@ -74,6 +77,7 @@
       listen('lapRecords', recordsCol);
       listen('seasons', seasonsCol);
       listen('tracks', tracksCol);
+      listen('settings', settingsCol);
       return ready;
     },
 
@@ -94,6 +98,30 @@
     // Saisons / Strecken
     addSeason      : (s) => seasonsCol.doc(String(s.id)).set(s),
     addTrack       : (t) => tracksCol.doc(String(t.id)).set(t),
+    updateTrackFields : (id, fields) => tracksCol.doc(String(id)).update(fields),
+
+    // Renneinstellungen (settings/race), nur geänderte Felder
+    updateRaceSettings : (fields) => settingsCol.doc('race').set(fields, { merge: true }),
+
+    // Bilder/Töne: getrennt gespeichert, damit die Stammdaten-Listener klein bleiben
+    async getMedia (key) {
+      if (mediaCache.has(key)) return mediaCache.get(key);
+      const snap = await mediaCol.doc(key).get();
+      const val = snap.exists ? snap.data() : null;
+      mediaCache.set(key, val);
+      return val;
+    },
+    async setMedia (key, data, type) {
+      const doc = { data, type, bytes: data.length, updatedAt: new Date().toISOString() };
+      mediaCache.set(key, doc);
+      await mediaCol.doc(key).set(doc);
+      return doc;
+    },
+    async deleteMedia (key) {
+      mediaCache.set(key, null);
+      await mediaCol.doc(key).delete();
+    },
+    forgetMedia : (key) => mediaCache.delete(key),
 
     /**
      * Ersteinrichtung der Saisons in einem Rutsch: Strecke + Saison anlegen und

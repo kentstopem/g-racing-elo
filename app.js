@@ -286,6 +286,7 @@ function buildView() {
     appData.lapRecords = rawState.lapRecords;
     appData.seasons    = S.list();
     appData.tracks     = S.tracks();
+    appData.raceSettings = window.MasterData.raceSettings((rawState.settings || []).find(d => d.id === 'race'));
 
     const calc = structuredClone({ drivers: rawState.drivers, cars: rawState.cars, races: rawState.races });
     const per  = window.Elo.recomputeSeasons(calc, S.seasonOfRace);
@@ -353,6 +354,7 @@ function refreshViews(info = {}) {
     if (currentSection === 'stats') window.StatsUI?.reload();
     if (currentSection === 'records' && info.collection === 'lapRecords') window.RecordsUI?.reload();
     if (currentSection === 'seasons' && ['seasons', 'tracks', 'races'].includes(info.collection)) window.SeasonsUI?.render();
+    if (currentSection === 'setup' && ['seasons', 'tracks', 'settings'].includes(info.collection)) window.SetupUI?.render();
     if (currentSection === 'live' && ['lapRecords', 'drivers', 'cars', 'seasons'].includes(info.collection)) window.LiveUI?.refresh();
     const modal = document.getElementById('eloModal');
     if (modal && !modal.classList.contains('hidden')) renderView();
@@ -423,6 +425,8 @@ function showSection(sectionName) {
         window.LiveUI?.render();
     } else if (sectionName === 'seasons') {
         window.SeasonsUI?.render();
+    } else if (sectionName === 'setup') {
+        window.SetupUI?.render();
     } else if (sectionName === 'stats') {
         window.StatsUI?.reload();
     } else if (sectionName==='records'){
@@ -507,13 +511,14 @@ function updateDriversList() {
         return;
     }
 
+    const setup = !!window.SetupUI?.enabled();
     const sortedDrivers=[...appData.drivers].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
     list.innerHTML = sortedDrivers.map(driver => `
         <div class="list-item${driver.archived?' archived':''}" data-id="${driver.id}">
             <div>
-                <strong>${escapeHtml(driver.name)}</strong>${driver.archived?' <span class="status-inactive">archiviert</span>':''}
+                <strong>${escapeHtml(driver.name)}</strong>${driver.archived?' <span class="status-inactive">archiviert</span>':''}${setup?' '+window.SetupUI.controllerChip(driver.preferredController,{small:true}):''}
                 <div style="font-size: 0.9em; color:var(--text-muted);">
-                    ${driver.races||0} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Rd.
+                    ${driver.races||0} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Rd.${setup&&driver.voiceRev?' · Ton':''}
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap:8px;">
@@ -522,6 +527,7 @@ function updateDriversList() {
                     aktiv
                 </label>`:''}
                 <span class="elo-score">${driver.elo}</span>
+                ${setup?`<button class="btn edit-driver" data-id="${driver.id}">Bearbeiten</button>`:''}
                 ${hasRaces('driverId', driver.id)
                   ? `<button class="btn archive-driver" data-id="${driver.id}">${driver.archived?'Reaktivieren':'Archivieren'}</button>`
                   : `<button class="btn btn-danger delete-driver" data-id="${driver.id}">Löschen</button>`}
@@ -535,6 +541,7 @@ function updateDriversList() {
             const id = parseInt(e.target.dataset.id, 10);
             if (e.target.classList.contains('delete-driver')) deleteDriver(id);
             if (e.target.classList.contains('archive-driver')) toggleArchiveDriver(id);
+            if (e.target.classList.contains('edit-driver')) window.SetupUI?.editDriver(id);
         });
         list.addEventListener('change',(e)=>{
             if(e.target.classList.contains('toggle-hide')){
@@ -614,13 +621,14 @@ function updateCarsList() {
         return;
     }
 
+    const setup = !!window.SetupUI?.enabled();
     const sortedCars=[...appData.cars].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
     list.innerHTML = sortedCars.map(car => `
         <div class="list-item${car.archived?' archived':''}" data-id="${car.id}">
             <div>
                 <strong>${escapeHtml(car.name)}</strong>${car.archived?' <span class="status-inactive">archiviert</span>':''}
                 <div style="font-size: 0.9em; color:var(--text-muted);">
-                    ${car.races||0} Rennen · ${car.wins||0} Siege · ${car.totalRounds||0} Rd.
+                    ${car.races||0} Rennen · ${car.wins||0} Siege · ${car.totalRounds||0} Rd.${setup&&car.tuning?' · '+window.SetupUI.tuningLabel(car):''}
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap:8px;">
@@ -629,6 +637,7 @@ function updateCarsList() {
                     aktiv
                 </label>`:''}
                 <span class="elo-score">${car.elo}</span>
+                ${setup?`<button class="btn edit-car" data-id="${car.id}">Bearbeiten</button>`:''}
                 ${hasRaces('carId', car.id)
                   ? `<button class="btn archive-car" data-id="${car.id}">${car.archived?'Reaktivieren':'Archivieren'}</button>`
                   : `<button class="btn btn-danger delete-car" data-id="${car.id}">Löschen</button>`}
@@ -641,6 +650,7 @@ function updateCarsList() {
             const id = parseInt(e.target.dataset.id, 10);
             if (e.target.classList.contains('delete-car')) deleteCar(id);
             if (e.target.classList.contains('archive-car')) toggleArchiveCar(id);
+            if (e.target.classList.contains('edit-car')) window.SetupUI?.editCar(id);
         });
         list.addEventListener('change',(e)=>{
             if(e.target.classList.contains('toggle-hide')){
@@ -674,7 +684,7 @@ function updateAuthUI() {
 }
 
 // Auth-Event Listener (nach Login als Admin: Werte einmal prüfen/reparieren)
-document.addEventListener('auth-changed', () => { updateAuthUI(); if (window.isAdmin) window.Sync?.schedule(); });
+document.addEventListener('auth-changed', () => { updateAuthUI(); if (appStarted) { updateDriversList(); updateCarsList(); } if (window.isAdmin) window.Sync?.schedule(); });
 
 // Auth-Button Click
 document.addEventListener('DOMContentLoaded', () => {
