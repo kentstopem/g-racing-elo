@@ -55,6 +55,13 @@ jobs:
         with:
           name: voice-samples
           path: voice-samples/
+      - name: Hörproben auf den Entwicklungszweig legen
+        if: env.MODE == 'samples' && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git add -f voice-samples
+          git commit -m "Hörproben [skip ci]" && git push
       - name: Einchecken und veröffentlichen
         if: env.MODE != 'samples'
         env:
