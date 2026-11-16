@@ -7,7 +7,7 @@
 //   cars/{id}      + tuning { speed: 0–15, brake: 0–15 } (CU-Stufen; fehlt = nicht festgelegt),
 //                    imageRev (eigenes Bild hochgeladen), practiceLaps (Runden außerhalb gewerteter Rennen)
 //   tracks/{id}    + lengthOuterM, lengthInnerM, refLapMs, minLapMs (kürzere Runden werden ignoriert), imageRev
-//   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor }
+//   settings/race  { fullTankLaps, refuelPctPerSec, pitBaseSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor }
 //   media/{key}    { data (Data-URL), type, bytes, updatedAt } – Bilder/Töne getrennt von den Stammdaten,
 //                  key: car_<id> | driver_voice_<id> | track_<id>
 (function () {
@@ -30,6 +30,7 @@
   const RACE_DEFAULTS = Object.freeze({
     fullTankLaps: 25,           // so viele Runden reicht ein voller Tank bei Referenztempo
     refuelPctPerSec: 10,        // Tanken: Prozent pro Sekunde in der Box
+    pitBaseSec: 0,              // Mindest-Standzeit je Boxenstopp, bevor getankt wird (Balancing)
     falseStartPenaltySec: 5,    // Strafe für Fehlstart
     penaltyOptionsSec: [2, 5, 7, 10], // Auswahl im Strafendialog
     pitCallFuelPct: 20,         // „[Fahrer] muss an die Box“ ab diesem Tankstand
@@ -54,6 +55,7 @@
     return {
       fullTankLaps:         Math.max(1, Math.round(num(d.fullTankLaps, RACE_DEFAULTS.fullTankLaps))),
       refuelPctPerSec:      Math.max(0.1, num(d.refuelPctPerSec, RACE_DEFAULTS.refuelPctPerSec)),
+      pitBaseSec:           Math.max(0, Math.min(60, num(d.pitBaseSec, RACE_DEFAULTS.pitBaseSec))),
       falseStartPenaltySec: Math.max(0, num(d.falseStartPenaltySec, RACE_DEFAULTS.falseStartPenaltySec)),
       penaltyOptionsSec:    opts.length ? opts : [...RACE_DEFAULTS.penaltyOptionsSec],
       pitCallFuelPct:       Math.max(0, Math.min(100, num(d.pitCallFuelPct, RACE_DEFAULTS.pitCallFuelPct))),
@@ -124,7 +126,8 @@
 
   /**
    * Sprit-Plan für ein Rennen (Start mit vollem Tank, getankt wird nur so viel wie nötig).
-   * Liefert Spritbedarf gesamt (%), Runden pro Tank, nötige Boxenstopps und reine Tankzeit (s).
+   * Liefert Spritbedarf gesamt (%), Runden pro Tank, nötige Boxenstopps, reine Tankzeit (s)
+   * und Standzeit gesamt (Tankzeit + Mindest-Standzeit je Stopp).
    */
   function raceFuelPlan (laps, lapMs, track, settings) {
     const s = raceSettings(settings);
@@ -132,7 +135,8 @@
     const fuelPct = per * laps;
     const refill = Math.max(0, fuelPct - 100);
     const stops = refill > 1e-9 ? Math.ceil(refill / 100 - 1e-9) : 0;
-    return { fuelPct, lapsPerTank: 100 / per, stops, refuelSec: refill / s.refuelPctPerSec };
+    const refuelSec = refill / s.refuelPctPerSec;
+    return { fuelPct, lapsPerTank: 100 / per, stops, refuelSec, standSec: refuelSec + stops * s.pitBaseSec };
   }
 
   /** Runden und Rennen eines Fahrzeugs über alle Saisons (aus den gewerteten Rennen + Training) */
