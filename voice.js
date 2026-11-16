@@ -8,10 +8,20 @@
 //   und Region liegen nur auf dem Gerät (localStorage), weil Firestore öffentlich lesbar ist.
 // • Ein neuer Ton unterbricht immer den laufenden.
 (function () {
-  const VOICE = 'de-AT-IngridNeural';
   const RATE = '+5%';
   const AZURE_KEY = 'grp.azureSpeech';
-  const BASE = 'assets/voice';
+  // Umschaltbare Stimmen (Setup → Renneinstellungen → Sprachausgabe, gilt für alle Geräte).
+  // Jede Stimme hat eigene Ansagen-Dateien und eigene gespeicherte Fahrernamen.
+  const VOICES = {
+    ingrid: { key: 'ingrid', label: 'Ingrid (Österreich)', id: 'de-AT-IngridNeural', lang: 'de-AT', base: 'assets/voice',
+      media: id => `driver_voice_${id}`, rev: 'voiceRev', text: 'voiceText' },
+    leni:   { key: 'leni', label: 'Leni (Schweiz)', id: 'de-CH-LeniNeural', lang: 'de-CH', base: 'assets/voice/leni',
+      media: id => `driver_voice_leni_${id}`, rev: 'voiceRevLeni', text: 'voiceTextLeni' }
+  };
+  const voice = key => VOICES[key] || VOICES[window.appData?.raceSettings?.voice] || VOICES.ingrid;
+  /** Aus welcher Schreibweise der gespeicherte Name dieser Stimme stammt (null = keiner gespeichert) */
+  const savedText = (d, key) => { const v = voice(key); return d?.[v.rev] ? (d[v.text] ?? (d.pronunciation || d.name)) : null; };
+  const spokenText = d => (d?.pronunciation || d?.name || '');
 
   // ---------- Azure-Zugang (nur dieses Gerät) ----------
   function azureConfig () {
@@ -27,11 +37,12 @@
   const xml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
   /** Text live erzeugen → MP3-Blob. Wirft mit verständlicher Meldung. */
-  async function synthesize (text) {
+  async function synthesize (text, key) {
+    const v = voice(key);
     const cfg = azureConfig();
     if (!cfg) throw new Error('Sprach-Schlüssel fehlt (Setup → Renneinstellungen → Sprachausgabe)');
-    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="de-AT">` +
-      `<voice name="${VOICE}"><prosody rate="${RATE}">${xml(text)}</prosody></voice></speak>`;
+    const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${v.lang}">` +
+      `<voice name="${v.id}"><prosody rate="${RATE}">${xml(text)}</prosody></voice></speak>`;
     let res;
     try {
       res = await fetch(`https://${cfg.region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
@@ -51,22 +62,33 @@
   }
 
   // ---------- Quellen ----------
-  let manifest = null;
-  async function loadManifest () {
-    if (!manifest) manifest = fetch(`${BASE}/manifest.json`).then(r => (r.ok ? r.json() : {})).catch(() => ({}));
-    return manifest;
+  const manifests = {};
+  function loadManifest (key) {
+    const v = voice(key);
+    if (!manifests[v.key]) manifests[v.key] = fetch(`${v.base}/manifest.json`).then(r => (r.ok ? r.json() : {})).catch(() => ({}));
+    return manifests[v.key];
   }
-  const phraseSrc = key => `${BASE}/phrases/${key}.mp3`;
+  const phraseSrc = (k, key) => `${voice(key).base}/phrases/${k}.mp3`;
 
-  /** Ton für den Namen eines Fahrers (eigener Ton vor Workflow-Datei), oder null. */
-  async function nameSrc (driverOrId) {
+  async function ownClip (d, v) {
+    if (!d?.[v.rev]) return null;
+    try { return (await window.Storage.getMedia(v.media(d.id)))?.data ?? null; } catch (e) { console.warn(e); return null; }
+  }
+
+  /** Ton für den Namen eines Fahrers in der (aktiven) Stimme: eigener Ton, sonst Workflow-Datei, sonst die andere Stimme. */
+  async function nameSrc (driverOrId, key) {
     const d = typeof driverOrId === 'object' ? driverOrId : window.appData?.drivers?.find(x => x.id === driverOrId);
     if (!d) return null;
-    if (d.voiceRev) {
-      try { const m = await window.Storage.getMedia(`driver_voice_${d.id}`); if (m?.data) return m.data; } catch (e) { console.warn(e); }
+    const v = voice(key);
+    const own = await ownClip(d, v);
+    if (own) return own;
+    if ((await loadManifest(v.key)).drivers?.[d.id]) return `${v.base}/drivers/${d.id}.mp3`;
+    for (const o of Object.values(VOICES).filter(o => o !== v)) {
+      const other = await ownClip(d, o);
+      if (other) return other;
+      if ((await loadManifest(o.key)).drivers?.[d.id]) return `${o.base}/drivers/${d.id}.mp3`;
     }
-    const man = await loadManifest();
-    return man.drivers?.[d.id] ? `${BASE}/drivers/${d.id}.mp3` : null;
+    return null;
   }
 
   // ---------- Wiedergabe ----------
@@ -112,7 +134,7 @@
   }
 
   window.Voice = {
-    VOICE, RATE, azureConfig, setAzureConfig, synthesize,
+    VOICES, RATE, voice, savedText, spokenText, azureConfig, setAzureConfig, synthesize,
     loadManifest, phraseSrc, nameSrc, say, playSources, stop, preload
   };
 })();

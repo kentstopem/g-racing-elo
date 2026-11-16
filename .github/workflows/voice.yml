@@ -14,8 +14,13 @@ on:
       driver:
         description: 'Fahrer-ID (nur bei „driver“)'
         required: false
+      set:
+        description: 'Welche Stimme? both = Ingrid und Leni, ingrid, leni'
+        type: choice
+        options: [both, ingrid, leni]
+        default: both
       voice:
-        description: 'Stimme (leer = bisherige), z. B. de-AT-IngridNeural'
+        description: 'Nur für samples: eine bestimmte Stimme, z. B. de-CH-LeniNeural'
         required: false
       rate:
         description: 'Tempo (leer = bisheriges), z. B. +10%'
@@ -42,9 +47,10 @@ jobs:
           python-version: '3.12'
       - run: pip install edge-tts==7.3.1
       - name: Erzeugen
-        run: python tools/voice/generate.py "${MODE}" --driver "${DRIVER}" --voice "${VOICE}" --rate "${RATE}"
+        run: python tools/voice/generate.py "${MODE}" --driver "${DRIVER}" --set "${SET}" --voice "${VOICE}" --rate "${RATE}"
         env:
           DRIVER: ${{ inputs.driver }}
+          SET: ${{ inputs.set || 'both' }}
           VOICE: ${{ inputs.voice }}
           RATE: ${{ inputs.rate }}
       - name: Hörproben hochladen

@@ -57,10 +57,7 @@
     if (!track?.imageRev) return null;
     try { return (await window.Storage.getMedia(`track_${track.id}`))?.data ?? null; } catch (e) { return null; }
   }
-  async function driverVoiceSrc (driver) {
-    if (!driver?.voiceRev) return null;
-    try { return (await window.Storage.getMedia(`driver_voice_${driver.id}`))?.data ?? null; } catch (e) { return null; }
-  }
+  const driverVoiceSrc = driver => window.Voice.nameSrc(driver);
 
   // ---------- Bausteine ----------
 
@@ -150,9 +147,8 @@
     playBtn.onclick = async () => {
       const cur = window.appData.drivers.find(x => x.id === id);
       const text = pronText();
-      const savedText = cur?.voiceText ?? (cur?.pronunciation || cur?.name);
       if (pending?.text === text) return window.Voice.playSources([pending.data]);
-      if (cur?.voiceRev && savedText === text) {
+      if (window.Voice.savedText(cur) === text) {
         const src = await window.Voice.nameSrc(cur);
         if (src) return window.Voice.playSources([src]);
       }
@@ -182,13 +178,14 @@
         const cur = window.appData.drivers.find(x => x.id === id);
         const text = pronText();
         // Noch kein eigener Ton oder Schreibweise geändert, aber nicht angehört → beim Speichern erzeugen
-        if (pending?.text !== text && (!cur?.voiceRev || (cur.voiceText ?? (cur.pronunciation || cur.name)) !== text) && window.Voice.azureConfig()) {
+        if (pending?.text !== text && window.Voice.savedText(cur) !== text && window.Voice.azureConfig()) {
           try { pending = { data: await readAsDataUrl(await window.Voice.synthesize(text)), text }; } catch (err) { console.warn(err); }
         }
         if (pending?.text !== text) return;
-        await window.Storage.setMedia(`driver_voice_${id}`, pending.data, 'audio/mpeg');
-        fields.voiceRev = Date.now();
-        fields.voiceText = pending.text;
+        const v = window.Voice.voice();   // gespeichert wird in der gerade aktiven Stimme
+        await window.Storage.setMedia(v.media(id), pending.data, 'audio/mpeg');
+        fields[v.rev] = Date.now();
+        fields[v.text] = pending.text;
       })();
       persist(save.then(() => window.Storage.updateDriverFields(id, fields)), 'Fahrer gespeichert').catch(() => {});
       window.Voice.stop();
@@ -450,7 +447,10 @@
       </details>
       <details class="bal-details" id="voiceDetails">
         <summary class="setup-h">Sprachausgabe</summary>
-        <p class="muted edit-note" style="margin:-4px 0 12px;">Stimme: Ingrid (Österreich), 5 % schneller. Für das Erzeugen von Fahrernamen im Fahrer-Dialog braucht dieses Gerät einen Azure-Speech-Schlüssel (Gratis-Tarif F0). Er wird nur auf diesem Gerät gespeichert.</p>
+        <div class="form-group"><label for="voiceSel">Stimme (gilt für alle Geräte)</label>
+          <select id="voiceSel">${Object.values(window.Voice?.VOICES || {}).map(v => `<option value="${v.key}" ${s.voice === v.key ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
+        </div>
+        <p class="muted edit-note" style="margin:-4px 0 12px;">Jede Stimme hat eigene Ansagen und eigene gesprochene Namen. Fehlt ein Name in der gewählten Stimme, wird er mit der anderen gesprochen. Für das Erzeugen von Fahrernamen im Fahrer-Dialog braucht dieses Gerät einen Azure-Speech-Schlüssel (Gratis-Tarif F0). Er wird nur auf diesem Gerät gespeichert.</p>
         <div class="race-meta-grid" style="grid-template-columns:2fr 1fr;">
           <div class="form-group"><label for="azKey">Azure-Speech-Schlüssel</label><input id="azKey" type="password" autocomplete="off" value="${esc(window.Voice?.azureConfig()?.key || '')}" placeholder="Schlüssel 1 aus dem Azure-Portal"></div>
           <div class="form-group"><label for="azRegion">Region</label><input id="azRegion" value="${esc(window.Voice?.azureConfig()?.region || 'westeurope')}"></div>
@@ -493,6 +493,13 @@
         'Start mit vollem Tank, getankt wird nur so viel wie nötig.';
     };
     // Sprachausgabe
+    el.querySelector('#voiceSel').onchange = e => {
+      const v = window.Voice.VOICES[e.target.value];
+      if (window.appData.raceSettings) window.appData.raceSettings.voice = v.key;   // sofort wirksam, Sync folgt
+      persist(window.Storage.updateRaceSettings({ voice: v.key }), `Stimme: ${v.label}`);
+      const box = el.querySelector('#phraseList');
+      if (box) renderPhrases(box);
+    };
     const azKey = el.querySelector('#azKey'), azRegion = el.querySelector('#azRegion');
     el.querySelector('#azSave').onclick = () => {
       window.Voice.setAzureConfig(azKey.value, azRegion.value);
@@ -510,8 +517,7 @@
         if (before) window.Voice.setAzureConfig(before.key, before.region); else window.Voice.setAzureConfig('');
       }
     };
-    window.Voice?.loadManifest().then(man => {
-      const box = el.querySelector('#phraseList');
+    const renderPhrases = box => window.Voice?.loadManifest().then(man => {
       if (!box) return;
       const entries = Object.entries(man.phrases || {});
       box.innerHTML = entries.length
@@ -519,6 +525,7 @@
         : 'Noch keine Ansagen erzeugt.';
       box.querySelectorAll('[data-phrase]').forEach(b => { b.onclick = () => window.Voice.say(b.dataset.phrase); });
     });
+    renderPhrases(el.querySelector('#phraseList'));
     const update = () => { note(); balance(); };
     form.addEventListener('input', update);
     form.addEventListener('change', update);
@@ -526,7 +533,7 @@
     update();
     el.querySelector('#rsReset').onclick = () => {
       if (!confirm('Alle Renneinstellungen auf die Standardwerte zurücksetzen?')) return;
-      persist(window.Storage.updateRaceSettings({ ...M.RACE_DEFAULTS, penaltyOptionsSec: [...M.RACE_DEFAULTS.penaltyOptionsSec] }), 'Standardwerte gesetzt');
+      persist(window.Storage.updateRaceSettings({ ...M.RACE_DEFAULTS, penaltyOptionsSec: [...M.RACE_DEFAULTS.penaltyOptionsSec], voice: s.voice }), 'Standardwerte gesetzt');
     };
     form.onsubmit = e => {
       e.preventDefault();
@@ -537,7 +544,8 @@
         pitCallFuelPct: parseNum(form.pitCall.value),
         fuelSpeedFactor: Number(form.factor.value) / 100,
         falseStartPenaltySec: parseNum(form.falseStart.value),
-        penaltyOptionsSec: opts
+        penaltyOptionsSec: opts,
+        voice: window.appData.raceSettings?.voice
       });
       persist(window.Storage.updateRaceSettings(fields), 'Renneinstellungen gespeichert');
     };

@@ -8,7 +8,8 @@ Modi:
   driver   – einen Fahrer neu erzeugen (--driver <id>)
   all      – phrases + alle Fahrernamen neu
 
-Ausgabe: assets/voice/phrases/<key>.mp3, assets/voice/drivers/<id>.mp3, assets/voice/manifest.json
+Ausgabe je Stimme (SETS): <ordner>/phrases/<key>.mp3, <ordner>/drivers/<id>.mp3, <ordner>/manifest.json
+(Ingrid in assets/voice, Leni in assets/voice/leni)
 Fahrer kommen öffentlich lesbar aus Firestore; gesprochen wird `pronunciation`, sonst `name`.
 """
 import argparse, asyncio, json, os, sys, urllib.request
@@ -52,21 +53,60 @@ async def say(text, path, voice, rate, pitch):
     print(f'  ✓ {os.path.relpath(path, ROOT)}  «{text}»')
 
 
+SETS = {   # Stimmen, zwischen denen die App umschalten kann (Setup → Renneinstellungen → Sprachausgabe)
+    'ingrid': ('de-AT-IngridNeural', OUT),
+    'leni':   ('de-CH-LeniNeural', os.path.join(OUT, 'leni')),
+}
+
+
+async def run(a, voice, out):
+    manifest = os.path.join(out, 'manifest.json')
+    man = load_json(manifest, {'voice': voice, 'rate': '+5%', 'pitch': '+0Hz', 'phrases': {}, 'drivers': {}})
+    man['voice'] = voice
+    man['rate'] = a.rate or man.get('rate', '+5%')
+    man['pitch'] = man.get('pitch', '+0Hz')
+    rate, pitch = man['rate'], man['pitch']
+    print(f'== {voice} → {os.path.relpath(out, ROOT)}')
+
+    if a.mode in ('phrases', 'all'):
+        phrases = {k: t for k, t in load_json(os.path.join(os.path.dirname(__file__), 'phrases.json'), {}).items() if not k.startswith('_')}
+        man['phrases'] = {}
+        for key, text in phrases.items():
+            await say(text, os.path.join(out, 'phrases', f'{key}.mp3'), voice, rate, pitch)
+            man['phrases'][key] = text
+
+    if a.mode in ('drivers', 'driver', 'all'):
+        drivers = fetch_drivers()
+        ids = {d['id'] for d in drivers}
+        for d in drivers:
+            path = os.path.join(out, 'drivers', f"{d['id']}.mp3")
+            want = (a.mode == 'all' or (a.mode == 'driver' and d['id'] == a.driver)
+                    or (a.mode == 'drivers' and (man['drivers'].get(d['id'], {}).get('text') != d['text'] or not os.path.exists(path))))
+            if want:
+                await say(d['text'], path, voice, rate, pitch)
+                man['drivers'][d['id']] = {'name': d['name'], 'text': d['text']}
+        if a.mode == 'driver' and a.driver not in ids:
+            sys.exit(f'Fahrer {a.driver} nicht gefunden')
+        for gone in [i for i in man['drivers'] if i not in ids]:   # gelöschte Fahrer aufräumen
+            man['drivers'].pop(gone)
+            p = os.path.join(out, 'drivers', f'{gone}.mp3')
+            if os.path.exists(p):
+                os.remove(p)
+
+    os.makedirs(out, exist_ok=True)
+    with open(manifest, 'w', encoding='utf-8') as f:
+        json.dump(man, f, ensure_ascii=False, indent=1, sort_keys=True)
+        f.write('\n')
+
+
 async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('mode', choices=['samples', 'phrases', 'drivers', 'driver', 'all'])
-    ap.add_argument('--voice', default='')
+    ap.add_argument('--set', default='both', help='ingrid, leni oder both')
+    ap.add_argument('--voice', default='', help='nur für samples: eine bestimmte Stimme')
     ap.add_argument('--rate', default='')
-    ap.add_argument('--pitch', default='')
     ap.add_argument('--driver', default='')
     a = ap.parse_args()
-
-    man = load_json(MANIFEST, {'voice': 'de-AT-IngridNeural', 'rate': '+5%', 'pitch': '+0Hz', 'phrases': {}, 'drivers': {}})
-    voice_changed = bool(a.voice) and a.voice != man['voice']
-    man['voice'] = a.voice or man['voice']
-    man['rate'] = a.rate or man.get('rate', '+0%')
-    man['pitch'] = a.pitch or man.get('pitch', '+0Hz')
-    v, rate, pitch = man['voice'], man['rate'], man['pitch']
 
     if a.mode == 'samples':
         drivers = fetch_drivers()
@@ -74,38 +114,12 @@ async def main():
         avail = [x['ShortName'] for x in await edge_tts.list_voices() if x['Locale'].startswith('de-')]
         print('Verfügbare deutsche Stimmen:', ', '.join(avail))
         for voice in ([a.voice] if a.voice else avail):
-            await say(SAMPLE_TEXT.format(name=name), os.path.join(ROOT, 'voice-samples', f'{voice}.mp3'), voice, rate, pitch)
+            await say(SAMPLE_TEXT.format(name=name), os.path.join(ROOT, 'voice-samples', f'{voice}.mp3'), voice, a.rate or '+5%', '+0Hz')
         return
 
-    if a.mode in ('phrases', 'all') or voice_changed:
-        phrases = {k: t for k, t in load_json(os.path.join(os.path.dirname(__file__), 'phrases.json'), {}).items() if not k.startswith('_')}
-        man['phrases'] = {}
-        for key, text in phrases.items():
-            await say(text, os.path.join(OUT, 'phrases', f'{key}.mp3'), v, rate, pitch)
-            man['phrases'][key] = text
-
-    if a.mode in ('drivers', 'driver', 'all') or voice_changed:
-        drivers = fetch_drivers()
-        ids = {d['id'] for d in drivers}
-        for d in drivers:
-            path = os.path.join(OUT, 'drivers', f"{d['id']}.mp3")
-            want = (a.mode == 'all' or voice_changed or (a.mode == 'driver' and d['id'] == a.driver)
-                    or (a.mode == 'drivers' and (man['drivers'].get(d['id'], {}).get('text') != d['text'] or not os.path.exists(path))))
-            if want:
-                await say(d['text'], path, v, rate, pitch)
-                man['drivers'][d['id']] = {'name': d['name'], 'text': d['text']}
-        if a.mode == 'driver' and a.driver not in ids:
-            sys.exit(f'Fahrer {a.driver} nicht gefunden')
-        for gone in [i for i in man['drivers'] if i not in ids]:   # gelöschte Fahrer aufräumen
-            man['drivers'].pop(gone)
-            p = os.path.join(OUT, 'drivers', f'{gone}.mp3')
-            if os.path.exists(p):
-                os.remove(p)
-
-    os.makedirs(OUT, exist_ok=True)
-    with open(MANIFEST, 'w', encoding='utf-8') as f:
-        json.dump(man, f, ensure_ascii=False, indent=1, sort_keys=True)
-        f.write('\n')
+    for key in (SETS if a.set in ('', 'both') else [a.set]):
+        voice, out = SETS[key]
+        await run(a, voice, out)
 
 
 asyncio.run(main())
