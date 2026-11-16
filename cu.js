@@ -44,6 +44,7 @@
       return {
         type: 'status', fuel: v.slice(0, 8), start: v[8], mode: v[9],
         pit: [...Array(8)].map((_, n) => (pitmask & (1 << n)) !== 0), display: v[12],
+        extra: s.length >= 17 ? v.slice(13, 15) : null,  // neuere CUs: 2 unbekannte Zeichen
         ok: checksumOk(body, s.slice(-1))
       };
     }
@@ -55,6 +56,31 @@
     }
     return { type: 'unknown', raw };
   }
+
+  // ── Befehle an die CU ──────────────────────────────────────────────
+  // Jeder Wert wird als Zeichen '0'+Wert gesendet, am Ende eine Prüfsumme (Summe mod 16).
+  // Variante 'A' (carreralib): Prüfsumme ohne Kommando-Zeichen.
+  // Variante 'B' (OpenLap): Prüfsumme mit Kommando-Zeichen, T/= ganz ohne Prüfsumme.
+  // Welche die CU annimmt, wird an der Bahn getestet (cu-test.html).
+  const nibChar = n => String.fromCharCode(0x30 | (n & 0x0F));
+  function pack (cmd, nibbles, variant = 'A', withChecksum = true) {
+    const body = nibbles.map(nibChar).join('');
+    if (variant === 'B' && !withChecksum) return cmd + body;
+    let sum = body.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    if (variant === 'B') sum += cmd.charCodeAt(0);
+    return cmd + body + nibChar(sum);
+  }
+  const BUTTON = { ESC: 1, START: 2, SPEED: 5, BRAKE: 6, FUEL: 7, CODE: 8 };
+  const Commands = {
+    /** Datenwort setzen: word 0 Speed, 1 Bremse, 2 Tank, 6 Positionsturm; address 0..7 (= Regler-1), value 0..15 */
+    word: (word, address, value, repeat = 1, v = 'A') =>
+      pack('J', [word & 0x0F, (word >> 4) | (address << 1), value, repeat], v),
+    speed: (ctrl, value, v) => Commands.word(0, ctrl - 1, value, 2, v),
+    brake: (ctrl, value, v) => Commands.word(1, ctrl - 1, value, 2, v),
+    fuel:  (ctrl, value, v) => Commands.word(2, ctrl - 1, value, 2, v),
+    press: (id, v = 'A') => pack('T', [id], v, false),
+    resetTimer: (v = 'A') => pack('=', [1, 0], v, false)
+  };
 
   /** Rundenzähler je Controller-Adresse aus Timer-Ereignissen */
   class LapTracker {
@@ -110,6 +136,7 @@
     constructor ({ onMessage, onDisconnect, onReconnect, log = () => {} }) {
       Object.assign(this, { onMessage, onDisconnect, onReconnect, log });
       this.polling = false;
+      this.queue = [];
       this.dec = new TextDecoder('ascii');
       this.enc = new TextEncoder();
     }
@@ -184,7 +211,6 @@
     async startPolling () {
       if (this.polling) return;
       this.polling = true;
-      this.queue = [];
       while (this.polling) {
         try {
           const answered = new Promise(res => { this.waiting = res; setTimeout(res, 250); });
@@ -199,12 +225,15 @@
     }
 
     // Firmware-Version abfragen (Antwort kommt über onMessage als type 'version')
-    requestVersion () { (this.queue ??= []).push('0'); }
+    requestVersion () { this.queue.push('0'); }
+
+    /** Beliebigen Befehl (z. B. aus CU.Commands) in die Abfrage-Schleife einreihen */
+    command (str) { this.queue.push(str); }
 
     disconnect () { this.manual = true; this.polling = false; this.device?.gatt?.disconnect(); }
 
     get connected () { return !!this.device?.gatt?.connected; }
   }
 
-  window.CU = { parse, timestamp, LapTracker, Connection, sessionBest, recordCandidates, SERVICE_UUID };
+  window.CU = { parse, timestamp, LapTracker, Connection, sessionBest, recordCandidates, Commands, BUTTON, pack, SERVICE_UUID };
 })();

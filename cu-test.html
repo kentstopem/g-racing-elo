@@ -8,44 +8,63 @@
   <style>
     body { margin: 0; padding: 16px; font-family: system-ui, -apple-system, sans-serif; background: var(--iu-light-grey); color: var(--iu-black); }
     h1 { font-size: 1.4rem; margin: 0 0 4px; }
+    h2 { font-size: 1.05rem; margin: 0 0 10px; }
     .muted { color: var(--text-muted); font-size: .9rem; }
     .card { background: var(--iu-white); border: 1px solid var(--iu-grey); border-radius: var(--radius); padding: 14px; margin: 12px 0; }
-    .btns { display: flex; flex-wrap: wrap; gap: 8px; }
-    .btns button { font: inherit; padding: 10px 16px; border-radius: var(--radius-btn); border: 1px solid var(--iu-black); background: var(--iu-white); color: var(--iu-black); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .btns button, .btns select { font: inherit; padding: 10px 16px; border-radius: var(--radius-btn); border: 1px solid var(--iu-black); background: var(--iu-white); color: var(--iu-black); }
     .btns button.primary { background: var(--iu-black); color: var(--iu-white); }
+    .btns button.mark { padding: 8px 12px; font-size: .9rem; }
     .btns button:disabled { opacity: .4; }
     .warn { background: var(--status-warning-bg); color: var(--status-warning); border-radius: var(--radius-btn); padding: 10px 12px; }
     .ok { color: var(--status-ok); }
     .err { color: var(--status-error); }
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
     .stats div { font-size: .85rem; color: var(--text-muted); }
     .stats b { display: block; font-size: 1.1rem; color: var(--iu-black); }
     table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
     th, td { text-align: right; padding: 8px 6px; border-bottom: 1px solid var(--iu-grey); }
     th:first-child, td:first-child { text-align: left; }
-    td.big { font-size: 1.6rem; font-weight: 600; }
+    td.big { font-size: 1.4rem; font-weight: 600; }
     tr.flash td { background: var(--iu-accent-light); }
+    tr.inpit td { background: var(--status-warning-bg); }
+    .chip { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+    .dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #555; display: inline-block; flex: none; }
+    .lamp { font-size: 2.2rem; font-weight: 700; }
+    .raw { font-family: ui-monospace, Menlo, monospace; font-size: 1.05rem; letter-spacing: 1px; word-break: break-all; }
+    .raw .chg { background: var(--status-error); color: #fff; border-radius: 3px; }
+    .tune { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 12px; align-items: center; margin: 10px 0; }
+    .tune input[type=range] { width: 100%; }
+    .tune output { min-width: 4.5em; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ctrlpick { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ctrlpick button { font: inherit; padding: 8px 12px; border-radius: var(--radius-btn); border: 2px solid var(--iu-grey); background: var(--iu-white); color: var(--iu-black); display: inline-flex; gap: 6px; align-items: center; }
+    .ctrlpick button.on { border-color: var(--iu-black); }
+    ul.events { list-style: none; padding: 0; margin: 0; max-height: 200px; overflow: auto; font-size: .9rem; }
+    ul.events li { padding: 4px 0; border-bottom: 1px solid var(--iu-grey); }
     pre { font-size: .75rem; max-height: 260px; overflow: auto; background: var(--iu-light-grey); padding: 8px; border-radius: var(--radius-btn); margin: 8px 0 0; white-space: pre-wrap; word-break: break-all; }
   </style>
 </head>
 <body>
-  <h1>CU-Test <span class="muted">v4</span></h1>
-  <div class="muted">Liest Rundenzeiten direkt von der Control Unit. Es wird nichts gespeichert.</div>
+  <h1>CU-Test <span class="muted">v5</span></h1>
+  <div class="muted">Prüft, was die Control Unit der App meldet und welche Befehle sie annimmt. Es wird nichts in G!RP gespeichert.</div>
 
   <div id="noBt" class="warn" hidden>
     Dieser Browser kann kein Bluetooth. Auf iPhone/iPad diese Seite in <b>Bluefy</b> öffnen,
     am Mac/PC in Chrome oder Edge.
   </div>
 
+  <!-- Verbindung -->
   <div class="card">
     <div class="btns">
       <button id="connectBtn" class="primary">Mit CU verbinden</button>
-            <button id="disconnectBtn" disabled>Trennen</button>
+      <button id="disconnectBtn" disabled>Trennen</button>
       <button id="resetBtn">Zeiten zurücksetzen</button>
       <button id="copyBtn">Protokoll kopieren</button>
     </div>
     <div class="btns" style="margin-top:10px">
-      <span class="muted" style="align-self:center">Falls die Liste leer bleibt, andere Suche probieren:</span>
+      <span class="muted">Falls die Liste leer bleibt, andere Suche probieren:</span>
       <button class="variantBtn" data-v="prefix">B: Namensanfang</button>
       <button class="variantBtn" data-v="service">C: Dienst</button>
       <button class="variantBtn" data-v="all">D: Alle + Dienst</button>
@@ -54,83 +73,253 @@
     <p id="connState" class="muted">Nicht verbunden. SmartRace vorher schließen, die CU nimmt nur eine Verbindung an.</p>
     <div class="stats">
       <div>Firmware<b id="stVersion">–</b></div>
-      <div>Startampel<b id="stStart">–</b></div>
       <div>Modus<b id="stMode">–</b></div>
-      <div>Antworten<b id="stCount">0</b></div>
+      <div>Antworten/s<b id="stRate">–</b></div>
+      <div>Längste Pause<b id="stGap">–</b></div>
+      <div>Verbindungsabbrüche<b id="stDrops">0</b></div>
       <div>Prüfsummenfehler<b id="stBad">0</b></div>
     </div>
   </div>
 
+  <!-- Marker -->
   <div class="card">
+    <h2>Marker setzen <span class="muted">(vor jedem Test tippen, dann ausführen)</span></h2>
+    <div class="btns" id="markers">
+      <button class="mark" data-m="Start-Taste an der CU">Start-Taste CU</button>
+      <button class="mark" data-m="Buzzer gedrückt">Buzzer</button>
+      <button class="mark" data-m="Pace-Car/ESC-Taste an der CU">ESC-Taste CU</button>
+      <button class="mark" data-m="Kurzschluss jetzt">Kurzschluss</button>
+      <button class="mark" data-m="Frühstart jetzt">Frühstart</button>
+      <button class="mark" data-m="Gas am stehenden Auto">Gas (Auto steht)</button>
+      <button class="mark" data-m="Weichentaste">Weichentaste</button>
+      <button class="mark" data-m="Einfahrt Boxengasse">Box rein</button>
+      <button class="mark" data-m="Ausfahrt Boxengasse">Box raus</button>
+      <button class="mark" data-m="Tank-Modus umgeschaltet">Tank-Modus</button>
+      <button class="mark" data-m="Auto aus der Bahn genommen">Auto raus</button>
+      <button class="mark" id="markFree" data-m="">Eigener Text …</button>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <!-- Ampel -->
+    <div class="card">
+      <h2>Startampel</h2>
+      <div class="lamp" id="lampVal">–</div>
+      <div class="muted" id="lampText">Noch kein Status.</div>
+      <div class="btns" style="margin-top:10px">
+        <button id="btnStart">START drücken (App)</button>
+        <button id="btnEsc">ESC/Pace-Car drücken (App)</button>
+        <button id="btnClock">CU-Uhr zurücksetzen</button>
+      </div>
+      <p class="muted" style="margin:10px 0 4px">Wechsel der Ampel (neueste oben):</p>
+      <ul class="events" id="lampEvents"></ul>
+    </div>
+
+    <!-- Rohdaten -->
+    <div class="card">
+      <h2>Status-Rohdaten</h2>
+      <div class="raw" id="rawStatus">–</div>
+      <p class="muted" style="margin:6px 0">Rot = Zeichen hat sich gerade geändert. Reihenfolge: <code>:</code> Tank×8, Ampel, Modus, Box×2, Anzeige, [2 unbekannt], Prüfsumme.</p>
+      <div class="stats">
+        <div>Zusatzzeichen<b id="stExtra">–</b></div>
+        <div>Anzeige<b id="stDisplay">–</b></div>
+      </div>
+      <p class="muted" style="margin:10px 0 4px">Auffällige Änderungen (neueste oben):</p>
+      <ul class="events" id="rawEvents"></ul>
+    </div>
+  </div>
+
+  <!-- Regler -->
+  <div class="card">
+    <h2>Regler</h2>
     <table>
-      <thead><tr><th>Regler</th><th>Runden</th><th>Letzte</th><th>Beste</th></tr></thead>
-      <tbody id="lapBody"><tr><td colspan="4" class="muted">Noch keine Durchfahrt.</td></tr></tbody>
+      <thead><tr><th>Regler</th><th>Runden</th><th>Letzte</th><th>Beste</th><th>Tank (CU)</th><th>Box</th><th>Boxenstopps</th><th>Frühstart?</th><th>Sensor</th></tr></thead>
+      <tbody id="lapBody"><tr><td colspan="9" class="muted">Noch keine Durchfahrt.</td></tr></tbody>
     </table>
   </div>
 
+  <!-- Tuning -->
   <div class="card">
-    <b>Protokoll</b> <span class="muted">(Durchfahrten, Statuswechsel, Unbekanntes)</span>
+    <h2>Gas und Bremse einstellen</h2>
+    <div class="ctrlpick" id="ctrlPick"></div>
+    <div class="tune">
+      <span>Gas</span><input type="range" id="speed" min="0" max="15" step="1" value="15"><output id="speedOut"></output>
+      <span>Bremse</span><input type="range" id="brake" min="0" max="15" step="1" value="15"><output id="brakeOut"></output>
+    </div>
+    <div class="btns">
+      <button id="sendTune" class="primary">An gewählten Regler senden</button>
+      <button id="sendTuneAll">An alle 6 Regler senden</button>
+      <button id="sendFuel">Tank aller Regler auf 100 %</button>
+      <span class="muted">Prüfsumme:</span>
+      <select id="variant">
+        <option value="A">Variante A (carreralib)</option>
+        <option value="B">Variante B (OpenLap)</option>
+      </select>
+    </div>
+    <p class="muted" id="tuneSent" style="margin-bottom:0">Die CU meldet die Werte nicht zurück. Hier steht, was zuletzt gesendet wurde.</p>
+  </div>
+
+  <div class="card">
+    <b>Protokoll</b> <span class="muted">(alles, inkl. Markern und gesendeten Befehlen)</span>
     <pre id="log"></pre>
   </div>
 
-  <script src="cu.js?v=4"></script>
+  <script src="cu.js?v=5"></script>
   <script>
   (function () {
     const $ = id => document.getElementById(id);
     const fmt = ms => ms == null ? '–' : (ms / 1000).toFixed(3) + ' s';
+    const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+    // Regler werden nur über ihre Farbe benannt
+    const CTRL = {
+      1: { name: 'Gelb', color: '#FFFF66' }, 2: { name: 'Rot', color: '#FF3333' },
+      3: { name: 'Blau', color: '#6666FF' }, 4: { name: 'Grün', color: '#00CC00' },
+      5: { name: 'Schwarz', color: '#000000' }, 6: { name: 'Grau', color: '#A0A0A0' },
+      7: { name: 'Pace-Car', color: '#FFFFFF' }, 8: { name: 'Ghost', color: '#FFFFFF' }
+    };
+    const cname = a => CTRL[a]?.name || `Adresse ${a}`;
+    const chip = a => `<span class="chip"><span class="dot" style="background:${CTRL[a]?.color || '#fff'}"></span>${cname(a)}</span>`;
+    const pct = v => Math.round(v / 15 * 100) + ' %';
+
+    // Bedeutung der Ampelwerte (laut carreralib/OpenLap, an der Bahn zu bestätigen)
+    const LAMP = { 0: 'aus – Rennen läuft (bzw. freie Fahrt)', 1: 'Start gedrückt / alle aus?', 2: 'Countdown', 3: 'Countdown', 4: 'Countdown',
+      5: 'Countdown', 6: 'Countdown', 7: 'unbekannt', 8: 'unbekannt', 9: 'Fehlstart' };
+
     const tracker = new CU.LapTracker();
     const logLines = [];
-    let count = 0, bad = 0, lastStatus = '', flashAddr = null, wakeLock = null;
+    const cars = {};   // je Adresse: Box, Tank, Frühstart, Sensor
+    let count = 0, bad = 0, drops = 0, flashAddr = null, wakeLock = null;
+    let prevRaw = null, prevStatus = null, lastMsgAt = null, maxGap = 0, rateCount = 0, connected = false;
+    const car = a => cars[a] ??= { inPit: false, pitSince: null, pitMs: 0, stops: 0, fuel: null, jump: 0, sector: null };
 
     function log (line) {
-      const t = new Date().toLocaleTimeString('de-DE');
+      const t = new Date().toLocaleTimeString('de-DE') + '.' + String(Date.now() % 1000).padStart(3, '0');
       logLines.push(`${t}  ${line}`);
-      if (logLines.length > 300) logLines.shift();
-      $('log').textContent = logLines.slice(-80).join('\n');
+      if (logLines.length > 2000) logLines.shift();
+      $('log').textContent = logLines.slice(-120).join('\n');
       $('log').scrollTop = 1e9;
+    }
+    function addEvent (listId, text) {
+      const li = document.createElement('li');
+      li.textContent = `${new Date().toLocaleTimeString('de-DE')}  ${text}`;
+      $(listId).prepend(li);
+      while ($(listId).children.length > 40) $(listId).lastChild.remove();
     }
 
     const modeText = m => [m & 1 && 'Tank', m & 2 && 'Real-Tank', m & 4 && 'Boxengasse', m & 8 && 'Rundenzähler']
       .filter(Boolean).join(', ') || 'Standard';
 
     function renderLaps () {
-      const rows = Object.entries(tracker.cars).sort((a, b) => a[0] - b[0]);
-      $('lapBody').innerHTML = rows.length ? rows.map(([a, c]) =>
-        `<tr class="${+a === flashAddr ? 'flash' : ''}"><td class="big">${a}</td><td>${c.laps}</td><td class="big">${fmt(c.last)}</td><td>${fmt(c.best)}</td></tr>`
-      ).join('') : '<tr><td colspan="4" class="muted">Noch keine Durchfahrt.</td></tr>';
+      const addrs = [...new Set([...Object.keys(tracker.cars), ...Object.keys(cars)])].map(Number).sort((a, b) => a - b);
+      const now = Date.now();
+      $('lapBody').innerHTML = addrs.length ? addrs.map(a => {
+        const t = tracker.cars[a] || {}, c = car(a);
+        const pitMs = c.pitMs + (c.inPit ? now - c.pitSince : 0);
+        return `<tr class="${a === flashAddr ? 'flash' : c.inPit ? 'inpit' : ''}"><td>${chip(a)}</td><td>${t.laps ?? 0}</td>` +
+          `<td class="big">${fmt(t.last)}</td><td>${fmt(t.best)}</td><td>${c.fuel == null ? '–' : pct(c.fuel)}</td>` +
+          `<td>${c.inPit ? '<b>in der Box</b> ' : ''}${pitMs ? (pitMs / 1000).toFixed(1) + ' s' : '–'}</td><td>${c.stops}</td>` +
+          `<td>${c.jump ? `<b class="err">${c.jump}×</b>` : '–'}</td><td>${c.sector ?? '–'}</td></tr>`;
+      }).join('') : '<tr><td colspan="9" class="muted">Noch keine Durchfahrt.</td></tr>';
+    }
+
+    function rawDiff (raw) {
+      const html = raw.split('').map((ch, i) => prevRaw && prevRaw.length === raw.length && prevRaw[i] !== ch
+        ? `<span class="chg">${esc(ch)}</span>` : esc(ch)).join('');
+      $('rawStatus').innerHTML = html;
+    }
+
+    function onStatus (ev, raw) {
+      rawDiff(raw);
+      const p = prevStatus;
+      $('stMode').textContent = modeText(ev.mode);
+      $('stDisplay').textContent = ev.display;
+      $('stExtra').textContent = ev.extra ? ev.extra.join(' ') : 'keine';
+      $('lampVal').textContent = ev.start;
+      $('lampText').textContent = LAMP[ev.start] || 'unbekannt';
+
+      if (!p || p.start !== ev.start) {
+        const txt = `Ampel ${p ? p.start : '–'} → ${ev.start} (${LAMP[ev.start] || 'unbekannt'})`;
+        addEvent('lampEvents', txt); log(txt);
+        if (ev.start === 9) { addEvent('rawEvents', 'Fehlstart gemeldet (Ampel 9)'); log('FEHLSTART von der CU gemeldet'); }
+      }
+      if (p && p.mode !== ev.mode) { const t = `Modus: ${modeText(p.mode)} → ${modeText(ev.mode)}`; addEvent('rawEvents', t); log(t); }
+      if (p && p.display !== ev.display) { const t = `Anzeige: ${p.display} → ${ev.display}`; addEvent('rawEvents', t); log(t); }
+      if (p && String(p.extra) !== String(ev.extra)) { const t = `Zusatzzeichen: ${p.extra} → ${ev.extra}`; addEvent('rawEvents', t); log(t); }
+
+      for (let a = 1; a <= 8; a++) {
+        const inPit = ev.pit[a - 1], fuel = ev.fuel[a - 1];
+        const had = cars[a];
+        if (!had && !inPit && !tracker.cars[a]) continue;   // unbenutzte Adressen nicht anzeigen
+        const c = car(a);
+        if (c.fuel !== null && c.fuel !== fuel) log(`${cname(a)}: Tank ${c.fuel} → ${fuel}`);
+        c.fuel = fuel;
+        if (inPit && !c.inPit) { c.inPit = true; c.pitSince = Date.now(); c.stops++; const t = `${cname(a)} fährt in die Box`; addEvent('rawEvents', t); log(t); }
+        if (!inPit && c.inPit) { c.inPit = false; const d = Date.now() - c.pitSince; c.pitMs += d; const t = `${cname(a)} verlässt die Box (${(d / 1000).toFixed(1)} s)`; addEvent('rawEvents', t); log(t); }
+      }
+      const key = raw.slice(0, -2);
+      if (!p || key !== prevRaw?.slice(0, -2)) log(`Status: Ampel ${ev.start}, ${modeText(ev.mode)}, Tank ${ev.fuel.join(' ')}, Box ${ev.pit.map(x => x ? 1 : 0).join('')}, Zusatz ${ev.extra ?? '-'}  [${raw}]`);
+      prevStatus = ev; prevRaw = raw;
     }
 
     function onMessage (raw) {
-      count++;
-      $('stCount').textContent = count;
+      count++; rateCount++;
+      const now = Date.now();
+      lastMsgAt = now;
       const ev = CU.parse(raw);
       if (ev.ok === false) { bad++; $('stBad').textContent = bad; log(`Prüfsumme falsch: ${raw}`); }
-      if (ev.type === 'status') {
-        $('stStart').textContent = ev.start;
-        $('stMode').textContent = modeText(ev.mode);
-        const key = `${ev.start}/${ev.mode}/${ev.pit.join()}`;
-        if (key !== lastStatus) { lastStatus = key; log(`Status: Ampel ${ev.start}, ${modeText(ev.mode)}, Tank ${ev.fuel.join(' ')}  [${raw}]`); }
-      } else if (ev.type === 'timer') {
+      if (ev.type === 'status') onStatus(ev, raw);
+      else if (ev.type === 'timer') {
+        const c = car(ev.address);
+        c.sector = ev.sector;
+        const lamp = prevStatus?.start;
         const lap = tracker.add(ev);
-        log(`Regler ${ev.address}, Sensor ${ev.sector}, Zeit ${ev.timestamp}${lap ? ` → Runde ${lap.lap}: ${fmt(lap.time)}${lap.isBest ? ' (Bestzeit)' : ''}` : ''}  [${raw}]`);
-        if (lap) { flashAddr = lap.address; renderLaps(); setTimeout(() => { flashAddr = null; renderLaps(); }, 600); }
+        let note = '';
+        if (lamp != null && lamp !== 0) {
+          c.jump++; note = ` ⚠ Durchfahrt bei Ampel ${lamp} (Frühstart?)`;
+          addEvent('rawEvents', `${cname(ev.address)}: Durchfahrt bei Ampel ${lamp}`);
+        }
+        if (ev.sector !== 1) addEvent('rawEvents', `${cname(ev.address)}: Sensor ${ev.sector}`);
+        log(`${cname(ev.address)}, Sensor ${ev.sector}, Zeit ${ev.timestamp}${lap ? ` → Runde ${lap.lap}: ${fmt(lap.time)}${lap.isBest ? ' (Bestzeit)' : ''}` : ''}${note}  [${raw}]`);
+        if (lap) { flashAddr = lap.address; setTimeout(() => { flashAddr = null; }, 600); }
       } else if (ev.type === 'version') {
         $('stVersion').textContent = ev.version;
         log(`Firmware: ${ev.version}`);
       } else {
-        log(`Unbekannt: ${raw}`);
+        log(`Sonstige Antwort: ${raw}`);
       }
     }
+
+    // Antwortrate und Pausen (Hinweis auf Kurzschluss oder Funkstörung)
+    setInterval(() => {
+      if (connected) {
+        $('stRate').textContent = rateCount;
+        rateCount = 0;
+      }
+    }, 1000);
+    setInterval(() => {
+      renderLaps();
+      if (!connected || !lastMsgAt) return;
+      const gap = Date.now() - lastMsgAt;
+      if (gap > maxGap) { maxGap = gap; $('stGap').textContent = (gap / 1000).toFixed(1) + ' s'; }
+      if (gap > 1000 && !onStatus.gapLogged) { onStatus.gapLogged = true; log(`⚠ Keine Antwort seit ${gap} ms`); addEvent('rawEvents', 'Antwortpause über 1 s'); }
+      if (gap <= 1000 && onStatus.gapLogged) { onStatus.gapLogged = false; log('Antworten kommen wieder'); }
+    }, 200);
 
     const conn = new CU.Connection({
       onMessage,
       log,
+      onReconnect () { $('connState').innerHTML = '<span class="ok">Wieder verbunden.</span>'; },
       onDisconnect () {
+        connected = false;
         $('connState').innerHTML = '<span class="err">Verbindung getrennt.</span>';
         $('connectBtn').disabled = false; $('disconnectBtn').disabled = true;
         log('Verbindung getrennt');
       }
     });
+    // Abbrüche zählen (auch wenn das automatische Neuverbinden klappt)
+    const origLost = conn.lost.bind(conn);
+    conn.lost = function () { if (!this.manual) { drops++; $('stDrops').textContent = drops; addEvent('rawEvents', 'Bluetooth-Verbindung abgebrochen'); } return origLost(); };
 
     if (!CU.Connection.available()) { $('noBt').hidden = false; $('connectBtn').disabled = true; }
 
@@ -138,23 +327,81 @@
       $('connState').textContent = 'Suche Control Unit …';
       try {
         const name = await conn.connect({ variant });
-        $('connState').innerHTML = `<span class="ok">Verbunden mit ${name}.</span> Jetzt einfach fahren.`;
+        connected = true;
+        $('connState').innerHTML = `<span class="ok">Verbunden mit ${esc(name)}.</span> Jetzt einfach fahren.`;
         $('connectBtn').disabled = true; $('disconnectBtn').disabled = false;
         log(`Verbunden mit ${name}`);
         conn.startPolling();
         conn.requestVersion();
         try { wakeLock = await navigator.wakeLock?.request('screen'); } catch (e) {}
       } catch (err) {
-        $('connState').innerHTML = `<span class="err">Verbinden fehlgeschlagen: ${err.message}</span>`;
+        $('connState').innerHTML = `<span class="err">Verbinden fehlgeschlagen: ${esc(err.message)}</span>`;
         log(`Fehler: ${err.name}: ${err.message}`);
       }
     }
     $('connectBtn').addEventListener('click', () => connect('name'));
     document.querySelectorAll('.variantBtn').forEach(b => b.addEventListener('click', () => connect(b.dataset.v)));
-    $('disconnectBtn').addEventListener('click', () => { conn.disconnect(); wakeLock?.release?.(); });
-    $('resetBtn').addEventListener('click', () => { tracker.reset(); renderLaps(); log('Zeiten zurückgesetzt'); });
+    $('disconnectBtn').addEventListener('click', () => { connected = false; conn.disconnect(); wakeLock?.release?.(); });
+    $('resetBtn').addEventListener('click', () => {
+      tracker.reset(); Object.keys(cars).forEach(k => delete cars[k]); maxGap = 0; $('stGap').textContent = '–';
+      log('Zeiten zurückgesetzt');
+    });
+
+    // Befehle senden
+    const variant = () => $('variant').value;
+    function send (label, cmd) {
+      if (!connected) { log(`Nicht verbunden – nicht gesendet: ${label}`); return; }
+      conn.command(cmd);
+      log(`→ Befehl ${label} [${cmd}] (Variante ${variant()})`);
+    }
+    $('btnStart').addEventListener('click', () => send('START', CU.Commands.press(CU.BUTTON.START, variant())));
+    $('btnEsc').addEventListener('click', () => send('ESC/Pace-Car', CU.Commands.press(CU.BUTTON.ESC, variant())));
+    $('btnClock').addEventListener('click', () => send('CU-Uhr zurücksetzen', CU.Commands.resetTimer(variant())));
+
+    // Marker
+    document.querySelectorAll('#markers .mark').forEach(b => b.addEventListener('click', () => {
+      let m = b.dataset.m;
+      if (b.id === 'markFree') m = (prompt('Marker-Text') || '').trim();
+      if (!m) return;
+      log(`■■■ MARKER: ${m} ■■■`);
+      addEvent('rawEvents', `Marker: ${m}`);
+    }));
+
+    // Tuning
+    let sel = 1;
+    const sent = (() => { try { return JSON.parse(localStorage.getItem('cuTestTune') || '{}'); } catch (e) { return {}; } })();
+    function renderPick () {
+      $('ctrlPick').innerHTML = [1, 2, 3, 4, 5, 6].map(a =>
+        `<button data-a="${a}" class="${a === sel ? 'on' : ''}"><span class="dot" style="background:${CTRL[a].color}"></span>${cname(a)}</button>`).join('');
+      $('ctrlPick').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        sel = +b.dataset.a;
+        if (sent[sel]) { $('speed').value = sent[sel].speed; $('brake').value = sent[sel].brake; }
+        renderPick(); renderTune();
+      }));
+    }
+    function renderTune () {
+      $('speedOut').textContent = pct(+$('speed').value) + ` (${$('speed').value})`;
+      $('brakeOut').textContent = pct(+$('brake').value) + ` (${$('brake').value})`;
+      const list = Object.entries(sent).map(([a, v]) => `${cname(a)}: Gas ${pct(v.speed)}, Bremse ${pct(v.brake)}`);
+      $('tuneSent').textContent = list.length ? 'Zuletzt gesendet – ' + list.join(' · ') : 'Die CU meldet die Werte nicht zurück. Hier steht, was zuletzt gesendet wurde.';
+    }
+    function sendTune (a) {
+      const speed = +$('speed').value, brake = +$('brake').value;
+      send(`${cname(a)} Gas ${pct(speed)}`, CU.Commands.speed(a, speed, variant()));
+      send(`${cname(a)} Bremse ${pct(brake)}`, CU.Commands.brake(a, brake, variant()));
+      sent[a] = { speed, brake };
+      try { localStorage.setItem('cuTestTune', JSON.stringify(sent)); } catch (e) {}
+      renderTune();
+    }
+    $('speed').addEventListener('input', renderTune);
+    $('brake').addEventListener('input', renderTune);
+    $('sendTune').addEventListener('click', () => sendTune(sel));
+    $('sendTuneAll').addEventListener('click', () => [1, 2, 3, 4, 5, 6].forEach(sendTune));
+    $('sendFuel').addEventListener('click', () => [1, 2, 3, 4, 5, 6].forEach(a => send(`${cname(a)} Tank 100 %`, CU.Commands.fuel(a, 15, variant()))));
+    renderPick(); renderTune();
+
     $('copyBtn').addEventListener('click', async () => {
-      const text = `CU-Test ${new Date().toISOString()}\nU${navigator.userAgent}\n\n${logLines.join('\n')}`;
+      const text = `CU-Test v5 ${new Date().toISOString()}\n${navigator.userAgent}\n\n${logLines.join('\n')}`;
       try { await navigator.clipboard.writeText(text); $('copyBtn').textContent = 'Kopiert ✓'; }
       catch (e) { $('copyBtn').textContent = 'Kopieren nicht möglich'; }
       setTimeout(() => { $('copyBtn').textContent = 'Protokoll kopieren'; }, 2000);

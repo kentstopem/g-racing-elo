@@ -73,3 +73,23 @@ test('Bestzeiten je Fahrer+Fahrzeug und Rekord-Kandidaten', () => {
   const none = CU.recordCandidates(bests, [], 'cdg', r => r.trackId);
   assert.equal(none.length, 2); assert.equal(none[0].previous, null);
 });
+
+test('Befehle an die CU (Testvektoren aus carreralib, Variante A)', () => {
+  assert.equal(CU.Commands.word(6, 0, 9, 1), 'J60910');      // Positionsturm löschen
+  assert.equal(CU.Commands.word(6, 5, 4, 1), 'J6:415');      // Position 4 für Regler 6
+  assert.equal(CU.Commands.speed(1, 15), 'J00?2' + nib(0 + 0 + 15 + 2));
+  assert.equal(CU.Commands.press(CU.BUTTON.START), 'T22');
+  assert.equal(CU.Commands.resetTimer(), '=101');
+});
+
+test('Befehle an die CU (Variante B wie OpenLap)', () => {
+  assert.equal(CU.Commands.word(6, 0, 9, 1, 'B'), 'J6091:');  // Prüfsumme inkl. 'J'
+  assert.equal(CU.Commands.press(CU.BUTTON.START, 'B'), 'T2');
+  assert.equal(CU.Commands.resetTimer('B'), '=10');
+});
+
+test('Status: Zusatzzeichen werden mitgeliefert', () => {
+  const body = ':' + '00000000' + '0' + '4' + '00' + '8' + '7;';
+  const ev = CU.parse(body + chk(body) + '$');
+  assert.deepEqual([...ev.extra], [7, 11]);
+});
