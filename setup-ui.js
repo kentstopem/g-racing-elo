@@ -504,6 +504,7 @@
     if (el.contains(document.activeElement) && document.activeElement.matches('input, select')) return;
     const title = document.getElementById('setupTitle');
     if (title) title.textContent = tab === 'race' ? 'Renneinstellungen' : 'Strecken';
+    document.getElementById('setupIcon')?.setAttribute('href', tab === 'race' ? '#i-timer' : '#i-flag');
     tab === 'race' ? renderRace(el) : renderTracks(el);
   }
   const setTab = t => { tab = t === 'race' ? 'race' : 'tracks'; };
