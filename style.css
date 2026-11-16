@@ -613,12 +613,30 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .ctrl-chip { display: inline-block; min-width: 64px; text-align: center; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(0,0,0,.18); vertical-align: middle; }
 .ctrl-chip-sm { min-width: 0; font-size: 11px; padding: 1px 8px; }
 .ctrl-none { background: var(--iu-white); color: var(--text-muted); }
-.ctrl-picks { display: flex; flex-wrap: wrap; gap: 8px; }
-.ctrl-pick { cursor: pointer; display: inline-flex; margin: 0 !important; }
+/* Controller-Auswahl: Farbfelder im Button-Stil, alle sieben in einer Zeile */
+.ctrl-picks { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; max-width: 420px; }
+.ctrl-pick { cursor: pointer; display: block; margin: 0 !important; position: relative; }
 .ctrl-pick input { position: absolute; opacity: 0; pointer-events: none; }
-.ctrl-pick .ctrl-chip { min-height: 36px; line-height: 26px; min-width: 76px; }
-.ctrl-pick input:checked + .ctrl-chip { outline: 3px solid var(--iu-black); outline-offset: 2px; }
-.ctrl-pick input:focus-visible + .ctrl-chip { box-shadow: 0 0 0 6px var(--iu-accent); }
+.ctrl-swatch { display: block; height: 44px; border-radius: var(--radius-btn); border: 1px solid rgba(0,0,0,.2); }
+.ctrl-swatch.ctrl-none { background: linear-gradient(to top right, var(--iu-white) calc(50% - 1px), var(--text-muted) 50%, var(--iu-white) calc(50% + 1px)); border-color: var(--iu-grey); }
+.ctrl-pick input:checked + .ctrl-swatch { outline: 3px solid var(--iu-black); outline-offset: 2px; }
+.ctrl-pick input:focus-visible + .ctrl-swatch { box-shadow: 0 0 0 6px var(--iu-accent); }
+
+/* Tuning-Regler mit 16 Stufen: Daumen sitzt bei 0 und 15 genau auf dem ersten/letzten Strich */
+.tick-range { position: relative; height: 40px; --thumb: 26px; }
+.tick-track { position: absolute; left: calc(var(--thumb) / 2); right: calc(var(--thumb) / 2); top: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+.tick-track::before, .tick-fill { content: ""; position: absolute; left: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; }
+.tick-track::before { right: 0; background: var(--iu-grey); }
+.tick-fill { width: var(--pct); background: var(--iu-black); }
+.tick { position: relative; width: 2px; height: 16px; border-radius: 1px; background: #C8C8C8; }
+.tick.on { background: var(--iu-black); }
+.level-range { -webkit-appearance: none; appearance: none; position: absolute; inset: 0; width: 100%; height: 40px; margin: 0; background: transparent; z-index: 1; cursor: pointer; }
+.level-range:focus { outline: none; }
+.level-range::-webkit-slider-runnable-track { height: 40px; background: transparent; border: 0; }
+.level-range::-moz-range-track { height: 40px; background: transparent; border: 0; }
+.level-range::-webkit-slider-thumb { -webkit-appearance: none; width: var(--thumb); height: var(--thumb); margin-top: 7px; border-radius: 50%; background: var(--iu-white); border: 3px solid var(--iu-black); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.level-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--iu-white); border: 3px solid var(--iu-black); }
+.level-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 6px var(--iu-accent); }
 .edit-modal { max-width: 560px !important; }
 .edit-note { font-size: 13px; margin-top: 6px; }
 .edit-note:empty { display: none; }
@@ -633,3 +651,4 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .check-label { display: flex !important; align-items: center; gap: 8px; color: var(--iu-black) !important; font-size: 15px !important; font-weight: 400 !important; }
 .tuning-row label strong { color: var(--iu-black); }
 .setup-h { font-size: 17px; margin: 8px 0 12px; }
+.form-group input.level-range, .form-group input.level-range:focus { padding: 0; border: 0; background: transparent; box-shadow: none; outline: none; }

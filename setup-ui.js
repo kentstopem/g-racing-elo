@@ -113,13 +113,13 @@
     const d = window.appData.drivers.find(x => x.id === id);
     if (!d) return;
     const others = n => window.appData.drivers.filter(x => x.id !== id && !x.archived && x.preferredController === n).map(x => x.name);
-    const chips = [`<label class="ctrl-pick"><input type="radio" name="ctrl" value="" ${d.preferredController ? '' : 'checked'}><span class="ctrl-chip ctrl-none">keiner</span></label>`]
-      .concat(M.CONTROLLERS.map(c => `<label class="ctrl-pick"><input type="radio" name="ctrl" value="${c.n}" ${d.preferredController === c.n ? 'checked' : ''}>${controllerChip(c.n)}</label>`)).join('');
+    const chips = [`<label class="ctrl-pick" title="keiner"><input type="radio" name="ctrl" value="" aria-label="keiner" ${d.preferredController ? '' : 'checked'}><span class="ctrl-swatch ctrl-none"></span></label>`]
+      .concat(M.CONTROLLERS.map(c => `<label class="ctrl-pick" title="${c.name}"><input type="radio" name="ctrl" value="${c.n}" aria-label="${c.name}" ${d.preferredController === c.n ? 'checked' : ''}><span class="ctrl-swatch" style="background:${c.color}"></span></label>`)).join('');
 
     const body = openModal(d.name, `
       <form id="driverForm">
         <div class="form-group">
-          <label>Bevorzugter Controller</label>
+          <label>Bevorzugter Controller: <strong id="ctrlName"></strong></label>
           <div class="ctrl-picks">${chips}</div>
           <p class="muted edit-note" id="ctrlNote"></p>
         </div>
@@ -143,6 +143,7 @@
     const note = () => {
       const n = Number(form.ctrl.value) || null;
       const o = n ? others(n) : [];
+      body.querySelector('#ctrlName').textContent = M.controller(n)?.name ?? 'keiner';
       body.querySelector('#ctrlNote').textContent = o.length ? `Auch bevorzugt von: ${o.join(', ')}. Beim Rennen bekommt ihn der zuerst gewählte Fahrer, die anderen erhalten einen freien Controller.` : '';
     };
     form.addEventListener('change', e => { if (e.target.name === 'ctrl') note(); });
@@ -197,7 +198,10 @@
     const slider = (name, label, val) => `
       <div class="form-group tuning-row">
         <label for="tun_${name}">${label} <strong id="tunVal_${name}">${M.levelToPct(val)} %</strong> <span class="muted">(Stufe ${val})</span></label>
-        <input type="range" id="tun_${name}" name="${name}" min="0" max="${M.MAX_LEVEL}" step="1" value="${val}">
+        <div class="tick-range" style="--pct:${val / M.MAX_LEVEL * 100}%">
+          <div class="tick-track"><div class="tick-fill"></div>${Array.from({ length: M.MAX_LEVEL + 1 }, (_, i) => `<span class="tick${i <= val ? ' on' : ''}"></span>`).join('')}</div>
+          <input type="range" class="level-range" id="tun_${name}" name="${name}" min="0" max="${M.MAX_LEVEL}" step="1" value="${val}">
+        </div>
       </div>`;
 
     const body = openModal(c.name, `
@@ -232,6 +236,9 @@
     form.hasTuning.onchange = () => body.querySelector('#tuningFields').classList.toggle('hidden', !form.hasTuning.checked);
     ['speed', 'brake'].forEach(n => {
       form[n].oninput = () => {
+        const box = form[n].closest('.tick-range');
+        box.style.setProperty('--pct', `${form[n].value / M.MAX_LEVEL * 100}%`);
+        box.querySelectorAll('.tick').forEach((t, i) => t.classList.toggle('on', i <= form[n].value));
         body.querySelector(`#tunVal_${n}`).textContent = `${M.levelToPct(form[n].value)} %`;
         body.querySelector(`#tunVal_${n}`).nextElementSibling.textContent = `(Stufe ${form[n].value})`;
       };
@@ -268,9 +275,10 @@
 
   function fuelExample (track, settings) {
     const t = M.trackSetup(track);
-    if (!t.refLapMs) return `Voller Tank reicht für ${fmtNum(t.fullTankLaps, 1)} Runden. Mit Referenz-Rundenzeit hängt der Verbrauch vom Tempo ab.`;
+    const laps = M.raceSettings(settings).fullTankLaps;
+    if (!t.refLapMs) return `Voller Tank reicht für ${laps} Runden (Renneinstellungen). Mit Referenz-Rundenzeit hängt der Verbrauch vom Tempo ab.`;
     const fast = t.refLapMs * 0.95, slow = t.refLapMs * 1.05;
-    return `Voller Tank: ${fmtNum(t.fullTankLaps, 1)} Runden bei ${M.formatLapTime(t.refLapMs)} s · ` +
+    return `Voller Tank: ${laps} Runden bei ${M.formatLapTime(t.refLapMs)} s · ` +
       `${fmtNum(M.lapsPerTank(fast, track, settings), 1)} Runden bei ${M.formatLapTime(fast)} s (5 % schneller) · ` +
       `${fmtNum(M.lapsPerTank(slow, track, settings), 1)} Runden bei ${M.formatLapTime(slow)} s (5 % langsamer)`;
   }
@@ -292,7 +300,6 @@
         </div>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
           <div class="form-group"><label for="trRef">Referenz-Rundenzeit (s)</label><input id="trRef" name="ref" inputmode="decimal" value="${M.formatLapTime(t.refLapMs)}" placeholder="z. B. 6,500"></div>
-          <div class="form-group"><label for="trTank">Voller Tank reicht (Runden)</label><input id="trTank" name="tank" type="number" min="1" max="500" value="${t.fullTankLaps}"></div>
         </div>
         <p class="muted edit-note" id="fuelExample" style="margin-bottom:16px;"></p>
         ${isNew ? '' : `
@@ -311,8 +318,7 @@
     const values = () => ({
       lengthOuterM: parseNum(form.outer.value),
       lengthInnerM: parseNum(form.inner.value),
-      refLapMs: M.parseLapTime(form.ref.value),
-      fullTankLaps: Math.max(1, Math.round(parseNum(form.tank.value) || M.TRACK_DEFAULTS.fullTankLaps))
+      refLapMs: M.parseLapTime(form.ref.value)
     });
     const example = () => { body.querySelector('#fuelExample').textContent = fuelExample(values(), window.appData.raceSettings); };
     form.addEventListener('input', example);
@@ -377,7 +383,6 @@
       const bits = [
         t.lengthOuterM != null || t.lengthInnerM != null ? `${fmtNum(t.lengthOuterM) || '–'} / ${fmtNum(t.lengthInnerM) || '–'} m` : null,
         t.refLapMs ? `Referenz ${M.formatLapTime(t.refLapMs)} s` : 'keine Referenzzeit',
-        `Tank ${t.fullTankLaps} Rd.`,
         seasons.length ? `Saison ${seasons.join(', ')}` : 'noch keine Saison'
       ].filter(Boolean);
       return `<div class="list-item"><div><strong>${esc(tr.name)}</strong>${tr.short ? ` <span class="muted">(${esc(tr.short)})</span>` : ''}${tr.id === cur ? ' <span class="badge">aktuell</span>' : ''}${tr.imageRev ? ' <span class="badge">Bild</span>' : ''}
@@ -385,7 +390,7 @@
         <button class="btn edit-track" data-id="${esc(tr.id)}">Bearbeiten</button></div>`;
     }).join('');
     el.innerHTML = `
-      <p class="muted" style="margin-bottom:12px;">Länge, Referenz-Rundenzeit und Tankgröße bestimmen später im Rennen den Spritverbrauch: Wer schneller als die Referenz fährt, verbraucht mehr, wer langsamer ist, weniger. Eine neue Strecke bekommt ihre Saison weiterhin unter „Saisons“.</p>
+      <p class="muted" style="margin-bottom:12px;">Die Referenz-Rundenzeit bestimmt später im Rennen den Spritverbrauch: Wer schneller als die Referenz fährt, verbraucht mehr, wer langsamer ist, weniger. Eine neue Strecke bekommt ihre Saison weiterhin unter „Saisons“.</p>
       ${rows || '<p class="muted">Noch keine Strecken.</p>'}
       <button class="btn" id="newTrackBtn" style="margin-top:12px;">${icon('plus')}Neue Strecke</button>`;
     el.querySelectorAll('.edit-track').forEach(b => { b.onclick = () => editTrack(b.dataset.id); });
@@ -400,6 +405,7 @@
       <form id="raceSettingsForm">
         <h3 class="setup-h">Box &amp; Tank</h3>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="form-group"><label for="rsTank">Voller Tank reicht (Runden)</label><input id="rsTank" name="tank" type="number" min="1" max="500" value="${s.fullTankLaps}"></div>
           <div class="form-group"><label for="rsRefuel">Tanken (% pro Sekunde)</label><input id="rsRefuel" name="refuel" inputmode="decimal" value="${fmtNum(s.refuelPctPerSec, 1)}"></div>
           <div class="form-group"><label for="rsPitCall">„Muss an die Box“ ab Tank (%)</label><input id="rsPitCall" name="pitCall" type="number" min="0" max="100" value="${s.pitCallFuelPct}"></div>
         </div>
@@ -417,12 +423,12 @@
     const form = el.querySelector('#raceSettingsForm');
     const note = () => {
       const f = Number(form.factor.value);
-      const track = window.Seasons.track(window.Seasons.current().trackId);
-      const laps = M.trackSetup(track).fullTankLaps;
+      const laps = Math.max(1, Math.round(parseNum(form.tank.value) || M.RACE_DEFAULTS.fullTankLaps));
       const ex = M.lapsPerTank(0.95, { fullTankLaps: laps, refLapMs: 1 }, { fuelSpeedFactor: f });
       el.querySelector('#rsFactorNote').textContent = `Beispiel: Reicht der Tank bei Referenztempo ${laps} Runden, sind es 5 % schneller ${fmtNum(ex, 1)} Runden.`;
     };
     form.factor.onchange = note;
+    form.tank.oninput = note;
     note();
     el.querySelector('#rsReset').onclick = () => {
       if (!confirm('Alle Renneinstellungen auf die Standardwerte zurücksetzen?')) return;
@@ -432,6 +438,7 @@
       e.preventDefault();
       const opts = form.opts.value.split(/[;\s]+/).map(parseNum).filter(v => v > 0);
       const fields = M.raceSettings({
+        fullTankLaps: parseNum(form.tank.value),
         refuelPctPerSec: parseNum(form.refuel.value),
         pitCallFuelPct: parseNum(form.pitCall.value),
         fuelSpeedFactor: Number(form.factor.value),
@@ -447,20 +454,14 @@
     if (!el) return;
     // Formular nicht überschreiben, während jemand tippt
     if (el.contains(document.activeElement) && document.activeElement.matches('input, select')) return;
-    el.innerHTML = `
-      <div class="sub-nav">
-        <button class="sub-tab ${tab === 'tracks' ? 'active' : ''}" data-tab="tracks">${icon('flag')}Strecken</button>
-        <button class="sub-tab ${tab === 'race' ? 'active' : ''}" data-tab="race">${icon('timer')}Renneinstellungen</button>
-      </div>
-      <div id="setupTab"></div>
-      <p class="muted edit-note" style="margin-top:16px;">Fahrer (Controller, Aussprache, Ton) und Fahrzeuge (Bild, Tuning) bearbeitest Du unter „Fahrer“ und „Fahrzeuge“ mit „Bearbeiten“.</p>`;
-    el.querySelectorAll('.sub-tab').forEach(b => { b.onclick = () => { tab = b.dataset.tab; render(); }; });
-    const box = el.querySelector('#setupTab');
-    tab === 'race' ? renderRace(box) : renderTracks(box);
+    const title = document.getElementById('setupTitle');
+    if (title) title.textContent = tab === 'race' ? 'Renneinstellungen' : 'Strecken';
+    tab === 'race' ? renderRace(el) : renderTracks(el);
   }
+  const setTab = t => { tab = t === 'race' ? 'race' : 'tracks'; };
 
   window.SetupUI = {
-    enabled, render, editDriver, editCar, editTrack, closeModal,
+    enabled, render, setTab, editDriver, editCar, editTrack, closeModal,
     controllerChip, tuningLabel, carImageSrc, carAssetSrc, trackImageSrc, driverVoiceSrc
   };
 })();

@@ -21,7 +21,7 @@ test('CU-Stufen 0–15 als Prozent', () => {
 });
 
 test('Renneinstellungen: Standardwerte und Bereinigung', () => {
-  assert.deepEqual(plain(M.raceSettings()), { refuelPctPerSec: 10, falseStartPenaltySec: 5, penaltyOptionsSec: [2, 5, 7, 10], pitCallFuelPct: 20, fuelSpeedFactor: 1 });
+  assert.deepEqual(plain(M.raceSettings()), { fullTankLaps: 25, refuelPctPerSec: 10, falseStartPenaltySec: 5, penaltyOptionsSec: [2, 5, 7, 10], pitCallFuelPct: 20, fuelSpeedFactor: 1 });
   const s = M.raceSettings({ refuelPctPerSec: 12.5, penaltyOptionsSec: [10, 3, 3, 0], pitCallFuelPct: 150, falseStartPenaltySec: '' });
   assert.equal(s.refuelPctPerSec, 12.5);
   assert.deepEqual(plain(s.penaltyOptionsSec), [3, 10]);
@@ -30,13 +30,13 @@ test('Renneinstellungen: Standardwerte und Bereinigung', () => {
 });
 
 test('Spritverbrauch: schneller als Referenz = mehr Verbrauch', () => {
-  const track = { fullTankLaps: 25, refLapMs: 6000 };
+  const track = { refLapMs: 6000 };
   assert.equal(M.fuelPerLap(6000, track), 4);
   assert.ok(M.fuelPerLap(5500, track) > 4);
   assert.ok(M.fuelPerLap(6500, track) < 4);
   assert.equal(Math.round(M.lapsPerTank(6000, track) * 100) / 100, 25);
   // ohne Referenzzeit oder Faktor 0: fester Verbrauch
-  assert.equal(M.fuelPerLap(3000, { fullTankLaps: 20 }), 5);
+  assert.equal(M.fuelPerLap(3000, {}, { fullTankLaps: 20 }), 5);
   assert.equal(M.fuelPerLap(3000, track, { fuelSpeedFactor: 0 }), 4);
   // Ausreißer (abgeflogen) werden begrenzt
   assert.equal(M.fuelPerLap(60000, track), 2);

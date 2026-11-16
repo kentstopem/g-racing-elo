@@ -381,6 +381,7 @@ function updateTagline() {
 
 // Navigation
 function initNavigation() {
+    document.querySelectorAll('#setupSubNav .sub-tab').forEach(b => b.addEventListener('click', () => showSection(b.dataset.setup)));
     const navButtons = document.querySelectorAll('.nav-btn');
     navButtons.forEach(button => {
         button.addEventListener('click', function () {
@@ -390,6 +391,7 @@ function initNavigation() {
     });
 }
 
+let lastSetupTab = 'drivers';
 function showSection(sectionName) {
     // Alle Sections verstecken
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -398,12 +400,29 @@ function showSection(sectionName) {
     // Default: beide Sub-Navigations ausblenden
     document.getElementById('rankSubNav')?.classList.add('hidden');
     document.getElementById('recordSubNav')?.classList.add('hidden');
+    document.getElementById('setupSubNav')?.classList.add('hidden');
+
+    // Mit Feature Flag "live" sind Fahrer, Fahrzeuge, Strecken, Saisons und Renneinstellungen Unterbereiche von „Setup“
+    let setupTab = null;
+    if (window.SetupUI?.enabled()) {
+        if (sectionName === 'setup') sectionName = lastSetupTab;
+        if (['tracks', 'race-settings'].includes(sectionName)) { setupTab = sectionName; window.SetupUI.setTab(sectionName === 'tracks' ? 'tracks' : 'race'); sectionName = 'setup'; }
+        else if (['drivers', 'cars', 'seasons'].includes(sectionName)) setupTab = sectionName;
+        if (setupTab) lastSetupTab = setupTab;
+    } else if (['tracks', 'race-settings'].includes(sectionName)) {
+        sectionName = 'rankings';
+    }
 
     const section = document.getElementById(sectionName);
     if (section) section.classList.add('active');
 
-    const button = document.querySelector(`[data-section="${sectionName}"]`);
+    const button = document.querySelector(`[data-section="${setupTab ? 'setup' : sectionName}"]`);
     if (button) button.classList.add('active');
+    if (setupTab) {
+        const sub = document.getElementById('setupSubNav');
+        sub.classList.remove('hidden');
+        sub.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.setup === setupTab));
+    }
 
     currentSection = sectionName;
 
@@ -670,7 +689,8 @@ function updateAuthUI() {
     // data-feature: nur sichtbar, wenn das Feature Flag auf diesem Gerät an ist
     document.querySelectorAll('.admin-only').forEach(btn => {
         const f = btn.dataset.feature;
-        btn.style.display = admin && (!f || window.Helpers.feature(f)) ? '' : 'none';
+        const hf = btn.dataset.hideFeature;   // mit diesem Flag unter „Setup“ einsortiert
+        btn.style.display = admin && (!f || window.Helpers.feature(f)) && !(hf && window.Helpers.feature(hf)) ? '' : 'none';
     });
 
     const authBtn = document.getElementById('authBtn');

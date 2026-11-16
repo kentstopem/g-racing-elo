@@ -60,16 +60,24 @@
             <button class="nav-btn" data-section="stats"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Statistik</button>
             <button class="nav-btn admin-only" data-section="race"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>Neues Rennen</button>
             <button class="nav-btn admin-only" data-section="live" data-feature="live" style="display:none"><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg>Live</button>
-            <button class="nav-btn admin-only" data-section="drivers"><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer</button>
-            <button class="nav-btn admin-only" data-section="cars"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge</button>
+            <button class="nav-btn admin-only" data-section="drivers" data-hide-feature="live"><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer</button>
+            <button class="nav-btn admin-only" data-section="cars" data-hide-feature="live"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge</button>
             <button class="nav-btn admin-only" data-section="setup" data-feature="live" style="display:none"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Setup</button>
-            <button class="nav-btn admin-only" data-section="seasons"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Saisons</button>
+            <button class="nav-btn admin-only" data-section="seasons" data-hide-feature="live"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Saisons</button>
         </div>
 
         <!-- Sub navigation for Rankings -->
         <div id="rankSubNav" class="sub-nav hidden">
             <button class="sub-tab active" data-rank="drivers"><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer</button>
             <button class="sub-tab" data-rank="cars"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge</button>
+        </div>
+        <!-- Setup-Unterbereiche (nur mit Feature Flag "live": Fahrer, Fahrzeuge, Saisons wandern hierher) -->
+        <div id="setupSubNav" class="sub-nav hidden">
+            <button class="sub-tab" data-setup="drivers"><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer</button>
+            <button class="sub-tab" data-setup="cars"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge</button>
+            <button class="sub-tab" data-setup="tracks"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>Strecken</button>
+            <button class="sub-tab" data-setup="seasons"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Saisons</button>
+            <button class="sub-tab" data-setup="race-settings"><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg>Renneinstellungen</button>
         </div>
         <!-- Sub navigation for Records -->
         <div id="recordSubNav" class="sub-nav hidden">
@@ -98,7 +106,7 @@
 
         <!-- Setup Section (Feature Flag "live", nur Admin): Strecken & Renneinstellungen -->
         <div id="setup" class="section">
-            <h2><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Setup <span class="live-beta">Test</span></h2>
+            <h2><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg><span id="setupTitle">Strecken</span> <span class="live-beta">Test</span></h2>
             <div id="setupRoot"></div>
         </div>
 

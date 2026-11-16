@@ -6,8 +6,8 @@
 //                    voiceRev (Zeitstempel, wenn ein Namens-Ton hinterlegt ist)
 //   cars/{id}      + tuning { speed: 0–15, brake: 0–15 } (CU-Stufen; fehlt = nicht festgelegt),
 //                    imageRev (eigenes Bild hochgeladen), practiceLaps (Runden außerhalb gewerteter Rennen)
-//   tracks/{id}    + lengthOuterM, lengthInnerM, refLapMs, fullTankLaps, imageRev
-//   settings/race  { refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor }
+//   tracks/{id}    + lengthOuterM, lengthInnerM, refLapMs, imageRev
+//   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor }
 //   media/{key}    { data (Data-URL), type, bytes, updatedAt } – Bilder/Töne getrennt von den Stammdaten,
 //                  key: car_<id> | driver_voice_<id> | track_<id>
 (function () {
@@ -28,6 +28,7 @@
   const levelToPct = level => Math.round(clampLevel(level) / MAX_LEVEL * 100);
 
   const RACE_DEFAULTS = Object.freeze({
+    fullTankLaps: 25,           // so viele Runden reicht ein voller Tank bei Referenztempo
     refuelPctPerSec: 10,        // Tanken: Prozent pro Sekunde in der Box
     falseStartPenaltySec: 5,    // Strafe für Fehlstart
     penaltyOptionsSec: [2, 5, 7, 10], // Auswahl im Strafendialog
@@ -36,7 +37,6 @@
   });
 
   const TRACK_DEFAULTS = Object.freeze({
-    fullTankLaps: 25,
     refLapMs: null,
     lengthOuterM: null,
     lengthInnerM: null
@@ -51,6 +51,7 @@
       ? [...new Set(d.penaltyOptionsSec.map(Number).filter(v => v > 0))].sort((a, b) => a - b)
       : [...RACE_DEFAULTS.penaltyOptionsSec];
     return {
+      fullTankLaps:         Math.max(1, Math.round(num(d.fullTankLaps, RACE_DEFAULTS.fullTankLaps))),
       refuelPctPerSec:      Math.max(0.1, num(d.refuelPctPerSec, RACE_DEFAULTS.refuelPctPerSec)),
       falseStartPenaltySec: Math.max(0, num(d.falseStartPenaltySec, RACE_DEFAULTS.falseStartPenaltySec)),
       penaltyOptionsSec:    opts.length ? opts : [...RACE_DEFAULTS.penaltyOptionsSec],
@@ -63,7 +64,6 @@
   function trackSetup (track = {}) {
     const t = track || {};
     return {
-      fullTankLaps: Math.max(1, num(t.fullTankLaps, TRACK_DEFAULTS.fullTankLaps)),
       refLapMs:     num(t.refLapMs, null) > 0 ? Number(t.refLapMs) : null,
       lengthOuterM: num(t.lengthOuterM, null),
       lengthInnerM: num(t.lengthInnerM, null)
@@ -72,14 +72,14 @@
 
   /**
    * Spritverbrauch einer Runde in Prozent des vollen Tanks.
-   * Grundverbrauch = 100 / fullTankLaps. Wer schneller als die Referenzrunde fährt,
+   * Grundverbrauch = 100 / fullTankLaps (Renneinstellungen). Wer schneller als die Referenzrunde fährt,
    * verbraucht mehr, wer langsamer ist, weniger: × (Referenz / Rundenzeit) ^ fuelSpeedFactor.
    * Das Verhältnis wird auf 0,5–2 begrenzt (Ausreißer wie abgeflogene Runden).
    */
   function fuelPerLap (lapMs, track, settings) {
     const t = trackSetup(track);
     const s = raceSettings(settings);
-    const base = 100 / t.fullTankLaps;
+    const base = 100 / s.fullTankLaps;
     if (!t.refLapMs || !(lapMs > 0) || s.fuelSpeedFactor === 0) return base;
     const ratio = Math.max(0.5, Math.min(2, t.refLapMs / lapMs));
     return base * Math.pow(ratio, s.fuelSpeedFactor);
