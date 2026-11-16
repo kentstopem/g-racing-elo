@@ -21,7 +21,7 @@ test('CU-Stufen 0–15 als Prozent', () => {
 });
 
 test('Renneinstellungen: Standardwerte und Bereinigung', () => {
-  assert.deepEqual(plain(M.raceSettings()), { fullTankLaps: 25, refuelPctPerSec: 10, pitBaseSec: 0, falseStartPenaltySec: 5, penaltyOptionsSec: [2, 5, 7, 10], pitCallFuelPct: 20, fuelSpeedFactor: 1 });
+  assert.deepEqual(plain(M.raceSettings()), { fullTankLaps: 25, refuelPctPerSec: 10, falseStartPenaltySec: 5, penaltyOptionsSec: [2, 5, 7, 10], pitCallFuelPct: 20, fuelSpeedFactor: 1 });
   const s = M.raceSettings({ refuelPctPerSec: 12.5, penaltyOptionsSec: [10, 3, 3, 0], pitCallFuelPct: 150, falseStartPenaltySec: '' });
   assert.equal(s.refuelPctPerSec, 12.5);
   assert.deepEqual(plain(s.penaltyOptionsSec), [3, 10]);
@@ -86,10 +86,4 @@ test('Sprit-Plan fürs Rennen: Stopps und Tankzeit', () => {
   assert.equal(M.raceFuelPlan(75, 6500, track).stops, 2);   // genau 3 Tankfüllungen
   assert.equal(M.raceFuelPlan(75, 6175, track).stops, 3);   // 5 % schneller → ein Stopp mehr
   assert.equal(M.raceFuelPlan(20, 6500, track).stops, 0);
-});
-
-test('Mindest-Standzeit je Stopp erhöht die Standzeit', () => {
-  const p = M.raceFuelPlan(75, 6175, { refLapMs: 6500 }, { pitBaseSec: 3 });
-  assert.equal(p.stops, 3);
-  assert.equal(Math.round((p.standSec - p.refuelSec) * 10) / 10, 9);
 });

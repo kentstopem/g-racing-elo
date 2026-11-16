@@ -414,7 +414,6 @@
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
           <div class="form-group"><label for="rsTank">Voller Tank reicht (Runden)</label><input id="rsTank" name="tank" type="number" min="1" max="500" value="${s.fullTankLaps}"></div>
           <div class="form-group"><label for="rsRefuel">Tanken (% pro Sekunde)</label><input id="rsRefuel" name="refuel" inputmode="decimal" value="${fmtNum(s.refuelPctPerSec, 1)}"></div>
-          <div class="form-group"><label for="rsPitBase">Mindest-Standzeit je Boxenstopp (s)</label><input id="rsPitBase" name="pitBase" inputmode="decimal" value="${fmtNum(s.pitBaseSec, 1)}"></div>
           <div class="form-group"><label for="rsPitCall">„Muss an die Box“ ab Tank (%)</label><input id="rsPitCall" name="pitCall" type="number" min="0" max="100" value="${s.pitCallFuelPct}"></div>
         </div>
         <div class="form-group"><label for="rsFactor">Mehrverbrauch bei schnelleren Runden</label>
@@ -433,7 +432,7 @@
         <p class="muted edit-note" style="margin:-4px 0 12px;">Rechnet mit den Werten oben (auch ungespeichert) und der Referenzzeit der aktuellen Strecke. Nur zum Ausprobieren, wird nicht gespeichert.</p>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
           <div class="form-group"><label for="balLaps">Renndistanz (Runden)</label><input id="balLaps" type="number" min="1" max="500" value="70"></div>
-          <div class="form-group"><label for="balPit">Zeitverlust durch die Boxengasse (s)</label><input id="balPit" inputmode="decimal" value="4"></div>
+          <div class="form-group"><label for="balPit">Zeitverlust je Boxenstopp ohne Tanken (s)</label><input id="balPit" inputmode="decimal" value="4"></div>
         </div>
         <div class="live-table-wrap"><table class="live-table bal-table" id="balTable"></table></div>
         <p class="muted edit-note" id="balNote"></p>
@@ -449,24 +448,23 @@
       const track = window.Seasons.track(window.Seasons.current().trackId);
       const ref = M.trackSetup(track).refLapMs || 6500;
       const settings = {
-        fullTankLaps: parseNum(form.tank.value), refuelPctPerSec: parseNum(form.refuel.value), fuelSpeedFactor: Number(form.factor.value),
-        pitBaseSec: parseNum(form.pitBase.value)
+        fullTankLaps: parseNum(form.tank.value), refuelPctPerSec: parseNum(form.refuel.value), fuelSpeedFactor: Number(form.factor.value)
       };
       const laps = Math.max(1, Math.round(parseNum(el.querySelector('#balLaps').value) || 70));
       const pitLoss = Math.max(0, parseNum(el.querySelector('#balPit').value) ?? 4);
       const base = M.raceFuelPlan(laps, ref, { refLapMs: ref }, settings);
-      const total = (lap, p) => laps * lap / 1000 + p.standSec + p.stops * pitLoss;
+      const total = (lap, p) => laps * lap / 1000 + p.refuelSec + p.stops * pitLoss;
       const rows = [-10, -5, -2, 0, 2, 5, 10].map(d => {
         const lap = ref * (1 + d / 100);
         const p = M.raceFuelPlan(laps, lap, { refLapMs: ref }, settings);
         const diff = total(lap, p) - total(ref, base);
         const label = d === 0 ? 'Referenz' : `${Math.abs(d)} % ${d < 0 ? 'schneller' : 'langsamer'}`;
         const res = d === 0 ? '–' : `${diff < 0 ? 'Vorteil' : 'Nachteil'} ${fmtNum(Math.abs(diff), 1)} s`;
-        return `<tr${d === 0 ? ' class="bal-ref"' : ''}><td>${label}</td><td>${ms(lap)}</td><td>${fmtNum(p.lapsPerTank, 1)}</td><td>${p.stops}</td><td>${fmtNum(p.standSec, 1)} s</td><td>${res}</td></tr>`;
+        return `<tr${d === 0 ? ' class="bal-ref"' : ''}><td>${label}</td><td>${ms(lap)}</td><td>${fmtNum(p.lapsPerTank, 1)}</td><td>${p.stops}</td><td>${fmtNum(p.refuelSec, 1)} s</td><td>${res}</td></tr>`;
       }).join('');
-      el.querySelector('#balTable').innerHTML = `<thead><tr><th>Tempo</th><th>Runde</th><th>Runden/Tank</th><th>Stopps</th><th>Standzeit</th><th>Gesamt ggü. Referenz</th></tr></thead><tbody>${rows}</tbody>`;
+      el.querySelector('#balTable').innerHTML = `<thead><tr><th>Tempo</th><th>Runde</th><th>Runden/Tank</th><th>Stopps</th><th>Tankzeit</th><th>Gesamt ggü. Referenz</th></tr></thead><tbody>${rows}</tbody>`;
       el.querySelector('#balNote').textContent = (M.trackSetup(track).refLapMs ? '' : 'Die aktuelle Strecke hat noch keine Referenzzeit, gerechnet wird mit 6500 ms. ') +
-        'Start mit vollem Tank, getankt wird nur so viel wie nötig. Standzeit = Tankzeit + Mindest-Standzeit aller Stopps.';
+        'Start mit vollem Tank, getankt wird nur so viel wie nötig.';
     };
     const update = () => { note(); balance(); };
     form.addEventListener('input', update);
@@ -483,7 +481,6 @@
       const fields = M.raceSettings({
         fullTankLaps: parseNum(form.tank.value),
         refuelPctPerSec: parseNum(form.refuel.value),
-        pitBaseSec: parseNum(form.pitBase.value),
         pitCallFuelPct: parseNum(form.pitCall.value),
         fuelSpeedFactor: Number(form.factor.value),
         falseStartPenaltySec: parseNum(form.falseStart.value),
