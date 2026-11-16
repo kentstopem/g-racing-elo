@@ -102,6 +102,7 @@
     return body;
   }
   function closeModal () {
+    window.Voice?.stop();
     modal?.classList.add('hidden');
     modal?.querySelectorAll('audio').forEach(a => a.pause());
   }
@@ -128,13 +129,15 @@
           <input id="drvPron" name="pron" value="${esc(d.pronunciation || '')}" placeholder="${esc(d.name)}">
         </div>
         <div class="form-group">
-          <label>Gesprochener Name (Tondatei)</label>
+          <label>Gesprochener Name</label>
           <div class="media-row">
-            <span id="voiceState" class="muted">${d.voiceRev ? 'Ton hinterlegt' : 'Noch kein Ton'}</span>
-            <button type="button" class="btn btn-small" id="voicePlay" ${d.voiceRev ? '' : 'disabled'}>Anhören</button>
+            <button type="button" class="btn btn-small btn-primary" id="voiceGen">Erzeugen</button>
+            <button type="button" class="btn btn-small" id="voicePlay">Anhören</button>
             <label class="btn btn-small">Datei wählen<input type="file" id="voiceFile" accept="audio/*,.mp3,.m4a,.wav" hidden></label>
             <button type="button" class="btn btn-small btn-danger" id="voiceDel" ${d.voiceRev ? '' : 'disabled'}>Entfernen</button>
           </div>
+          <p class="edit-note"><strong id="voiceState">${d.voiceRev ? 'Eigener Ton hinterlegt' : 'Noch kein eigener Ton'}</strong></p>
+          <p class="muted edit-note">„Erzeugen“ spricht die Aussprache oben sofort vor. So lange anpassen und neu erzeugen, bis es passt, dann speichern.</p>
         </div>
         ${footer()}
       </form>`);
@@ -149,14 +152,29 @@
     form.addEventListener('change', e => { if (e.target.name === 'ctrl') note(); });
     note();
 
-    let audio = null;
+    let pending = null;   // live erzeugter, noch nicht gespeicherter Ton (Data-URL)
+    const setState = t => { body.querySelector('#voiceState').textContent = t; };
+    const pronText = () => form.pron.value.trim() || d.name;
+    const genBtn = body.querySelector('#voiceGen');
+    genBtn.onclick = async () => {
+      genBtn.disabled = true;
+      setState('Wird erzeugt …');
+      try {
+        const data = await readAsDataUrl(await window.Voice.synthesize(pronText()));
+        pending = { data, text: pronText() };
+        setState('Neu erzeugt – wird beim Speichern übernommen');
+        body.querySelector('#voiceDel').disabled = false;
+        window.Voice.playSources([data]);
+      } catch (err) {
+        setState(pending ? 'Neu erzeugt – wird beim Speichern übernommen' : 'Erzeugen fehlgeschlagen');
+        showToast(err.message || 'Erzeugen fehlgeschlagen', { icon: 'alert' });
+      } finally { genBtn.disabled = false; }
+    };
     body.querySelector('#voicePlay').onclick = async () => {
       const cur = window.appData.drivers.find(x => x.id === id);
-      const src = await driverVoiceSrc(cur);
-      if (!src) { showToast('Kein Ton gefunden'); return; }
-      audio?.pause();
-      audio = new Audio(src);
-      audio.play().catch(() => showToast('Abspielen nicht möglich'));
+      const src = pending?.data || await window.Voice.nameSrc(cur);
+      if (!src) { showToast('Noch kein Ton – „Erzeugen“ tippen'); return; }
+      window.Voice.playSources([src]);
     };
     body.querySelector('#voiceFile').onchange = async e => {
       const file = e.target.files[0];
@@ -165,17 +183,19 @@
         const data = await audioToDataUrl(file);
         await window.Storage.setMedia(`driver_voice_${id}`, data, file.type || 'audio/mpeg');
         await persist(window.Storage.updateDriverFields(id, { voiceRev: Date.now() }), 'Ton gespeichert');
-        body.querySelector('#voiceState').textContent = 'Ton hinterlegt';
-        body.querySelector('#voicePlay').disabled = false;
+        pending = null;
+        setState('Eigener Ton hinterlegt');
         body.querySelector('#voiceDel').disabled = false;
       } catch (err) { showToast(err.message || 'Ton konnte nicht gespeichert werden', { icon: 'alert' }); }
     };
     body.querySelector('#voiceDel').onclick = async () => {
-      if (!confirm('Ton wirklich entfernen?')) return;
+      const cur = window.appData.drivers.find(x => x.id === id);
+      if (pending && !cur?.voiceRev) { pending = null; setState('Noch kein eigener Ton'); body.querySelector('#voiceDel').disabled = true; return; }
+      if (!confirm('Eigenen Ton wirklich entfernen?')) return;
+      pending = null;
       await window.Storage.deleteMedia(`driver_voice_${id}`).catch(console.error);
       await persist(window.Storage.updateDriverFields(id, { voiceRev: del() }), 'Ton entfernt');
-      body.querySelector('#voiceState').textContent = 'Noch kein Ton';
-      body.querySelector('#voicePlay').disabled = true;
+      setState('Noch kein eigener Ton');
       body.querySelector('#voiceDel').disabled = true;
     };
     body.querySelector('[data-act="cancel"]').onclick = closeModal;
@@ -183,7 +203,12 @@
       e.preventDefault();
       const ctrl = Number(form.ctrl.value) || null;
       const pron = form.pron.value.trim();
-      persist(window.Storage.updateDriverFields(id, { preferredController: ctrl, pronunciation: pron || del() }), 'Fahrer gespeichert');
+      const fields = { preferredController: ctrl, pronunciation: pron || del() };
+      const save = pending
+        ? window.Storage.setMedia(`driver_voice_${id}`, pending.data, 'audio/mpeg').then(() => { fields.voiceRev = Date.now(); })
+        : Promise.resolve();
+      persist(save.then(() => window.Storage.updateDriverFields(id, fields)), 'Fahrer gespeichert').catch(() => {});
+      window.Voice.stop();
       closeModal();
     };
   }
@@ -439,6 +464,17 @@
         </div>
         <div class="live-table-wrap"><table class="live-table bal-table" id="balTable"></table></div>
         <p class="muted edit-note" id="balNote"></p>
+      </details>
+      <details class="bal-details" id="voiceDetails">
+        <summary class="setup-h">Sprachausgabe</summary>
+        <p class="muted edit-note" style="margin:-4px 0 12px;">Stimme: Ingrid (Österreich), 5 % schneller. Für das Erzeugen von Fahrernamen im Fahrer-Dialog braucht dieses Gerät einen Azure-Speech-Schlüssel (Gratis-Tarif F0). Er wird nur auf diesem Gerät gespeichert.</p>
+        <div class="race-meta-grid" style="grid-template-columns:2fr 1fr;">
+          <div class="form-group"><label for="azKey">Azure-Speech-Schlüssel</label><input id="azKey" type="password" autocomplete="off" value="${esc(window.Voice?.azureConfig()?.key || '')}" placeholder="Schlüssel 1 aus dem Azure-Portal"></div>
+          <div class="form-group"><label for="azRegion">Region</label><input id="azRegion" value="${esc(window.Voice?.azureConfig()?.region || 'westeurope')}"></div>
+        </div>
+        <div class="edit-foot"><button type="button" class="btn" id="azTest">Testen</button><span style="flex:1"></span><button type="button" class="btn btn-primary" id="azSave">Auf diesem Gerät speichern</button></div>
+        <h3 class="setup-h" style="margin-top:16px;">Feste Ansagen</h3>
+        <div id="phraseList" class="muted">Wird geladen …</div>
       </details>`;
     const form = el.querySelector('#raceSettingsForm');
     const note = () => {
@@ -473,6 +509,33 @@
       el.querySelector('#balNote').textContent = (M.trackSetup(track).refLapMs ? '' : 'Die aktuelle Strecke hat noch keine Referenzzeit, gerechnet wird mit 6500 ms. ') +
         'Start mit vollem Tank, getankt wird nur so viel wie nötig.';
     };
+    // Sprachausgabe
+    const azKey = el.querySelector('#azKey'), azRegion = el.querySelector('#azRegion');
+    el.querySelector('#azSave').onclick = () => {
+      window.Voice.setAzureConfig(azKey.value, azRegion.value);
+      showToast(azKey.value.trim() ? 'Schlüssel auf diesem Gerät gespeichert' : 'Schlüssel entfernt');
+    };
+    el.querySelector('#azTest').onclick = async () => {
+      const before = window.Voice.azureConfig();
+      window.Voice.setAzureConfig(azKey.value, azRegion.value);
+      try {
+        const blob = await window.Voice.synthesize('Die Sprachausgabe funktioniert.');
+        window.Voice.playSources([URL.createObjectURL(blob)]);
+        showToast('Verbindung klappt');
+      } catch (err) {
+        showToast(err.message, { icon: 'alert' });
+        if (before) window.Voice.setAzureConfig(before.key, before.region); else window.Voice.setAzureConfig('');
+      }
+    };
+    window.Voice?.loadManifest().then(man => {
+      const box = el.querySelector('#phraseList');
+      if (!box) return;
+      const entries = Object.entries(man.phrases || {});
+      box.innerHTML = entries.length
+        ? entries.map(([k, t]) => `<div class="media-row" style="margin-bottom:6px;"><button type="button" class="btn btn-small" data-phrase="${esc(k)}">Anhören</button><span>${esc(t)}</span></div>`).join('')
+        : 'Noch keine Ansagen erzeugt.';
+      box.querySelectorAll('[data-phrase]').forEach(b => { b.onclick = () => window.Voice.say(b.dataset.phrase); });
+    });
     const update = () => { note(); balance(); };
     form.addEventListener('input', update);
     form.addEventListener('change', update);

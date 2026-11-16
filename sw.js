@@ -16,7 +16,7 @@ const APP_SHELL = [
   'manifest.webmanifest',
   'version.js', 'firebase.js', 'storage.js', 'helpers.js', 'elo.js', 'seasons.js', 'masterdata.js', 'sync.js',
   'app.js', 'ranking.js', 'race.js', 'history.js', 'records.js',
-  'statistics.js', 'wheel.js', 'slot.js', 'seasons-ui.js', 'setup-ui.js', 'cu.js', 'live.js',
+  'statistics.js', 'wheel.js', 'slot.js', 'seasons-ui.js', 'setup-ui.js', 'voice.js', 'cu.js', 'live.js',
   'assets/logo.png', 'assets/icons/icon-192.png', 'assets/icons/apple-touch-icon.png'
 ];
 

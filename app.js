@@ -491,6 +491,8 @@ function addDriver() {
     persist(window.Storage.addDriver(driver));
     updateDriversList();
     RaceUI.updateForm();
+    // Mit Feature „live“ gleich den Dialog öffnen, um den gesprochenen Namen zu erzeugen
+    if (window.SetupUI?.enabled()) window.SetupUI.editDriver(driver.id);
 }
 
 // Fahrer/Fahrzeuge mit Rennen werden archiviert statt gelöscht, damit die Historie vollständig bleibt.
