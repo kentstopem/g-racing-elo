@@ -519,9 +519,11 @@
     };
     const renderPhrases = box => window.Voice?.loadManifest().then(man => {
       if (!box) return;
-      const entries = Object.entries(man.phrases || {});
+      const order = window.Voice.PHRASES.map(p => p[0]);
+      const rank = k => (order.includes(k) ? order.indexOf(k) : 999);
+      const entries = Object.entries(man.phrases || {}).sort((a, b) => rank(a[0]) - rank(b[0]));
       box.innerHTML = entries.length
-        ? entries.map(([k, t]) => `<div class="media-row" style="margin-bottom:6px;"><button type="button" class="btn btn-small" data-phrase="${esc(k)}">Anhören</button><span>${esc(t)}</span></div>`).join('')
+        ? entries.map(([k, t]) => `<div class="media-row" style="margin-bottom:6px;"><button type="button" class="btn btn-small" data-phrase="${esc(k)}">Anhören</button><span>${window.Voice.NAME_POS[k] === 'before' ? '<span class="muted">[Fahrername]</span> ' : ''}${esc(t)}${window.Voice.NAME_POS[k] === 'after' ? ' <span class="muted">[Fahrername]</span>' : ''}</span></div>`).join('')
         : 'Noch keine Ansagen erzeugt.';
       box.querySelectorAll('[data-phrase]').forEach(b => { b.onclick = () => window.Voice.say(b.dataset.phrase); });
     });

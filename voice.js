@@ -18,6 +18,15 @@
     leni:   { key: 'leni', label: 'Leni (Schweiz)', id: 'de-CH-LeniNeural', lang: 'de-CH', base: 'assets/voice/leni',
       media: id => `driver_voice_leni_${id}`, rev: 'voiceRevLeni', text: 'voiceTextLeni' }
   };
+  // Reihenfolge der festen Ansagen und wo der Fahrername gesprochen wird:
+  // 'before' = [Fahrer] + Ansage, 'after' = Ansage + [Fahrer]
+  const PHRASES = [
+    ['count_5'], ['count_4'], ['count_3'], ['count_2'], ['count_1'], ['count_go'],
+    ['false_start', 'after'], ['pole', 'before'], ['fastest_lap', 'after'], ['personal_record', 'after'], ['track_record', 'before'],
+    ['pit_call', 'before'], ['in_pit', 'before'], ['refueled', 'before'], ['penalty_served', 'before'],
+    ['last_lap'], ['red_flag'], ['race_resume'], ['race_win', 'before']
+  ];
+  const NAME_POS = Object.fromEntries(PHRASES.filter(p => p[1]).map(p => [p[0], p[1]]));
   const voice = key => VOICES[key] || VOICES[window.appData?.raceSettings?.voice] || VOICES.ingrid;
   /** Aus welcher Schreibweise der gespeicherte Name dieser Stimme stammt (null = keiner gespeichert) */
   const savedText = (d, key) => { const v = voice(key); return d?.[v.rev] ? (d[v.text] ?? (d.pronunciation || d.name)) : null; };
@@ -127,6 +136,13 @@
     return playSources(sources);
   }
 
+  /** Ansage mit Fahrername an der richtigen Stelle, z. B. Voice.announce('fastest_lap', driverId) */
+  function announce (key, driverId) {
+    const pos = NAME_POS[key];
+    if (!pos || driverId == null) return say(key);
+    return pos === 'after' ? say(key, { driver: driverId }) : say({ driver: driverId }, key);
+  }
+
   /** Alle festen Ansagen vorladen (landen im Offline-Cache des Service Workers). */
   async function preload () {
     const man = await loadManifest();
@@ -134,7 +150,7 @@
   }
 
   window.Voice = {
-    VOICES, RATE, voice, savedText, spokenText, azureConfig, setAzureConfig, synthesize,
+    VOICES, PHRASES, NAME_POS, announce, RATE, voice, savedText, spokenText, azureConfig, setAzureConfig, synthesize,
     loadManifest, phraseSrc, nameSrc, say, playSources, stop, preload
   };
 })();
