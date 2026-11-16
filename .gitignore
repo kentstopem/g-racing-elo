@@ -23,3 +23,4 @@ serviceAccount*.json
 
 # Testwerkzeuge
 .playwright-mcp/
+voice-samples/
