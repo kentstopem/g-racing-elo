@@ -1,0 +1,67 @@
+# Erzeugt die Sprach-Schnipsel (feste Ansagen + Fahrernamen) mit kostenlosen Edge-Neural-Stimmen.
+# Start per Hand: GitHub → Actions → „Stimmen erzeugen“ → Run workflow (geht auch in der GitHub-App).
+# Zusätzlich läuft er jede Nacht und erzeugt nur neue oder geänderte Fahrernamen.
+name: Stimmen erzeugen
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Was erzeugen? drivers = neue/geänderte Namen, driver = ein Fahrer, phrases = feste Ansagen, all = alles, samples = Hörproben'
+        type: choice
+        options: [drivers, driver, phrases, all, samples]
+        default: drivers
+      driver:
+        description: 'Fahrer-ID (nur bei „driver“)'
+        required: false
+      voice:
+        description: 'Stimme (leer = bisherige), z. B. de-DE-ConradNeural'
+        required: false
+      rate:
+        description: 'Tempo (leer = bisheriges), z. B. +10%'
+        required: false
+  schedule:
+    - cron: '30 3 * * *'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: voice
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install edge-tts==7.3.1
+      - name: Erzeugen
+        run: python tools/voice/generate.py "${MODE}" --driver "${DRIVER}" --voice "${VOICE}" --rate "${RATE}"
+        env:
+          MODE: ${{ inputs.mode || 'drivers' }}
+          DRIVER: ${{ inputs.driver }}
+          VOICE: ${{ inputs.voice }}
+          RATE: ${{ inputs.rate }}
+      - name: Hörproben hochladen
+        if: inputs.mode == 'samples'
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-samples
+          path: voice-samples/
+      - name: Einchecken und veröffentlichen
+        if: inputs.mode != 'samples'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.mode || 'drivers' }}
+        run: |
+          git add assets/voice
+          if git diff --cached --quiet; then echo "Keine Änderungen"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Stimmen: ${MODE:-drivers} neu erzeugt"
+          git push
+          gh workflow run pages.yml --ref main

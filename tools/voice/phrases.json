@@ -1,0 +1,22 @@
+{
+  "_hinweis": "Feste Ansagen. Der Fahrername wird als eigener Schnipsel davor abgespielt (z. B. Name + 'race_win'). Text ändern und Workflow 'Stimmen erzeugen' mit Modus 'phrases' oder 'all' starten.",
+  "count_5": "Fünf.",
+  "count_4": "Vier.",
+  "count_3": "Drei.",
+  "count_2": "Zwei.",
+  "count_1": "Eins.",
+  "count_go": "Los!",
+  "false_start": "Fehlstart!",
+  "fastest_lap": "Schnellste Runde!",
+  "track_record": "Neuer Streckenrekord!",
+  "personal_record": "Persönliche Bestzeit!",
+  "race_win": "gewinnt das Rennen! Herzlichen Glückwunsch!",
+  "pole": "holt sich die Pole-Position. Glückwunsch!",
+  "pit_call": "Tank fast leer, bitte an die Box!",
+  "in_pit": "ist in der Box.",
+  "penalty_served": "Strafe abgesessen.",
+  "refueled": "Vollgetankt!",
+  "last_lap": "Letzte Runde!",
+  "red_flag": "Rote Flagge! Rennen unterbrochen.",
+  "race_resume": "Weiter geht's!"
+}
