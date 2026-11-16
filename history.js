@@ -51,7 +51,7 @@
               return `<tbody class="pair">
                       <tr class="pair-driver">
                         <td class="pos" rowspan="2">${res.position}.</td>
-                        <td class="who"><strong>${esc(res.driverName)}</strong></td>
+                        <td class="who"><strong>${esc((window.appData.drivers.find(d=>d.id===res.driverId)?.name)??res.driverName)}</strong></td>
                         <td class="pts"><span class="old">${res.oldDriverElo} → </span><span class="${drvColor}">${res.newDriverElo} (${drvChange>=0?'+':''}${drvChange})</span></td>
                       </tr>
                       <tr class="pair-car">

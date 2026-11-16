@@ -113,6 +113,10 @@
     const body = openModal(d.name, `
       <form id="driverForm">
         <div class="form-group">
+          <label for="drvName">Name</label>
+          <input id="drvName" name="dname" value="${esc(d.name)}" required>
+        </div>
+        <div class="form-group">
           <label>Bevorzugter Controller: <strong id="ctrlName"></strong></label>
           <div class="ctrl-picks">${chips}</div>
           <p class="muted edit-note" id="ctrlNote"></p>
@@ -140,7 +144,8 @@
     // „Anhören“: passt der gespeicherte Ton zur Schreibweise, wird er gespielt, sonst (mit Azure-Schlüssel)
     // neu erzeugt. Ein neu erzeugter Ton wird erst beim Speichern übernommen.
     let pending = null;   // { data, text }
-    const pronText = () => form.pron.value.trim() || d.name;
+    const pronText = () => form.pron.value.trim() || form.dname.value.trim() || d.name;
+    form.dname.addEventListener('input', () => { form.pron.placeholder = form.dname.value.trim() || d.name; });
     const playBtn = body.querySelector('#voicePlay');
     playBtn.onclick = async () => {
       const cur = window.appData.drivers.find(x => x.id === id);
@@ -169,7 +174,10 @@
       e.preventDefault();
       const ctrl = Number(form.ctrl.value) || null;
       const pron = form.pron.value.trim();
-      const fields = { preferredController: ctrl, pronunciation: pron || del() };
+      const name = form.dname.value.trim();
+      if (!name) { showToast('Bitte einen Namen eingeben!'); return; }
+      if (window.appData.drivers.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) { showToast('Fahrer existiert bereits!'); return; }
+      const fields = { name, preferredController: ctrl, pronunciation: pron || del() };
       const save = (async () => {
         const cur = window.appData.drivers.find(x => x.id === id);
         const text = pronText();

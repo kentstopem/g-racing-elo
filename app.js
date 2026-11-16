@@ -73,7 +73,7 @@ function renderChart(mode){
         posArr.push(res.position);
         totalArr.push(r.results.length);
         raceNrArr.push(numMap.get(r.id));
-        partnerArr.push(res.driverName);
+        partnerArr.push(appData.drivers.find(d=>d.id===res.driverId)?.name??res.driverName);
       }
     });
   }
@@ -552,7 +552,7 @@ function updateDriversList() {
             <div>
                 <strong>${escapeHtml(driver.name)}</strong>${driver.archived?' <span class="status-inactive">archiviert</span>':''}${setup?' '+window.SetupUI.controllerChip(driver.preferredController,{small:true}):''}
                 <div style="font-size: 0.9em; color:var(--text-muted);">
-                    ${driver.races||0} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Rd.${setup&&driver.voiceRev?' · Ton':''}
+                    ${driver.races||0} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Rd.${setup&&driver.voiceRev?` · „${escapeHtml(driver.voiceText??(driver.pronunciation||driver.name))}“`:''}
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap:8px;">
