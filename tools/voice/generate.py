@@ -76,7 +76,9 @@ async def main():
     if a.mode == 'samples':
         drivers = fetch_drivers()
         name = next((d['text'] for d in drivers if d['name'] == 'Tris'), 'Tristan')
-        for voice in ([a.voice] if a.voice else SAMPLE_VOICES):
+        avail = [x['ShortName'] for x in await edge_tts.list_voices() if x['Locale'].startswith('de-')]
+        print('Verfügbare deutsche Stimmen:', ', '.join(avail))
+        for voice in ([a.voice] if a.voice else avail):
             await say(SAMPLE_TEXT.format(name=name), os.path.join(ROOT, 'voice-samples', f'{voice}.mp3'), voice, rate, pitch)
         return
 
