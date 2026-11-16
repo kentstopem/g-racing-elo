@@ -9,7 +9,7 @@ Modi:
   all      – phrases + alle Fahrernamen neu
 
 Ausgabe je Stimme (SETS): <ordner>/phrases/<key>.mp3, <ordner>/drivers/<id>.mp3, <ordner>/manifest.json
-(Ingrid in assets/voice, Leni in assets/voice/leni)
+(Ingrid in assets/voice/ingrid, Leni in assets/voice/leni)
 Fahrer kommen öffentlich lesbar aus Firestore; gesprochen wird `pronunciation`, sonst `name`.
 """
 import argparse, asyncio, json, os, sys, urllib.request
@@ -54,7 +54,7 @@ async def say(text, path, voice, rate, pitch):
 
 
 SETS = {   # Stimmen, zwischen denen die App umschalten kann (Setup → Renneinstellungen → Sprachausgabe)
-    'ingrid': ('de-AT-IngridNeural', OUT),
+    'ingrid': ('de-AT-IngridNeural', os.path.join(OUT, 'ingrid')),
     'leni':   ('de-CH-LeniNeural', os.path.join(OUT, 'leni')),
 }
 

@@ -1,9 +1,9 @@
 // voice.js – Sprachausgabe: feste Ansagen + gesprochene Fahrernamen (window.Voice)
 //
-// • Feste Ansagen liegen als MP3 in assets/voice/phrases/<key>.mp3 (erzeugt vom GitHub-Workflow
+// • Feste Ansagen liegen als MP3 in assets/voice/<stimme>/phrases/<key>.mp3 (erzeugt vom GitHub-Workflow
 //   „Stimmen erzeugen“, Texte in tools/voice/phrases.json).
 // • Fahrernamen: eigener Ton aus Firestore (media/driver_voice_<id>, im Fahrer-Dialog live erzeugt
-//   oder hochgeladen), sonst assets/voice/drivers/<id>.mp3 vom Workflow.
+//   oder hochgeladen), sonst assets/voice/<stimme>/drivers/<id>.mp3 vom Workflow.
 // • Live-Erzeugung im Fahrer-Dialog über Azure Speech (gleiche Stimme wie die Ansagen). Schlüssel
 //   und Region liegen nur auf dem Gerät (localStorage), weil Firestore öffentlich lesbar ist.
 // • Ein neuer Ton unterbricht immer den laufenden.
@@ -13,7 +13,7 @@
   // Umschaltbare Stimmen (Setup → Renneinstellungen → Sprachausgabe, gilt für alle Geräte).
   // Jede Stimme hat eigene Ansagen-Dateien und eigene gespeicherte Fahrernamen.
   const VOICES = {
-    ingrid: { key: 'ingrid', label: 'Ingrid (Österreich)', id: 'de-AT-IngridNeural', lang: 'de-AT', base: 'assets/voice',
+    ingrid: { key: 'ingrid', label: 'Ingrid (Österreich)', id: 'de-AT-IngridNeural', lang: 'de-AT', base: 'assets/voice/ingrid',
       media: id => `driver_voice_${id}`, rev: 'voiceRev', text: 'voiceText' },
     leni:   { key: 'leni', label: 'Leni (Schweiz)', id: 'de-CH-LeniNeural', lang: 'de-CH', base: 'assets/voice/leni',
       media: id => `driver_voice_leni_${id}`, rev: 'voiceRevLeni', text: 'voiceTextLeni' }
