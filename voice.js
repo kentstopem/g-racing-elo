@@ -18,6 +18,14 @@
     leni:   { key: 'leni', label: 'Leni (Schweiz)', id: 'de-CH-LeniNeural', lang: 'de-CH', base: 'assets/voice/leni',
       media: id => `driver_voice_leni_${id}`, rev: 'voiceRevLeni', text: 'voiceTextLeni' }
   };
+  // Reihenfolge der festen Ansagen und welche davon nach einem Fahrernamen kommen ([Fahrer] + Ansage)
+  const PHRASES = [
+    ['count_5'], ['count_4'], ['count_3'], ['count_2'], ['count_1'], ['count_go'],
+    ['false_start', true], ['pole', true], ['fastest_lap', true], ['personal_record', true], ['track_record', true],
+    ['pit_call', true], ['in_pit', true], ['refueled', true], ['penalty_served', true],
+    ['last_lap'], ['red_flag'], ['race_resume'], ['race_win', true]
+  ];
+  const WITH_NAME = new Set(PHRASES.filter(p => p[1]).map(p => p[0]));
   const voice = key => VOICES[key] || VOICES[window.appData?.raceSettings?.voice] || VOICES.ingrid;
   /** Aus welcher Schreibweise der gespeicherte Name dieser Stimme stammt (null = keiner gespeichert) */
   const savedText = (d, key) => { const v = voice(key); return d?.[v.rev] ? (d[v.text] ?? (d.pronunciation || d.name)) : null; };
@@ -134,7 +142,7 @@
   }
 
   window.Voice = {
-    VOICES, RATE, voice, savedText, spokenText, azureConfig, setAzureConfig, synthesize,
+    VOICES, PHRASES, WITH_NAME, RATE, voice, savedText, spokenText, azureConfig, setAzureConfig, synthesize,
     loadManifest, phraseSrc, nameSrc, say, playSources, stop, preload
   };
 })();
