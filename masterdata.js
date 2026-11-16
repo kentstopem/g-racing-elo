@@ -33,7 +33,8 @@
     falseStartPenaltySec: 5,    // Strafe für Fehlstart
     penaltyOptionsSec: [2, 5, 7, 10], // Auswahl im Strafendialog
     pitCallFuelPct: 20,         // „[Fahrer] muss an die Box“ ab diesem Tankstand
-    fuelSpeedFactor: 1          // 0 = Verbrauch unabhängig vom Tempo, 1 = proportional zum Tempo
+    fuelSpeedFactor: 1,         // 0 = Verbrauch unabhängig vom Tempo, 1 = proportional zum Tempo
+    voice: 'ingrid'             // Sprachausgabe: 'ingrid' | 'leni' (siehe voice.js)
   });
 
   const TRACK_DEFAULTS = Object.freeze({
@@ -57,7 +58,8 @@
       falseStartPenaltySec: Math.max(0, num(d.falseStartPenaltySec, RACE_DEFAULTS.falseStartPenaltySec)),
       penaltyOptionsSec:    opts.length ? opts : [...RACE_DEFAULTS.penaltyOptionsSec],
       pitCallFuelPct:       Math.max(0, Math.min(100, num(d.pitCallFuelPct, RACE_DEFAULTS.pitCallFuelPct))),
-      fuelSpeedFactor:      Math.max(0, Math.min(3, num(d.fuelSpeedFactor, RACE_DEFAULTS.fuelSpeedFactor)))
+      fuelSpeedFactor:      Math.max(0, Math.min(3, num(d.fuelSpeedFactor, RACE_DEFAULTS.fuelSpeedFactor))),
+      voice:                ['ingrid', 'leni'].includes(d.voice) ? d.voice : RACE_DEFAULTS.voice
     };
   }
 
