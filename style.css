@@ -656,3 +656,9 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .bal-table tr.bal-ref td { background: var(--iu-accent-light); }
 /* Datei-Knöpfe sind <label class="btn">: Formular-Label-Stil (block, Abstand unten) aufheben */
 .media-row label.btn, .form-group .media-row label.btn { display: inline-flex; align-items: center; justify-content: center; margin: 0; line-height: 1.2; }
+.bal-details { margin-top: 24px; border-top: 1px solid var(--iu-grey); padding-top: 12px; }
+.bal-details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
+.bal-details > summary::-webkit-details-marker { display: none; }
+.bal-details > summary { font-weight: 700; }
+.bal-details > summary::before { content: ""; width: 0; height: 0; border-left: 7px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent; transition: transform .15s; }
+.bal-details[open] > summary::before { transform: rotate(90deg); }

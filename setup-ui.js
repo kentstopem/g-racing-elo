@@ -420,7 +420,15 @@
           <select id="rsFactor" name="factor">${factorOpts.map(([v, l]) => `<option value="${v}" ${v === s.fuelSpeedFactor ? 'selected' : ''}>${l}</option>`).join('')}</select>
           <p class="muted edit-note" id="rsFactorNote"></p>
         </div>
-        <h3 class="setup-h">Balancing prüfen</h3>
+        <h3 class="setup-h">Strafen</h3>
+        <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="form-group"><label for="rsFalse">Fehlstart (Sekunden)</label><input id="rsFalse" name="falseStart" inputmode="decimal" value="${fmtNum(s.falseStartPenaltySec, 1)}"></div>
+          <div class="form-group"><label for="rsOpts">Zeitstrafen zur Auswahl (Sekunden)</label><input id="rsOpts" name="opts" value="${s.penaltyOptionsSec.map(v => fmtNum(v, 1)).join('; ')}" placeholder="2; 5; 7; 10"></div>
+        </div>
+        <div class="edit-foot"><button type="button" class="btn" id="rsReset">Standardwerte</button><span style="flex:1"></span><button type="submit" class="btn btn-primary">Speichern</button></div>
+      </form>
+      <details class="bal-details" id="balDetails">
+        <summary class="setup-h">Balancing prüfen</summary>
         <p class="muted edit-note" style="margin:-4px 0 12px;">Rechnet mit den Werten oben (auch ungespeichert) und der Referenzzeit der aktuellen Strecke. Nur zum Ausprobieren, wird nicht gespeichert.</p>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
           <div class="form-group"><label for="balLaps">Renndistanz (Runden)</label><input id="balLaps" type="number" min="1" max="500" value="70"></div>
@@ -428,14 +436,7 @@
         </div>
         <div class="live-table-wrap"><table class="live-table bal-table" id="balTable"></table></div>
         <p class="muted edit-note" id="balNote"></p>
-
-        <h3 class="setup-h">Strafen</h3>
-        <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
-          <div class="form-group"><label for="rsFalse">Fehlstart (Sekunden)</label><input id="rsFalse" name="falseStart" inputmode="decimal" value="${fmtNum(s.falseStartPenaltySec, 1)}"></div>
-          <div class="form-group"><label for="rsOpts">Zeitstrafen zur Auswahl (Sekunden)</label><input id="rsOpts" name="opts" value="${s.penaltyOptionsSec.map(v => fmtNum(v, 1)).join('; ')}" placeholder="2; 5; 7; 10"></div>
-        </div>
-        <div class="edit-foot"><button type="button" class="btn" id="rsReset">Standardwerte</button><span style="flex:1"></span><button type="submit" class="btn btn-primary">Speichern</button></div>
-      </form>`;
+      </details>`;
     const form = el.querySelector('#raceSettingsForm');
     const note = () => {
       const f = Number(form.factor.value);
@@ -468,6 +469,7 @@
     const update = () => { note(); balance(); };
     form.addEventListener('input', update);
     form.addEventListener('change', update);
+    el.querySelector('#balDetails').addEventListener('input', balance);
     update();
     el.querySelector('#rsReset').onclick = () => {
       if (!confirm('Alle Renneinstellungen auf die Standardwerte zurücksetzen?')) return;
