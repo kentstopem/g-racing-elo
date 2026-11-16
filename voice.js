@@ -31,6 +31,8 @@
   /** Aus welcher Schreibweise der gespeicherte Name dieser Stimme stammt (null = keiner gespeichert) */
   const savedText = (d, key) => { const v = voice(key); return d?.[v.rev] ? (d[v.text] ?? (d.pronunciation || d.name)) : null; };
   const spokenText = d => (d?.pronunciation || d?.name || '');
+  /** Schreibweise für die Fahrerliste: gespeicherter Ton der aktiven Stimme, sonst einer anderen, sonst die Aussprache */
+  const listText = d => savedText(d) ?? Object.keys(VOICES).map(k => savedText(d, k)).find(Boolean) ?? (d?.pronunciation || null);
 
   // ---------- Azure-Zugang (nur dieses Gerät) ----------
   function azureConfig () {
@@ -150,7 +152,7 @@
   }
 
   window.Voice = {
-    VOICES, PHRASES, NAME_POS, announce, RATE, voice, savedText, spokenText, azureConfig, setAzureConfig, synthesize,
+    VOICES, PHRASES, NAME_POS, announce, RATE, voice, savedText, spokenText, listText, azureConfig, setAzureConfig, synthesize,
     loadManifest, phraseSrc, nameSrc, say, playSources, stop, preload
   };
 })();
