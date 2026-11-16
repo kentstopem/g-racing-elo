@@ -533,7 +533,20 @@ function updateDriversList() {
     }
 
     const setup = !!window.SetupUI?.enabled();
-    const sortedDrivers=[...appData.drivers].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
+    // Filter „Nur aktive“ (aktiv-Haken gesetzt, nicht archiviert) / „Alle“, Auswahl bleibt pro Gerät
+    const filter = document.getElementById('driverFilter');
+    if (filter && !filter._bound) {
+        try { filter.value = localStorage.getItem('grp.driverFilter') || 'active'; } catch (e) {}
+        filter.addEventListener('change', () => { try { localStorage.setItem('grp.driverFilter', filter.value); } catch (e) {} updateDriversList(); });
+        filter._bound = true;
+    }
+    const onlyActive = (filter?.value || 'active') === 'active';
+    const shown = onlyActive ? appData.drivers.filter(d => !d.archived && !d.hideFromRanking) : appData.drivers;
+    if (shown.length === 0) {
+        list.innerHTML = '<p style="text-align: center; color:var(--text-muted);">Keine aktiven Fahrer – Filter auf „Alle“ stellen.</p>';
+        return;
+    }
+    const sortedDrivers=[...shown].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
     list.innerHTML = sortedDrivers.map(driver => `
         <div class="list-item${driver.archived?' archived':''}" data-id="${driver.id}">
             <div>
