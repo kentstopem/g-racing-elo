@@ -43,13 +43,6 @@
     return out;
   }
 
-  async function audioToDataUrl (file) {
-    if (!file.type.startsWith('audio/') && !/\.(mp3|m4a|aac|wav|ogg)$/i.test(file.name)) throw new Error('Keine Audiodatei');
-    const data = await readAsDataUrl(file);
-    if (data.length > MAX_MEDIA_CHARS) throw new Error('Audiodatei zu groß (max. ca. 650 KB)');
-    return data;
-  }
-
   const carNumber = car => /^\((\d+)\)/.exec(car?.name || '')?.[1] ?? null;
   const carAssetSrc = car => { const n = carNumber(car); return n ? `assets/cars/${String(n).padStart(2, '0')}.png` : null; };
 
@@ -125,19 +118,11 @@
           <p class="muted edit-note" id="ctrlNote"></p>
         </div>
         <div class="form-group">
-          <label for="drvPron">Aussprache (Schreibweise für die Sprachausgabe)</label>
-          <input id="drvPron" name="pron" value="${esc(d.pronunciation || '')}" placeholder="${esc(d.name)}">
-        </div>
-        <div class="form-group">
-          <label>Gesprochener Name</label>
+          <label for="drvPron">Gesprochener Name</label>
           <div class="media-row">
-            <button type="button" class="btn btn-small btn-primary" id="voiceGen">Erzeugen</button>
-            <button type="button" class="btn btn-small" id="voicePlay">Anhören</button>
-            <label class="btn btn-small">Datei wählen<input type="file" id="voiceFile" accept="audio/*,.mp3,.m4a,.wav" hidden></label>
-            <button type="button" class="btn btn-small btn-danger" id="voiceDel" ${d.voiceRev ? '' : 'disabled'}>Entfernen</button>
+            <input id="drvPron" name="pron" value="${esc(d.pronunciation || '')}" placeholder="${esc(d.name)}" style="flex:1;min-width:0;">
+            <button type="button" class="btn btn-small" id="voicePlay" style="align-self:stretch;">Anhören</button>
           </div>
-          <p class="edit-note"><strong id="voiceState">${d.voiceRev ? 'Eigener Ton hinterlegt' : 'Noch kein eigener Ton'}</strong></p>
-          <p class="muted edit-note">„Erzeugen“ spricht die Aussprache oben sofort vor. So lange anpassen und neu erzeugen, bis es passt, dann speichern.</p>
         </div>
         ${footer()}
       </form>`);
@@ -152,51 +137,32 @@
     form.addEventListener('change', e => { if (e.target.name === 'ctrl') note(); });
     note();
 
-    let pending = null;   // live erzeugter, noch nicht gespeicherter Ton (Data-URL)
-    const setState = t => { body.querySelector('#voiceState').textContent = t; };
+    // „Anhören“: passt der gespeicherte Ton zur Schreibweise, wird er gespielt, sonst (mit Azure-Schlüssel)
+    // neu erzeugt. Ein neu erzeugter Ton wird erst beim Speichern übernommen.
+    let pending = null;   // { data, text }
     const pronText = () => form.pron.value.trim() || d.name;
-    const genBtn = body.querySelector('#voiceGen');
-    genBtn.onclick = async () => {
-      genBtn.disabled = true;
-      setState('Wird erzeugt …');
-      try {
-        const data = await readAsDataUrl(await window.Voice.synthesize(pronText()));
-        pending = { data, text: pronText() };
-        setState('Neu erzeugt – wird beim Speichern übernommen');
-        body.querySelector('#voiceDel').disabled = false;
-        window.Voice.playSources([data]);
-      } catch (err) {
-        setState(pending ? 'Neu erzeugt – wird beim Speichern übernommen' : 'Erzeugen fehlgeschlagen');
-        showToast(err.message || 'Erzeugen fehlgeschlagen', { icon: 'alert' });
-      } finally { genBtn.disabled = false; }
-    };
-    body.querySelector('#voicePlay').onclick = async () => {
+    const playBtn = body.querySelector('#voicePlay');
+    playBtn.onclick = async () => {
       const cur = window.appData.drivers.find(x => x.id === id);
-      const src = pending?.data || await window.Voice.nameSrc(cur);
-      if (!src) { showToast('Noch kein Ton – „Erzeugen“ tippen'); return; }
-      window.Voice.playSources([src]);
-    };
-    body.querySelector('#voiceFile').onchange = async e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      try {
-        const data = await audioToDataUrl(file);
-        await window.Storage.setMedia(`driver_voice_${id}`, data, file.type || 'audio/mpeg');
-        await persist(window.Storage.updateDriverFields(id, { voiceRev: Date.now() }), 'Ton gespeichert');
-        pending = null;
-        setState('Eigener Ton hinterlegt');
-        body.querySelector('#voiceDel').disabled = false;
-      } catch (err) { showToast(err.message || 'Ton konnte nicht gespeichert werden', { icon: 'alert' }); }
-    };
-    body.querySelector('#voiceDel').onclick = async () => {
-      const cur = window.appData.drivers.find(x => x.id === id);
-      if (pending && !cur?.voiceRev) { pending = null; setState('Noch kein eigener Ton'); body.querySelector('#voiceDel').disabled = true; return; }
-      if (!confirm('Eigenen Ton wirklich entfernen?')) return;
-      pending = null;
-      await window.Storage.deleteMedia(`driver_voice_${id}`).catch(console.error);
-      await persist(window.Storage.updateDriverFields(id, { voiceRev: del() }), 'Ton entfernt');
-      setState('Noch kein eigener Ton');
-      body.querySelector('#voiceDel').disabled = true;
+      const text = pronText();
+      const savedText = cur?.voiceText ?? (cur?.pronunciation || cur?.name);
+      if (pending?.text === text) return window.Voice.playSources([pending.data]);
+      if (cur?.voiceRev && savedText === text) {
+        const src = await window.Voice.nameSrc(cur);
+        if (src) return window.Voice.playSources([src]);
+      }
+      if (window.Voice.azureConfig()) {
+        playBtn.disabled = true;
+        try {
+          pending = { data: await readAsDataUrl(await window.Voice.synthesize(text)), text };
+          window.Voice.playSources([pending.data]);
+        } catch (err) { showToast(err.message || 'Erzeugen fehlgeschlagen', { icon: 'alert' }); }
+        finally { playBtn.disabled = false; }
+        return;
+      }
+      const src = await window.Voice.nameSrc(cur);
+      if (src) window.Voice.playSources([src]);
+      showToast(src ? 'Gespeicherter Ton – für neue Schreibweise Sprach-Schlüssel eintragen' : 'Kein Ton – Sprach-Schlüssel fehlt (Setup → Renneinstellungen)', { icon: src ? undefined : 'alert' });
     };
     body.querySelector('[data-act="cancel"]').onclick = closeModal;
     form.onsubmit = e => {
@@ -204,9 +170,18 @@
       const ctrl = Number(form.ctrl.value) || null;
       const pron = form.pron.value.trim();
       const fields = { preferredController: ctrl, pronunciation: pron || del() };
-      const save = pending
-        ? window.Storage.setMedia(`driver_voice_${id}`, pending.data, 'audio/mpeg').then(() => { fields.voiceRev = Date.now(); })
-        : Promise.resolve();
+      const save = (async () => {
+        const cur = window.appData.drivers.find(x => x.id === id);
+        const text = pronText();
+        // Noch kein eigener Ton oder Schreibweise geändert, aber nicht angehört → beim Speichern erzeugen
+        if (pending?.text !== text && (!cur?.voiceRev || (cur.voiceText ?? (cur.pronunciation || cur.name)) !== text) && window.Voice.azureConfig()) {
+          try { pending = { data: await readAsDataUrl(await window.Voice.synthesize(text)), text }; } catch (err) { console.warn(err); }
+        }
+        if (pending?.text !== text) return;
+        await window.Storage.setMedia(`driver_voice_${id}`, pending.data, 'audio/mpeg');
+        fields.voiceRev = Date.now();
+        fields.voiceText = pending.text;
+      })();
       persist(save.then(() => window.Storage.updateDriverFields(id, fields)), 'Fahrer gespeichert').catch(() => {});
       window.Voice.stop();
       closeModal();
