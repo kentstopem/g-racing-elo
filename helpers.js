@@ -45,7 +45,9 @@
     on ? set.add(name) : set.delete(name);
     try { localStorage.setItem(FEATURE_KEY, JSON.stringify([...set])); } catch (e) {}
   }
-  function feature(name) { return readFeatures().includes(name); }
+  // Dauerhaft freigeschaltet (live seit 17.11.2026: Setup, Livecenter, CU-Anbindung)
+  const ALWAYS_ON = ['live'];
+  function feature(name) { return ALWAYS_ON.includes(name) || readFeatures().includes(name); }
   try {
     const params = new URLSearchParams(location.search);
     params.getAll('feature').forEach(f => f.startsWith('-') ? setFeature(f.slice(1), false) : setFeature(f, true));

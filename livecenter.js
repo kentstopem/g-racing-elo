@@ -1,8 +1,8 @@
-// livecenter.js – Livecenter: Training, Qualifying und Rennen live (Feature Flag "live", window.Livecenter)
+// livecenter.js – Livecenter: Training, Qualifying und Rennen live (window.Livecenter)
 //
 // Vollbild über der App, für iPad quer und per AirPlay auf dem Fernseher (große Schrift, dunkel).
-// Rennlogik: race-engine.js. Datenquelle: live-sim.js (Simulator) – die CU-Quelle kommt mit dem Live-Kern
-// und liefert dieselben Ereignisse.
+// Rennlogik: race-engine.js. Datenquelle: Control Unit (cu-source.js) oder Simulator (live-sim.js),
+// beide liefern dieselben Ereignisse.
 (function () {
   const esc = s => window.Helpers.escapeHtml(s);
   const MD = window.MasterData;
@@ -57,7 +57,7 @@
   function loadCfg () {
     let c = {};
     try { c = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) {}
-    return { mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen, fullDistance: !!c.fullDistance };
+    return { source: c.source === 'sim' ? 'sim' : 'cu', mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen, fullDistance: !!c.fullDistance };
   }
   function saveCfg () { try { localStorage.setItem(STORE, JSON.stringify(cfg)); } catch (e) {} }
   function readVoice () { try { return localStorage.getItem(VOICE_KEY) !== 'off'; } catch (e) { return true; } }
@@ -97,6 +97,7 @@
     document.documentElement.classList.add('lc-open');
     root.hidden = false;
     shellKey = '';
+    watchCu();
     if (!session) { view = 'setup'; renderSetup(); } else renderLive();
   }
 
@@ -188,10 +189,10 @@
             ${fuelNote}
             <h3>Datenquelle</h3>
             <div class="lc-seg">
-              <button class="on">Simulator</button>
-              <button disabled title="kommt mit dem Live-Kern">Control Unit</button>
+              <button data-act="src" data-src="cu" class="${cfg.source === 'cu' ? 'on' : ''}">Control Unit</button>
+              <button data-act="src" data-src="sim" class="${cfg.source === 'sim' ? 'on' : ''}">Simulator</button>
             </div>
-            <p class="lc-note">Der Simulator fährt mit den echten Fahrern, Fahrzeugen und Rekorden. Die Anbindung an die CU folgt nach dem Test an der Bahn.</p>
+            ${cfg.source === 'cu' ? cuBox() : '<p class="lc-note">Der Simulator fährt mit den echten Fahrern, Fahrzeugen und Rekorden.</p>'}
           </section>
           <section class="lc-card">
             <div class="lc-card-head">
@@ -205,9 +206,34 @@
         <footer class="lc-setup-foot">
           <div>${entries.length} ${entries.length === 1 ? 'Fahrer' : 'Fahrer'} · ${MODE_LABEL[cfg.mode]}${cfg.mode === 'race' ? ` über ${cfg.raceLaps} Runden` : cfg.mode === 'quali' ? ` · ${cfg.qualiLaps} Runden je Fahrer` : ''}</div>
           ${canEdit() ? '' : '<span class="lc-note">Starten nur mit Admin-Anmeldung</span>'}
-          <button class="lc-btn lc-primary lc-big" data-act="start" ${entries.length && !problems.length && canEdit() ? '' : 'disabled'}>${cfg.mode === 'race' ? 'Zur Startaufstellung' : 'Strecke freigeben'}</button>
+          <button class="lc-btn lc-primary lc-big" data-act="start" ${entries.length && !problems.length && canEdit() && (cfg.source === 'sim' || cuHub()?.state === 'connected') ? '' : 'disabled'}>${cfg.mode === 'race' ? 'Zur Startaufstellung' : 'Strecke freigeben'}</button>
         </footer>
       </div>`;
+  }
+
+  // ---------- Control Unit ----------
+  const cuHub = () => window.LiveCU?.hub;
+  function cuBox () {
+    const h = cuHub();
+    if (!h) return '<p class="lc-note">CU-Anbindung nicht geladen.</p>';
+    if (!h.available()) return '<p class="lc-note warn">Dieser Browser kann kein Bluetooth. Auf dem iPad G!RP in <b>Bluefy</b> öffnen.</p>';
+    const st = h.state;
+    const txt = st === 'connected' ? `Verbunden${h.version ? ` · Firmware ${esc(h.version)}` : ''}`
+      : st === 'connecting' ? 'Verbinde …' : st === 'lost' ? 'Verbindung verloren' : 'Nicht verbunden';
+    return `<div class="lc-field-row lc-cu">
+        <span class="lc-cu-state ${st}">${txt}</span>
+        ${st === 'connected' ? '<button class="lc-btn" data-act="cuOff">Trennen</button>' : `<button class="lc-btn lc-primary" data-act="cuOn" ${st === 'connecting' ? 'disabled' : ''}>Mit CU verbinden</button>`}
+      </div>
+      ${h.error && st !== 'connected' ? `<p class="lc-note warn">${esc(h.error)}</p>` : ''}
+      <p class="lc-note">SmartRace und die Live-Zeitnahme vorher trennen – die CU nimmt nur eine Verbindung an.</p>`;
+  }
+  let cuWatch = null;
+  function watchCu () {
+    if (cuWatch || !cuHub()) return;
+    cuWatch = cuHub().onState(() => {
+      if (root?.hidden) return;
+      if (view === 'setup' && !session) renderSetup(); else { shellKey = ''; renderLive(); }
+    });
   }
 
   function readDraft () {
@@ -244,7 +270,7 @@
     resTab = 'result';
     redPen = {}; redReason = ''; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; baseRecords = records.slice();
     session.on(onEngine);
-    source = new window.LiveSim.SimSource();
+    source = cfg.source === 'cu' && window.LiveCU ? new window.LiveCU.CuSource() : new window.LiveSim.SimSource();
     const ref = MD.trackSetup(t).refLapMs || 7000;
     const rnd = (a, b) => a + Math.random() * (b - a);
     source.prepare(entries.map(e => {
@@ -252,7 +278,7 @@
       return { ctrl: e.ctrl, paceMs: own.length ? Math.min(...own) * rnd(1.01, 1.05) : ref * rnd(0.84, 0.95) };
     }), { refLapMs: ref });
     entries.forEach(e => source.setTuning?.(e.ctrl, tuningOf(e.carId)));   // Tuning der Fahrzeuge an die Bahn
-    source.setPitInfo(ctrl => {
+    source.setPitInfo?.(ctrl => {
       const c = session?.cars.get(ctrl);
       return c ? { fuel: session.fuelOn ? c.fuel : null, penaltyLeftMs: c.inPit ? c.penaltyMs : 0, penaltyOpen: c.penaltyMs > 0 } : {};
     });
@@ -260,7 +286,7 @@
     ticker = []; lapFlash = {}; overlay = null; menuCtrl = null; shellKey = '';
     view = 'live';
     session.start(source.now());
-    if (session.phase === 'green') source.release();
+    if (session.phase === 'green') source.release(); else source.stopCars?.();   // Rennen: Rot bis zur Startampel
     loop = setInterval(() => { if (!session) return; session.tick(source.now()); renderLive(); }, 200);
     try { navigator.wakeLock?.request('screen').then(l => { wakeLock = l; }).catch(() => {}); } catch (e) {}
     renderLive();
@@ -411,7 +437,7 @@
       case 'penalty': note(d.ctrl, `${name}: ${d.reason} +${d.sec} s`, 'warn'); break;
       case 'penaltyServed': say(type, 'penalty_served', d.driverId); note(d.ctrl, `${name}: Strafe abgesessen`); break;
       case 'falseStart': say(type, 'false_start', d.driverId); break;
-      case 'redFlag': say(type, 'red_flag'); source?.stopCars(); session.lightsRunning = false; redReason = d.reason; redPen = {}; menuCtrl = null; note(null, d.reason === 'short' ? 'Rote Flagge – Kurzschluss' : 'Rote Flagge', 'red'); break;
+      case 'redFlag': say(type, 'red_flag'); source?.stopCars(); session.lightsRunning = false; redReason = d.reason; redPen = {}; menuCtrl = null; note(null, { short: 'Rote Flagge – Kurzschluss', falseStart: 'Rote Flagge – Fehlstart', buzzer: 'Rote Flagge – Buzzer' }[d.reason] || 'Rote Flagge', 'red'); break;
       case 'resume':
         say(type, 'race_resume');
         overlay = { kind: 'resume', until: performance.now() + 1800 };
@@ -720,7 +746,7 @@
       </div>`;
     })() : '';
 
-    const simHtml = `<div class="lc-sim ${simOpen ? 'open' : ''}">
+    const simHtml = source.kind !== 'sim' ? '' : `<div class="lc-sim ${simOpen ? 'open' : ''}">
         <div class="lc-sim-row"><b>Simulator</b>
           ${[1, 2, 5, 10].map(x => `<button class="lc-btn ${source.speed === x ? 'on' : ''}" data-act="speed" data-x="${x}">×${x}</button>`).join('')}
           <button class="lc-btn lc-danger" data-act="short" ${['green', 'lights'].includes(phase) ? '' : 'disabled'}>Kurzschluss</button>
@@ -731,7 +757,8 @@
       </div>`;
 
     const tick = ticker.map(n => `<span class="lc-tick ${n.kind}" ${n.ctrl ? `style="${ctrlStyle(n.ctrl)}"` : ''}>${n.ctrl ? '<i></i>' : ''}${esc(n.text)}</span>`).join('');
-    const tickHtml = tick || `<span class="lc-tick muted">${!canEdit() ? 'Eingaben nur mit Admin-Anmeldung.' : race ? 'Fahrer antippen für Strafe, Ausfall oder Disqualifikation.' : 'Fahrer antippen für Fahrzeug und Tuning.'}</span>`;
+    const cuWarn = source.kind === 'cu' && cuHub()?.state !== 'connected' ? '<span class="lc-tick red">CU nicht verbunden – Bluetooth prüfen</span>' : '';
+    const tickHtml = cuWarn + tick || `<span class="lc-tick muted">${!canEdit() ? 'Eingaben nur mit Admin-Anmeldung.' : race ? 'Fahrer antippen für Strafe, Ausfall oder Disqualifikation.' : 'Fahrer antippen für Fahrzeug und Tuning.'}</span>`;
 
     // Nur neu aufbauen, wenn sich Knöpfe/Overlays ändern – sonst gehen Fingertipps während des Neuzeichnens verloren
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
@@ -761,7 +788,7 @@
           <div class="lc-trackrec">${trHtml}</div>
           <div class="lc-actions">
             <button class="lc-btn ${voiceOn ? 'on' : ''}" data-act="voice" aria-pressed="${voiceOn}">Ton ${voiceOn ? 'an' : 'aus'}</button>
-            ${canEdit() ? `<button class="lc-btn ${simOpen ? 'on' : ''}" data-act="sim">Sim</button>` : ''}
+            ${canEdit() && source.kind === 'sim' ? `<button class="lc-btn ${simOpen ? 'on' : ''}" data-act="sim">Sim</button>` : ''}
             ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) ? '<button class="lc-btn lc-yellow" data-act="reset">Zurücksetzen</button>' : ''}
             ${canEdit() && (phase === 'green' || (phase === 'lights' && session.lightsRunning)) ? '<button class="lc-btn lc-danger" data-act="red">Rote Flagge</button>' : ''}
             <button class="lc-btn lc-ghost" data-act="end">${phase === 'finished' ? 'Schließen' : endArmed ? 'Nochmal tippen' : 'Beenden'}</button>
@@ -786,6 +813,9 @@
       case 'mode': cfg.mode = b.dataset.mode; saveCfg(); renderSetup(); break;
       case 'clear': delete cfg.assign[ctrl]; saveCfg(); renderSetup(); break;
       case 'fromDraft': fromDraft(); break;
+      case 'src': cfg.source = b.dataset.src; saveCfg(); renderSetup(); break;
+      case 'cuOn': cuHub()?.connect(); renderSetup(); break;
+      case 'cuOff': cuHub()?.disconnect(); break;
       case 'start': startSession(); break;
       case 'lights': lightsGo(); break;
       case 'red': session.redFlag(source.now(), 'manual'); break;
