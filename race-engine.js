@@ -348,6 +348,7 @@
       if (c.inPit) {
         c.pitStops += 1;
         c.pitLastT = t; c.pitStandMs = 0; c.pitThisLap = true;
+        c.pitDriveLeft = this.settings.pitDriveMs;   // Durchfahrtzeit zählt weder für Strafe noch Tanken
         this.emit('pitIn', { ctrl: c.ctrl, driverId: c.driverId, penaltySec: c.penaltyMs / 1000 });
       } else {
         c.inPit = true; this.updatePit(c, t); c.inPit = false;
@@ -357,13 +358,16 @@
       this.emit('change');
     }
 
-    /** Box: erst Strafe absitzen (auch teilweise), dann tanken (refuelPctPerSec). Läuft über tick(). */
+    /** Box: nach der Durchfahrtzeit (pitDriveMs) erst Strafe absitzen (auch teilweise), dann tanken (refuelPctPerSec). Läuft über tick(). */
     updatePit (c, t) {
       if (!c.inPit || c.pitLastT == null) return;
       if (this.phase === 'red' || this.phase === 'finished') { c.pitLastT = t; return; }
       let dt = Math.max(0, t - c.pitLastT);
       c.pitLastT = t;
       c.pitStandMs += dt;
+      const drive = Math.min(dt, c.pitDriveLeft || 0);
+      c.pitDriveLeft = (c.pitDriveLeft || 0) - drive; dt -= drive;
+      if (dt <= 0) return;
       if (c.penaltyMs > 0) {
         const serve = Math.min(dt, c.penaltyMs);
         c.penaltyMs -= serve; dt -= serve;

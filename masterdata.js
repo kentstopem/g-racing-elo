@@ -7,7 +7,7 @@
 //   cars/{id}      + tuning { speed: 0–15, brake: 0–15 } (CU-Stufen; fehlt = nicht festgelegt),
 //                    imageRev (eigenes Bild hochgeladen), practiceLaps (Runden außerhalb gewerteter Rennen)
 //   tracks/{id}    + lengthOuterM, lengthInnerM, refLapMs, minLapMs (kürzere Runden werden ignoriert), imageRev
-//   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor, emptyTankSpeed }
+//   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor, emptyTankSpeed, pitDriveMs }
 //   media/{key}    { data (Data-URL), type, bytes, updatedAt } – Bilder/Töne getrennt von den Stammdaten,
 //                  key: car_<id> | driver_voice_<id> | track_<id>
 (function () {
@@ -34,6 +34,7 @@
     penaltyOptionsSec: [2, 5, 7, 10], // Auswahl im Strafendialog
     pitCallFuelPct: 20,         // „[Fahrer] muss an die Box“ ab diesem Tankstand
     emptyTankSpeed: 4,          // CU-Tempostufe (0–15), solange der Tank leer ist
+    pitDriveMs: 2000,           // Fahrzeit durch die Boxengasse: so lange nach der Einfahrt wird weder Strafe abgesessen noch getankt
     fuelSpeedFactor: 1,         // 0 = Verbrauch unabhängig vom Tempo, 1 = proportional zum Tempo
     voice: 'ingrid'             // Sprachausgabe: 'ingrid' | 'leni' (siehe voice.js)
   });
@@ -61,6 +62,7 @@
       pitCallFuelPct:       Math.max(0, Math.min(100, num(d.pitCallFuelPct, RACE_DEFAULTS.pitCallFuelPct))),
       fuelSpeedFactor:      Math.max(0, Math.min(3, num(d.fuelSpeedFactor, RACE_DEFAULTS.fuelSpeedFactor))),
       emptyTankSpeed:       clampLevel(num(d.emptyTankSpeed, RACE_DEFAULTS.emptyTankSpeed)),
+      pitDriveMs:           Math.max(0, Math.min(30000, Math.round(num(d.pitDriveMs, RACE_DEFAULTS.pitDriveMs)))),
       voice:                ['ingrid', 'leni'].includes(d.voice) ? d.voice : RACE_DEFAULTS.voice
     };
   }

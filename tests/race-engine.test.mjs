@@ -73,7 +73,7 @@ test('Fehlstart: Durchfahrt vor Ampel aus → Strafe aus den Renneinstellungen',
 });
 
 test('Strafen summieren sich und werden scheibchenweise in der Box abgesessen, erst danach wird getankt', () => {
-  const { s, types } = race(30);
+  const { s, types } = race(30, { settings: { pitDriveMs: 0 } });
   s.addPenalty(1, 10); s.addPenalty(1, 13);
   assert.equal(s.standings().find(x => x.ctrl === 1).penaltySec, 23);
   lap(s, 1, 6500);
@@ -92,7 +92,7 @@ test('Strafen summieren sich und werden scheibchenweise in der Box abgesessen, e
 });
 
 test('Leerer Tank meldet Drosselung, Tanken hebt sie auf', () => {
-  const { s, events } = race(60, { settings: { fullTankLaps: 2 } });
+  const { s, events } = race(60, { settings: { fullTankLaps: 2, pitDriveMs: 0 } });
   lap(s, 1, 6500); lap(s, 1, 13500); lap(s, 1, 20500);
   const empty = events.find(e => e[0] === 'fuelEmpty');
   assert.equal(empty[1].level, 4);
@@ -136,7 +136,7 @@ test('Rennzeit pausiert bei Roter Flagge, Gesamtzeit läuft weiter', () => {
 });
 
 test('Tank: Verbrauch je Runde, Boxenfunk, Tanken mit 10 %/s', () => {
-  const { s, types } = race(60, { settings: { fullTankLaps: 25, pitCallFuelPct: 20 } });
+  const { s, types } = race(60, { settings: { fullTankLaps: 25, pitCallFuelPct: 20, pitDriveMs: 0 } });
   let t = 6500;
   lap(s, 1, t);
   for (let i = 0; i < 21; i++) { t += 7000; lap(s, 1, t); }   // 21 Runden à 4 %
@@ -316,4 +316,22 @@ test('Alle fahren volle Distanz: Überrundete fahren nach dem Sieg weiter', () =
   lap(n, 1, 6500); lap(n, 2, 6700); lap(n, 1, 13000); lap(n, 1, 19500); lap(n, 2, 14000);
   assert.equal(n.cars.get(2).finished, true);
   assert.equal(n.cars.get(2).laps, 1);
+});
+
+test('Boxendurchfahrt: die ersten pitDriveMs zählen weder für Strafe noch Tanken', () => {
+  const { s } = race(30);                                        // Standard 2000 ms
+  assert.equal(s.settings.pitDriveMs, 2000);
+  s.addPenalty(1, 5);
+  lap(s, 1, 6500);
+  s.cars.get(1).fuel = 50;
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 10000 });
+  s.tick(11500);
+  assert.equal(s.cars.get(1).penaltyMs, 5000);                  // noch in der Durchfahrt
+  s.tick(14000);                                                // 2 s Durchfahrt + 2 s abgesessen
+  assert.equal(s.cars.get(1).penaltyMs, 3000);
+  s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 14000 });
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 30000 });    // neue Einfahrt: wieder 2 s Durchfahrt
+  s.tick(36000);                                                // 2 s Durchfahrt, 3 s Strafe, 1 s tanken
+  assert.equal(s.cars.get(1).penaltyMs, 0);
+  assert.ok(Math.abs(s.cars.get(1).fuel - 60) < 1e-9);
 });
