@@ -462,6 +462,7 @@
           <div class="form-group"><label for="rsTank">Voller Tank reicht (Runden)</label><input id="rsTank" name="tank" type="number" min="1" max="500" value="${s.fullTankLaps}"></div>
           <div class="form-group"><label for="rsRefuel">Tanken (% pro Sekunde)</label><input id="rsRefuel" name="refuel" inputmode="decimal" value="${fmtNum(s.refuelPctPerSec, 1)}"></div>
           <div class="form-group"><label for="rsPitCall">„Muss an die Box“ ab Tank (%)</label><input id="rsPitCall" name="pitCall" type="number" min="0" max="100" value="${s.pitCallFuelPct}"></div>
+          <div class="form-group"><label for="rsEmpty">Tempo bei leerem Tank (Stufe 0–15)</label><input id="rsEmpty" name="emptyTank" type="number" min="0" max="15" value="${s.emptyTankSpeed}"><small class="muted">${M.levelToPct(s.emptyTankSpeed)} % · bis wieder getankt ist</small></div>
         </div>
         <div class="form-group"><label for="rsFactor">Einfluss des Tempos auf den Verbrauch <strong id="rsFactorVal">${fPct} %</strong></label>
           <div class="tick-range" style="--pct:${fPct / 2}%">
@@ -587,6 +588,7 @@
         fullTankLaps: parseNum(form.tank.value),
         refuelPctPerSec: parseNum(form.refuel.value),
         pitCallFuelPct: parseNum(form.pitCall.value),
+        emptyTankSpeed: parseNum(form.emptyTank.value),
         fuelSpeedFactor: Number(form.factor.value) / 100,
         falseStartPenaltySec: parseNum(form.falseStart.value),
         penaltyOptionsSec: opts,

@@ -670,3 +670,7 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .list-filter label { margin: 0; font-size: 13px; color: var(--text-muted); }
 .list-filter select { width: auto; padding: 6px 10px; font-size: 14px; }
 .list-filter .btn-add { margin: 0 auto 0 0; }
+
+/* Livecenter-Einstieg im Live-Bereich */
+.live-lc { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.live-lc h3 { margin-bottom: 4px; }
