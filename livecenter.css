@@ -404,3 +404,7 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-grid-list .lc-grid-fuel i { width: auto; height: auto; border-radius: 0; box-shadow: none; background: var(--lc-green); }
 .lc-grid-list .lc-grid-fuel.low i { background: var(--lc-pit); }
 .lc-grid-list .lc-grid-fuel span { display: flex; font-size: 15px; }
+
+/* Startaufstellung: Fahrer in Controllerfarbe hinterlegt */
+.lc-grid-list > span { background: var(--cc); color: var(--ct); padding: 8px 10px 8px 16px; border-radius: 12px; box-shadow: 0 0 0 2px rgba(255,255,255,.35); }
+.lc-grid-list > span > i { display: none; }
