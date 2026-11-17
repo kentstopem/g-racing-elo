@@ -115,7 +115,7 @@
 
         <!-- Setup Section (Feature Flag "live", nur Admin): Strecken & Renneinstellungen -->
         <div id="setup" class="section">
-            <h2><svg class="ic" aria-hidden="true"><use id="setupIcon" href="#i-flag"/></svg><span id="setupTitle">Strecken</span></h2>
+            <h2><svg class="ic" aria-hidden="true"><use id="setupIcon" href="#i-flag"/></svg><span id="setupTitle">Strecken</span> <span class="live-beta">Test</span></h2>
             <div id="setupRoot"></div>
         </div>
 
@@ -162,13 +162,13 @@
             <div id="raceEntries"></div>
         </div>
         
-        <!-- Live-Zeitnahme (nur Admin) -->
+        <!-- Live-Zeitnahme (Feature Flag "live", nur Admin) -->
         <div id="live" class="section">
-            <h2><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg>Live-Zeitnahme</h2>
+            <h2><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg>Live-Zeitnahme <span class="live-beta">Test</span></h2>
             <div class="live-card live-lc">
                 <div>
                     <h3>Livecenter</h3>
-                    <p class="live-hint">Training, Qualifying und Rennen im Vollbild für iPad und Fernseher, direkt mit der Control Unit.</p>
+                    <p class="live-hint">Training, Qualifying und Rennen im Vollbild für iPad und Fernseher. Vorerst mit Simulator.</p>
                 </div>
                 <button class="btn btn-primary" id="openLivecenter" onclick="window.Livecenter.open()"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>Livecenter öffnen</button>
             </div>
@@ -414,7 +414,6 @@
     <script src="live.js" defer></script>
     <script src="race-engine.js" defer></script>
     <script src="live-sim.js" defer></script>
-    <script src="cu-source.js" defer></script>
     <script src="livecenter.js" defer></script>
 
     <!-- PWA: Service Worker für Offline-Start -->

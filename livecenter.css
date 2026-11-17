@@ -372,10 +372,3 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 @media (max-width: 1150px) { .lc-table th, .lc-table td { padding-left: 8px; padding-right: 8px; } .lc-table { font-size: 17px; } }
 .lc-table th { white-space: nowrap; }
 .lc-menu-btns .lc-btn { padding: 0 8px; font-size: 18px; min-width: 0; }
-
-/* Control Unit im Setup */
-.lc-cu { gap: 12px 16px; margin-top: 10px; }
-.lc-cu-state { font-weight: 600; }
-.lc-cu-state.connected { color: #3ddc84; }
-.lc-cu-state.lost { color: #ff5a5a; }
-.lc-note.warn { color: #ffb347; }

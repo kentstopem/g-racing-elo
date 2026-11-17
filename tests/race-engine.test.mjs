@@ -353,19 +353,3 @@ test('Boxendurchfahrt: zählt live, wird beim Rausfahren abgezogen (erst Tanken,
   s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 75000 });
   assert.equal(s.cars.get(1).fuel, 100);
 });
-
-test('CU: Buzzer = Rote Flagge, Fehlstart ohne Fahrer = Rote Flagge vor dem Start', () => {
-  const { s, types } = race(30);
-  s.handle({ type: 'stop', t: 8000 });
-  assert.equal(s.phase, 'red');
-  const s2 = new RaceEngine.Session({ mode: 'race', laps: 5, entries, track, settings: {} });
-  s2.start(0);
-  s2.handle({ type: 'lights', step: 2, t: 2000 });
-  s2.handle({ type: 'falseStart', t: 2500 });
-  assert.equal(s2.phase, 'red');
-  assert.ok(s2.resume(4000));
-  assert.equal(s2.phase, 'lights');
-  s2.handle({ type: 'go', t: 9000 });
-  assert.equal(s2.phase, 'green');
-  assert.equal(s2.goT, 9000);
-});

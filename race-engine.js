@@ -10,8 +10,6 @@
 //   { type: 'pit', ctrl, inPit, t }        Fahrzeug fährt in die Box / verlässt sie
 //   { type: 'falseStart', ctrl, t }        Fehlstart (von der CU erkannt)
 //   { type: 'short', t }                   Kurzschluss → sofort Rote Flagge
-//   { type: 'stop', t }                    Start-Taste/Buzzer an der CU während der Fahrt → Rote Flagge
-//   { type: 'falseStart', t } ohne ctrl     Fehlstart, CU weiß nicht wer → Rote Flagge mit Strafendialog
 //
 // Ausgehende Meldungen (on(fn) → fn(type, data)), z. B. für Sprachausgabe und Laufschrift:
 //   lap, fastestLap, personalRecord, carRecord, trackRecord, pitCall, fuelEmpty, pitIn, pitOut, refueled,
@@ -79,9 +77,8 @@
         case 'go': return this.onGo(ev);
         case 'lap': return this.onLap(ev);
         case 'pit': return this.onPit(ev);
-        case 'falseStart': return ev.ctrl == null ? this.redFlag(ev.t, 'falseStart') : this.onFalseStart(ev.ctrl, ev.t);
+        case 'falseStart': return this.onFalseStart(ev.ctrl, ev.t);
         case 'short': return this.redFlag(ev.t, 'short');
-        case 'stop': return this.redFlag(ev.t, 'buzzer');
       }
     }
 
@@ -420,7 +417,7 @@
 
     redFlag (t, reason = 'manual') {
       if (!['green', 'lights'].includes(this.phase)) return;
-      if (this.phase === 'lights' && this.goT == null && reason !== 'falseStart') { this.phase = 'ready'; this.lights = 0; this.emit('redFlag', { reason, beforeStart: true }); return; }
+      if (this.phase === 'lights' && this.goT == null) { this.phase = 'ready'; this.lights = 0; this.emit('redFlag', { reason, beforeStart: true }); return; }
       if (this.phase === 'green') this.redAt = t;
       for (const c of this.cars.values()) if (c.inPit) this.updatePit(c, t);
       this.phase = 'red';
