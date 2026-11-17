@@ -277,7 +277,7 @@
       const own = records.filter(r => r.driverId === e.driverId && r.carId === e.carId).map(r => r.ms);
       return { ctrl: e.ctrl, paceMs: own.length ? Math.min(...own) * rnd(1.01, 1.05) : ref * rnd(0.84, 0.95) };
     }), { refLapMs: ref });
-    entries.forEach(e => source.setTuning?.(e.ctrl, tuningOf(e.carId)));   // Tuning der Fahrzeuge an die Bahn
+    entries.forEach(e => source.setTuning?.(e.ctrl, tuningOf(e.carId)));   // Tuning merken (CU: ist im Auto gespeichert, nur bei Änderung senden)
     source.setPitInfo?.(ctrl => {
       const c = session?.cars.get(ctrl);
       return c ? { fuel: session.fuelOn ? c.fuel : null, penaltyLeftMs: c.inPit ? c.penaltyMs : 0, penaltyOpen: c.penaltyMs > 0 } : {};
@@ -877,7 +877,7 @@
       if (session.changeCar(ctrl, carId)) {
         const c = session.cars.get(ctrl);
         source?.setPace?.(ctrl, simPace(c.driverId, carId));
-        source?.setTuning?.(ctrl, tuningOf(carId));
+        source?.setTuning?.(ctrl, tuningOf(carId), { send: true });
         note(ctrl, `${driverName(c.driverId)} fährt jetzt ${carName(carId)}`);
       }
       shellKey = ''; renderLive(); return;
@@ -887,7 +887,7 @@
       const c = session.cars.get(+tune.dataset.ctrl);
       const t = { ...tuningOf(c.carId), [tune.dataset.tune]: MD.clampLevel(tune.value) };
       saveTuning(c.carId, t);
-      source?.setTuning?.(c.ctrl, t);
+      source?.setTuning?.(c.ctrl, t, { send: true });
       shellKey = ''; renderLive(); return;
     }
     const rec = e.target.closest('input[data-rec]');

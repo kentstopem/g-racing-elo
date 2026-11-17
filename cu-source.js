@@ -93,17 +93,19 @@
     /** Rote Flagge / Rennende: CU auf Rot halten */
     stopCars () { this.want = 'hold'; this.drive(); }
 
-    setTuning (ctrl, { speed, brake } = {}) {
+    // Gas/Bremse programmiert die CU ins Auto (Lampen an der CU leuchten, bis das Auto über einen
+    // Sensor fährt). Während dieser Zeit meldet die CU Durchfahrten/Ampel unzuverlässig (Test 17.11.2026).
+    // Deshalb nur auf ausdrücklichen Wunsch senden (Tuning-Menü), nicht automatisch beim Start.
+    setTuning (ctrl, { speed, brake } = {}, { send = false } = {}) {
       const t = this.tuning[ctrl] = { speed: speed ?? 15, brake: brake ?? 15 };
-      if (this.limit[ctrl] == null) hub.send(C().speed(ctrl, t.speed));
+      if (!send) return;
+      this.programmedAt = performance.now();
+      hub.send(C().speed(ctrl, t.speed));
       hub.send(C().brake(ctrl, t.brake));
     }
 
-    /** Leerer Tank: Tempo begrenzen (null = zurück auf das Tuning des Fahrzeugs) */
-    limitSpeed (ctrl, level) {
-      this.limit[ctrl] = level;
-      hub.send(C().speed(ctrl, level ?? this.tuning[ctrl]?.speed ?? 15));
-    }
+    /** Leerer Tank: vorerst ohne Drosselung über die CU (siehe setTuning) */
+    limitSpeed (ctrl, level) { this.limit[ctrl] = level; }
 
     press (button) { hub.send(C().press(button)); this.lastSend = performance.now(); }
 
@@ -151,7 +153,7 @@
           this.emit({ type: 'go' });
         } else if (st === 9 || st === 8) {
           if (prev !== 8 && prev !== 9) { this.counting = false; this.want = 'hold'; this.emit({ type: 'falseStart' }); }
-        } else if (st === 1 && prev === 0 && this.want !== 'start' && this.want !== 'hold') {
+        } else if (st === 1 && prev === 0 && this.want !== 'start' && this.want !== 'hold' && !(performance.now() - (this.programmedAt || 0) < 15000)) {
           this.want = 'hold';
           this.emit({ type: 'stop' });                                          // Start-Taste oder Buzzer
         }
@@ -168,8 +170,6 @@
       clearInterval(this.loop);
       this.unsub?.();
       this.listeners = [];
-      // gedrosselte Fahrzeuge wieder auf ihr Tuning
-      for (const [ctrl, l] of Object.entries(this.limit)) if (l != null) hub.send(C().speed(+ctrl, this.tuning[ctrl]?.speed ?? 15));
     }
   }
 
