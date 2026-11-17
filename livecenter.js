@@ -225,7 +225,7 @@
         ${st === 'connected' ? '<button class="lc-btn" data-act="cuOff">Trennen</button>' : `<button class="lc-btn lc-primary" data-act="cuOn" ${st === 'connecting' ? 'disabled' : ''}>Mit CU verbinden</button>`}
       </div>
       ${h.error && st !== 'connected' ? `<p class="lc-note warn">${esc(h.error)}</p>` : ''}
-      <p class="lc-note">SmartRace vorher schließen – die CU nimmt nur eine Verbindung an. Die Verbindung gilt auch für die Live-Zeitnahme.</p>`;
+      <p class="lc-note">SmartRace vorher schließen – die CU nimmt nur eine Verbindung an.</p>`;
   }
   let cuWatch = null;
   function watchCu () {
