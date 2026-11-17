@@ -186,7 +186,7 @@
       }
       const raw = t - c.lastCross - c.pausedMs;
       const minLap = MD().trackSetup(this.track).minLapMs || 0;
-      if (!c.interrupted && raw < minLap) return;    // zu kurz (Doppelmeldung / Fehlimpuls)
+      if (!c.interrupted && raw < minLap) { c.rejectedMs = raw; return; }   // zu kurz (Doppelmeldung / Fehlimpuls)
       const interrupted = c.interrupted;
       c.lastCross = t; c.pausedMs = 0; c.interrupted = false;
       c.laps += 1;
