@@ -384,7 +384,7 @@
     /** Box: erst Strafe absitzen (auch teilweise), dann tanken (refuelPctPerSec). Läuft über tick(). Fahrzeit siehe pitDriveCorrection. */
     updatePit (c, t) {
       if (!c.inPit || c.pitLastT == null) return;
-      if (this.phase === 'red' || this.phase === 'finished') { c.pitLastT = t; return; }
+      if (this.phase !== 'green') { c.pitLastT = t; return; }        // Rote Flagge, Startampel danach, Ende: Boxenzeit steht
       let dt = Math.max(0, t - c.pitLastT);
       c.pitLastT = t;
       c.pitStandMs += dt;

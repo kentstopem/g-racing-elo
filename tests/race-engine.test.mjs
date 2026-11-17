@@ -84,6 +84,23 @@ test('CU: Durchfahrten vor dem Start geben keine Fehlstart-Strafe (lapFalseStart
   assert.ok(s.standings().every(x => !x.penaltySec));
 });
 
+test('Boxenzeit steht bei Roter Flagge und während der Startampel danach', () => {
+  const { s } = race(30, { settings: { pitDriveMs: 0 } });
+  s.addPenalty(1, 20);
+  lap(s, 1, 6500);
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 10000 });
+  s.tick(12000);                                                // 2 s abgesessen
+  s.redFlag(12000, 'buzzer');
+  s.tick(30000);
+  s.resume(30000);                                              // Startampel läuft
+  s.tick(40000);
+  assert.equal(s.cars.get(1).penaltyMs, 18000);
+  assert.equal(s.cars.get(1).pitStandMs, 2000);
+  s.handle({ type: 'go', t: 45000 });
+  s.tick(48000);
+  assert.equal(s.cars.get(1).penaltyMs, 15000);
+});
+
 test('Strafen summieren sich und werden scheibchenweise in der Box abgesessen, erst danach wird getankt', () => {
   const { s, types } = race(30, { settings: { pitDriveMs: 0 } });
   s.addPenalty(1, 10); s.addPenalty(1, 13);
