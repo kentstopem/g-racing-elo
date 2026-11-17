@@ -74,6 +74,7 @@
       this.counting = false;     // Countdown der CU läuft
       this.want = null;          // null | 'start' | 'release' | 'hold'
       this.lastSend = 0;
+      this.diag = { timers: 0, used: 0, last: null, msgs: 0 };   // Anzeige im Livecenter zur Fehlersuche
       this.unsub = hub.subscribe(ev => this.onCu(ev));
       this.loop = setInterval(() => this.drive(), 150);
     }
@@ -123,7 +124,9 @@
     }
 
     onCu (ev) {
+      this.diag.msgs++;
       if (ev.type === 'timer') {
+        this.diag.timers++; this.diag.last = { addr: ev.address, sector: ev.sector };
         if (ev.sector !== 1 || ev.address < 1 || ev.address > 8) return;
         if (this.lastTs[ev.address] === ev.timestamp) return;
         this.lastTs[ev.address] = ev.timestamp;
@@ -131,6 +134,7 @@
         // CU-Uhr → Uhr der App; springt die CU-Uhr (Neustart), neu ausrichten
         if (this.offset == null || diff < this.offset || diff - this.offset > 3000) this.offset = diff;
         if (this.ctrls.size && !this.ctrls.has(ev.address)) return;
+        this.diag.used++;
         this.emit({ type: 'lap', ctrl: ev.address, t: ev.timestamp + this.offset });
         return;
       }

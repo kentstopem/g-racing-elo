@@ -758,7 +758,9 @@
 
     const tick = ticker.map(n => `<span class="lc-tick ${n.kind}" ${n.ctrl ? `style="${ctrlStyle(n.ctrl)}"` : ''}>${n.ctrl ? '<i></i>' : ''}${esc(n.text)}</span>`).join('');
     const cuWarn = source.kind === 'cu' && cuHub()?.state !== 'connected' ? '<span class="lc-tick red">CU nicht verbunden – Bluetooth prüfen</span>' : '';
-    const tickHtml = cuWarn + tick || `<span class="lc-tick muted">${!canEdit() ? 'Eingaben nur mit Admin-Anmeldung.' : race ? 'Fahrer antippen für Strafe, Ausfall oder Disqualifikation.' : 'Fahrer antippen für Fahrzeug und Tuning.'}</span>`;
+    const dg = source.diag;
+    const cuDiag = dg ? `<span class="lc-tick muted">CU: ${dg.msgs} Meldungen · ${dg.timers} Durchfahrten (${dg.used} gewertet)${dg.last ? ` · zuletzt ${esc(MD.controller(dg.last.addr)?.name || 'Regler ' + dg.last.addr)} Sensor ${dg.last.sector}` : ''} · Ampel ${cuHub()?.lastStatus?.start ?? '–'} · Phase ${phase}</span>` : '';
+    const tickHtml = cuWarn + cuDiag + tick || `<span class="lc-tick muted">${!canEdit() ? 'Eingaben nur mit Admin-Anmeldung.' : race ? 'Fahrer antippen für Strafe, Ausfall oder Disqualifikation.' : 'Fahrer antippen für Fahrzeug und Tuning.'}</span>`;
 
     // Nur neu aufbauen, wenn sich Knöpfe/Overlays ändern – sonst gehen Fingertipps während des Neuzeichnens verloren
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
