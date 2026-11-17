@@ -10,7 +10,6 @@
   const CONTROLLERS = [1, 2, 3, 4, 5, 6];
 
   let root = null;
-  let conn = null;
   let state = 'idle';           // idle | connecting | connected | lost
   let tracker = new CU.LapTracker();
   let bests = {};               // Bestzeiten des Abends je Fahrer+Fahrzeug
@@ -100,6 +99,7 @@
   }
 
   function renderConn () {
+    if (window.LiveCU) { ensureSub(); state = hub().state; }
     const el = root.querySelector('#liveState');
     const hint = root.querySelector('#liveHint');
     const texts = { idle: 'Nicht verbunden', connecting: 'Verbinde …', connected: 'Verbunden', lost: 'Verbindung verloren' };
@@ -175,35 +175,33 @@
 
   // ---------- Aktionen ----------
 
-  async function connect () {
-    state = 'connecting'; renderConn();
-    conn = conn || new CU.Connection({
-      onMessage,
-      log: msg => console.log('[CU]', msg),
-      onReconnect: () => { state = 'connected'; renderConn(); showToast('CU wieder verbunden'); },
-      onDisconnect: () => {
-        const wasManual = conn?.manual;
-        state = wasManual ? 'idle' : 'lost'; renderConn();
-        if (!wasManual) showToast('Verbindung zur CU verloren', { icon: 'alert' });
-        wakeLock?.release?.(); wakeLock = null;
-      }
+  // Gemeinsame Verbindung mit dem Livecenter (cu-source.js) – die CU nimmt nur eine Verbindung an
+  const hub = () => window.LiveCU.hub;
+  let subscribed = false;
+  function ensureSub () {
+    if (subscribed) return;
+    subscribed = true;
+    hub().subscribe(onMessage);
+    hub().onState(s => {
+      const before = state;
+      state = s === 'lost' ? 'lost' : s;
+      if (s === 'lost' && before === 'connected') showToast('Verbindung zur CU verloren', { icon: 'alert' });
+      if (s !== 'connected') { wakeLock?.release?.(); wakeLock = null; }
+      renderConn();
     });
-    try {
-      await conn.connect();
-      state = 'connected';
-      conn.startPolling();
-      try { wakeLock = await navigator.wakeLock?.request('screen'); } catch (e) {}
-    } catch (err) {
-      state = 'idle';
-      if (err.name !== 'NotFoundError') showToast(`Verbinden fehlgeschlagen: ${err.message}`, { icon: 'alert' });
-    }
+  }
+
+  async function connect () {
+    ensureSub();
+    await hub().connect();
+    if (hub().state === 'connected') { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch (e) {} }
+    else if (hub().error && !/cancel|chosen/i.test(hub().error)) showToast(`Verbinden fehlgeschlagen: ${hub().error}`, { icon: 'alert' });
     renderConn();
   }
 
-  function disconnect () { conn?.disconnect(); }
+  function disconnect () { hub().disconnect(); }
 
-  function onMessage (raw) {
-    const ev = CU.parse(raw);
+  function onMessage (ev) {
     if (ev.type === 'status') {
       const changed = !lastStatus || lastStatus.start !== ev.start || lastStatus.mode !== ev.mode;
       lastStatus = ev;
