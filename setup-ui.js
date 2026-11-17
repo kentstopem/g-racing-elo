@@ -187,8 +187,12 @@
         const cur = window.appData.drivers.find(x => x.id === id);
         const text = pronText();
         // Noch kein eigener Ton oder Schreibweise geändert, aber nicht angehört → beim Speichern erzeugen
-        if (pending?.text !== text && window.Voice.savedText(cur) !== text && window.Voice.azureConfig()) {
-          try { pending = { data: await readAsDataUrl(await window.Voice.synthesize(text)), text }; } catch (err) { console.warn(err); }
+        const changed = pending?.text !== text && window.Voice.savedText(cur) !== text;
+        if (changed && window.Voice.azureConfig()) {
+          try { pending = { data: await readAsDataUrl(await window.Voice.synthesize(text)), text }; }
+          catch (err) { console.warn(err); showToast(`Name nicht neu erzeugt: ${err.message || 'Fehler'} – es bleibt der alte Ton`, { icon: 'alert' }); }
+        } else if (changed && window.Voice.savedText(cur)) {
+          showToast('Name nicht neu erzeugt: Auf diesem Gerät fehlt der Sprach-Schlüssel (Setup → Renneinstellungen → Sprachausgabe). Es bleibt der alte Ton.', { icon: 'alert' });
         }
         if (pending?.text !== text) return;
         const v = window.Voice.voice();   // gespeichert wird in der gerade aktiven Stimme
