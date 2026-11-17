@@ -709,15 +709,17 @@
 
     const lightsHtml = (() => {
       if (overlay && now < overlay.until && overlay.kind === 'go') return `<div class="lc-lights go"><div class="lc-lamps">${'<i></i>'.repeat(5)}</div><div class="lc-go">LOS!</div></div>`;
-      if (overlay && now < overlay.until && overlay.kind === 'resume') return '<div class="lc-lights"><div class="lc-go">Weiter geht\'s!</div></div>';
+      // Startaufstellung mit Tank (vor dem Start alle 100 %, nach Roter Flagge der echte Stand)
+      const gridHtml = `<div class="lc-grid-list">${st.map(s => `<span style="${ctrlStyle(s.ctrl)}"><i></i>${who(s.driverId)}${session.fuelOn && !s.status ? `<span class="lc-fuel lc-grid-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : ''}</span>`).join('')}</div>`;
+      if (overlay && now < overlay.until && overlay.kind === 'resume') return `<div class="lc-lights"><div class="lc-go">Weiter geht's!</div>${gridHtml}</div>`;
       if (phase !== 'lights') return '';
       const lit = session.lights;
       const ready = !session.lightsRunning;
       return `<div class="lc-lights">
         <div class="lc-lamps">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= lit ? 'on' : ''}"></i>`).join('')}</div>
         ${ready && !canEdit() ? '<p class="lc-note">Start nur mit Admin-Anmeldung</p>' : ''}
-        ${ready && canEdit() ? `<div class="lc-grid-list">${st.map(s => `<span style="${ctrlStyle(s.ctrl)}"><i></i>${who(s.driverId)}</span>`).join('')}</div>
-          <button class="lc-btn lc-primary lc-big" data-act="lights">${session.restarts ? 'Weiter geht\'s' : 'Rennen starten'}</button>` : ''}
+        ${gridHtml}
+        ${ready && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="lights">${session.restarts ? 'Weiter geht\'s' : 'Rennen starten'}</button>` : ''}
       </div>`;
     })();
 

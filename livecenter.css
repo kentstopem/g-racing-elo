@@ -398,3 +398,9 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-endask { position: absolute; inset: 76px 0 0 0; z-index: 8; background: rgba(8,9,11,.82); display: flex; align-items: center; justify-content: center; }
 .lc-endask-box { background: var(--lc-panel, #1B1D22); border: 1px solid var(--lc-line); border-radius: 16px; padding: 28px 32px; display: flex; flex-direction: column; gap: 14px; min-width: 340px; text-align: center; }
 .lc-endask-box h3 { margin: 0 0 6px; font-size: 26px; }
+
+/* Tank in der Startaufstellung (Countdown) */
+.lc-grid-list .lc-grid-fuel { display: block; width: 84px; height: 30px; background: rgba(0,0,0,.35); }
+.lc-grid-list .lc-grid-fuel i { width: auto; height: auto; border-radius: 0; box-shadow: none; background: var(--lc-green); }
+.lc-grid-list .lc-grid-fuel.low i { background: var(--lc-pit); }
+.lc-grid-list .lc-grid-fuel span { display: flex; font-size: 15px; }
