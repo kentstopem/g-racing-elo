@@ -104,7 +104,8 @@
   }
 
   function close () {
-    stopSession();
+    // Rennen beendet, aber noch nicht an G!RP übergeben: Sicherung behalten (Livecenter bietet „Fortsetzen“ an)
+    stopSession({ keepSnap: !!session && session.mode === 'race' && session.phase === 'finished' && !girpDone });
     root.hidden = true;
     document.documentElement.classList.remove('lc-open');
     window.Livecenter.onClose?.();
@@ -135,10 +136,10 @@
     }
   }
 
-  function stopSession () {
+  function stopSession ({ keepSnap = false } = {}) {
     try { countLaps(); } catch (e) { console.error(e); }
     clearInterval(loop); loop = null;
-    if (session) clearSnap();
+    if (session && !keepSnap) clearSnap();
     source?.close(); source = null;
     session = null;
     wakeLock?.release?.(); wakeLock = null;
@@ -911,7 +912,7 @@
             ${canEdit() && source.kind === 'sim' ? `<button class="lc-btn ${simOpen ? 'on' : ''}" data-act="sim">Sim</button>` : ''}
             ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) ? '<button class="lc-btn lc-yellow" data-act="reset">Zurücksetzen</button>' : ''}
             ${canEdit() && (phase === 'green' || (phase === 'lights' && session.lightsRunning)) ? '<button class="lc-btn lc-danger" data-act="red">Rote Flagge</button>' : ''}
-            <button class="lc-btn lc-ghost" data-act="end">${phase === 'finished' ? 'Schließen' : 'Beenden'}</button>
+            ${phase === 'finished' ? '' : '<button class="lc-btn lc-ghost" data-act="end">Beenden</button>'}
           </div>
         </header>
         <div class="lc-head-row">${head}</div>
