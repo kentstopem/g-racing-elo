@@ -523,6 +523,39 @@
       return { gap: ref == null ? null : Math.max(0, mine - ref), gapLaps: 0 };
     }
 
+    /**
+     * Sicherung für „Rennen nach Absturz fortsetzen“ (reines JSON). t = aktuelle Uhr der Quelle.
+     * Nach einem Neuladen beginnt die Uhr bei 0 – restore() verschiebt deshalb alle Zeitpunkte.
+     */
+    snapshot (t) {
+      const keep = ['phase', 'lights', 'goT', 'redAt', 'endT', 'lastT', 'restarts', 'redTotalMs', 'sessionBest', 'leaderFinished', 'lapsCounted'];
+      return JSON.parse(JSON.stringify({
+        v: 1, savedT: t ?? this.lastT ?? 0,
+        opts: { mode: this.mode, laps: this.laps, track: this.track, settings: this.settings, records: this.records, fuel: this.fuelOn, finishCount: this.finishCount, dqOpenPenalties: this.dqOpenPenalties, fullDistance: this.fullDistance, lapFalseStart: this.lapFalseStart },
+        state: Object.fromEntries(keep.map(k => [k, this[k] ?? null])),
+        cars: [...this.cars.values()]
+      }));
+    }
+
+    /** Sitzung aus snapshot() wiederherstellen; was lief, steht danach auf Rot (Rennen: „Weiter geht's“ + Startampel) */
+    static restore (snap, t) {
+      const s = new Session({ ...snap.opts, entries: snap.cars });
+      Object.assign(s, snap.state);
+      const d = t - snap.savedT;
+      const sh = x => (x == null ? x : x + d);
+      s.goT = sh(s.goT); s.redAt = sh(s.redAt); s.endT = sh(s.endT); s.lastT = t;
+      if (s.endT == null) delete s.endT;
+      for (const c of snap.cars) {
+        Object.assign(c, { lastCross: sh(c.lastCross), finishT: sh(c.finishT), pitLastT: sh(c.pitLastT), crossings: (c.crossings || []).map(sh) });
+        s.cars.set(Number(c.ctrl), c);
+      }
+      s.lights = 0;
+      if (s.phase === 'green') { s.phase = 'red'; s.redAt = t; }
+      else if (s.phase === 'lights' && s.goT != null) s.phase = 'red';       // Neustart-Ampel lief gerade: wieder Rot
+      s.restored = true;
+      return s;
+    }
+
     /** Für das Ergebnis: Reihenfolge + Paarungen, so wie sie später bestätigt und gespeichert werden */
     result () {
       return this.standings().map(s => ({ position: s.pos, driverId: s.driverId, carId: s.carId, laps: s.laps, best: s.best, total: s.total, penaltySec: s.penaltySec }));

@@ -398,3 +398,30 @@ test('CU: Buzzer = Rote Flagge, Fehlstart ohne Fahrer = Rote Flagge vor dem Star
   assert.equal(s2.phase, 'green');
   assert.equal(s2.goT, 9000);
 });
+
+test('Absturz: Sitzung sichern und mit neuer Uhr fortsetzen (steht auf Rot, danach Ampel)', () => {
+  const { s } = race(10, { settings: { pitDriveMs: 0 } });
+  lap(s, 1, 7000); lap(s, 1, 15000); lap(s, 2, 7200); lap(s, 2, 15500);
+  s.addPenalty(2, 5);
+  const snap = JSON.parse(JSON.stringify(s.snapshot(18000)));
+  const r = RaceEngine.Session.restore(snap, 500);             // Seite neu geladen: Uhr fängt wieder klein an
+  assert.equal(r.phase, 'red');
+  assert.equal(r.cars.get(1).laps, 1);
+  assert.equal(r.cars.get(2).penaltyMs, 5000);
+  assert.equal(r.cars.get(1).lastCross, 15000 - 17500);
+  assert.ok(r.resume(2000));
+  assert.equal(r.phase, 'lights');
+  r.handle({ type: 'go', t: 4000 });
+  lap(r, 1, 7000);                                             // 3 s vor dem Absturz + 3 s nach Los
+  assert.equal(r.cars.get(1).laps, 2);
+  assert.equal(r.cars.get(1).last, 6000);
+  assert.equal(r.cars.get(1).lapTimes.at(-1).interrupted, true);
+});
+
+test('Absturz vor dem Start: Ampel bleibt bereit', () => {
+  const s = new RaceEngine.Session({ mode: 'race', laps: 5, entries, track });
+  s.start(0);
+  const r = RaceEngine.Session.restore(s.snapshot(1000), 10);
+  assert.equal(r.phase, 'lights');
+  assert.equal(r.goT, null);
+});

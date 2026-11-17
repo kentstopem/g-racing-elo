@@ -34,6 +34,7 @@
   let girpDone = false;
   let baseRecords = [];        // Rekorde dieser Strecke beim Start der Sitzung
   let resTab = 'result';       // Ergebnis-Seite: result | details | laps | stats
+  let discardArmed = false;   // „Verwerfen“ der gesicherten Sitzung zweimal tippen
   let qualiBests = {};         // beste Quali-Runde je Paarung ("driverId|carId" → ms), fürs Rennen danach
 
   // ---------- Daten aus der App ----------
@@ -136,6 +137,7 @@
   function stopSession () {
     try { countLaps(); } catch (e) { console.error(e); }
     clearInterval(loop); loop = null;
+    if (session) clearSnap();
     source?.close(); source = null;
     session = null;
     wakeLock?.release?.(); wakeLock = null;
@@ -198,6 +200,20 @@
       return `<p class="lc-note">Voller Tank reicht ca. ${Math.round(plan.lapsPerTank)} Runden bei ${ref} ms Rundenzeit${plan.stops ? ` · ${plan.stops} Boxenstopp${plan.stops > 1 ? 's' : ''} nötig` : ''}</p>`;
     })() : '';
 
+    const saved = readSnap();
+    const resumeBar = !saved ? '' : (() => {
+      const o = saved.snap.opts, n = saved.snap.cars.length;
+      const lapsDone = Math.max(0, ...saved.snap.cars.map(c => c.laps || 0));
+      const mins = Math.max(0, Math.round((Date.now() - saved.at) / 60000));
+      const what = `${MODE_LABEL[o.mode] || 'Sitzung'}${o.mode === 'race' ? ` · Rd. ${lapsDone} von ${o.laps}` : ` · ${lapsDone} Rd.`}${saved.snap.state.phase === 'finished' ? ' · beendet, noch nicht gespeichert' : ''}`;
+      const ok = canEdit() && (cfg.source === 'sim' || cuHub()?.state === 'connected');
+      return `<div class="lc-resume-bar">
+        <div><b>Unterbrochen: ${esc(what)}</b><span>${n} Fahrer · gesichert ${mins < 1 ? 'gerade eben' : `vor ${mins} Min.`}${ok || !canEdit() ? '' : ' · erst mit der CU verbinden'}</span></div>
+        ${canEdit() ? `<button class="lc-btn lc-ghost" data-act="discardSaved">${discardArmed ? 'Wirklich verwerfen?' : 'Verwerfen'}</button>
+        <button class="lc-btn lc-primary" data-act="resumeSaved" ${ok ? '' : 'disabled'}>Fortsetzen</button>` : ''}
+      </div>`;
+    })();
+
     root.innerHTML = `
       <div class="lc-setup">
         <header class="lc-top">
@@ -205,6 +221,7 @@
           <div class="lc-track">${esc(t.name || 'Keine Strecke')}</div>
           <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
         </header>
+        ${resumeBar}
         <div class="lc-setup-grid">
           <section class="lc-card">
             <h3>Was wird gefahren?</h3>
@@ -297,6 +314,16 @@
     resTab = 'result';
     redPen = {}; redReason = ''; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; baseRecords = records.slice();
     session.on(onEngine);
+    attachSource(entries, records, t);
+    ticker = []; lapFlash = {}; overlay = null; menuCtrl = null; shellKey = '';
+    view = 'live';
+    session.start(source.now());
+    if (session.phase === 'green') source.release(); else source.stopCars?.();   // Rennen: Rot bis zur Startampel
+    runLoop();
+  }
+
+  /** Datenquelle (CU oder Simulator) anlegen und mit der Sitzung verbinden */
+  function attachSource (entries, records, t) {
     source = cfg.source === 'cu' && window.LiveCU ? new window.LiveCU.CuSource() : new window.LiveSim.SimSource();
     const ref = MD.trackSetup(t).refLapMs || 7000;
     const rnd = (a, b) => a + Math.random() * (b - a);
@@ -310,13 +337,51 @@
       return c ? { fuel: session.fuelOn ? c.fuel : null, penaltyLeftMs: c.inPit ? c.penaltyMs : 0, penaltyOpen: c.penaltyMs > 0 } : {};
     });
     source.on(ev => { session?.handle(ev); });
-    ticker = []; lapFlash = {}; overlay = null; menuCtrl = null; shellKey = '';
-    view = 'live';
-    session.start(source.now());
-    if (session.phase === 'green') source.release(); else source.stopCars?.();   // Rennen: Rot bis zur Startampel
-    loop = setInterval(() => { if (!session) return; session.tick(source.now()); renderLive(); }, 200);
+  }
+
+  function runLoop () {
+    clearInterval(loop);
+    loop = setInterval(() => { if (!session) return; session.tick(source.now()); saveSnap(); renderLive(); }, 200);
     try { navigator.wakeLock?.request('screen').then(l => { wakeLock = l; }).catch(() => {}); } catch (e) {}
+    saveSnap(true);
     renderLive();
+  }
+
+  // ---------- Sicherung: Rennen nach Absturz / Neuladen fortsetzen ----------
+  const SNAP = 'lcSession';
+  let snapAt = 0;
+  function saveSnap (force = false) {
+    if (!session || !source || (!force && Date.now() - snapAt < 1000)) return;
+    snapAt = Date.now();
+    try {
+      localStorage.setItem(SNAP, JSON.stringify({ at: snapAt, snap: session.snapshot(source.now()), qualiBests, baseRecords, redReason, lightsRunning: false }));
+    } catch (e) { console.warn('Sicherung fehlgeschlagen', e); }
+  }
+  function readSnap () {
+    try { const x = JSON.parse(localStorage.getItem(SNAP) || 'null'); return x?.snap?.v === 1 ? x : null; } catch (e) { return null; }
+  }
+  function clearSnap () { try { localStorage.removeItem(SNAP); } catch (e) {} }
+
+  function restoreSession () {
+    const saved = readSnap();
+    if (!saved || session) return;
+    const records = saved.snap.opts.records || [];
+    const entries = saved.snap.cars.map(c => ({ ctrl: c.ctrl, driverId: c.driverId, carId: c.carId }));
+    qualiBests = saved.qualiBests || {};
+    baseRecords = saved.baseRecords || records.slice();
+    resTab = 'result'; redPen = {}; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false;
+    attachSource(entries, records, saved.snap.opts.track || {});
+    session = window.RaceEngine.Session.restore(saved.snap, source.now());
+    session.on(onEngine);
+    // CU: Boxenstatus wie vor dem Absturz annehmen, damit nur echte Änderungen gemeldet werden
+    if (source.pit) for (const c of session.cars.values()) source.pit[c.ctrl] = !!c.inPit;
+    redReason = session.phase === 'red' ? 'crash' : '';
+    ticker = []; lapFlash = {}; overlay = null; menuCtrl = null; shellKey = '';
+    note(null, 'Sitzung wiederhergestellt', 'red');
+    view = 'live';
+    if (session.phase === 'finished' && session.mode === 'race') recPick = new Set(recordCandidates().map(r => r.key));
+    if (session.phase !== 'green') source.stopCars?.();
+    runLoop();
   }
 
   /** Tuning eines Fahrzeugs (CU-Stufen); ohne Eintrag 100 % / 100 % */
@@ -641,7 +706,7 @@
 
     // Rote Flagge: im Rennen sofort der Strafendialog. Keiner, einer oder mehrere Fahrer – je eine eigene Strafe.
     const redHtml = phase !== 'red' ? '' : race ? `<div class="lc-red lc-red-pen">
-        <div class="lc-red-head"><div class="lc-red-title">ROTE FLAGGE</div><p>${redReason === 'short' ? 'Kurzschluss – Strom ist aus.' : 'Rennen unterbrochen.'} ${canEdit() ? 'Strafen in Sekunden vergeben, Fahrzeuge einsetzen, dann „Weiter geht\'s“.' : 'Weiter geht es, sobald der Admin freigibt.'}</p></div>
+        <div class="lc-red-head"><div class="lc-red-title">ROTE FLAGGE</div><p>${redReason === 'short' ? 'Kurzschluss – Strom ist aus.' : redReason === 'crash' ? 'Verbindung war weg – Rennen wiederhergestellt.' : 'Rennen unterbrochen.'} ${canEdit() ? 'Strafen in Sekunden vergeben, Fahrzeuge einsetzen, dann „Weiter geht\'s“.' : 'Weiter geht es, sobald der Admin freigibt.'}</p></div>
         <div class="lc-pen-list">${st.map(s => {
           const sel = redPen[s.ctrl] || 0;
           const out = s.status;
@@ -666,7 +731,7 @@
         </div>` : ''}
       </div>` : `<div class="lc-red">
         <div class="lc-red-title">ROTE FLAGGE</div>
-        <p>${redReason === 'short' ? 'Kurzschluss – Strom ist aus.' : 'Unterbrochen.'} Fahrzeuge wieder einsetzen.</p>
+        <p>${redReason === 'short' ? 'Kurzschluss – Strom ist aus.' : redReason === 'crash' ? 'Verbindung war weg – Sitzung wiederhergestellt.' : 'Unterbrochen.'} Fahrzeuge wieder einsetzen.</p>
         ${canEdit() ? `<div class="lc-red-actions">
           <button class="lc-btn lc-big lc-white" data-act="resume">Weiter</button>
           <button class="lc-btn lc-ghost" data-act="finish">Beenden</button>
@@ -847,6 +912,8 @@
       case 'cuOn': cuHub()?.connect(); renderSetup(); break;
       case 'cuOff': cuHub()?.disconnect(); break;
       case 'start': startSession(); break;
+      case 'resumeSaved': discardArmed = false; restoreSession(); break;
+      case 'discardSaved': if (discardArmed) { clearSnap(); discardArmed = false; } else discardArmed = true; renderSetup(); break;
       case 'lights': lightsGo(); break;
       case 'red': session.redFlag(source.now(), 'manual'); break;
       case 'reset': session.reset(source.now()); ticker = []; lapFlash = {}; note(null, 'Zeiten und Runden zurückgesetzt'); renderLive(); break;
