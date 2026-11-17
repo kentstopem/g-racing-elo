@@ -463,7 +463,7 @@
           <div class="form-group"><label for="rsRefuel">Tanken (% pro Sekunde)</label><input id="rsRefuel" name="refuel" inputmode="decimal" value="${fmtNum(s.refuelPctPerSec, 1)}"></div>
           <div class="form-group"><label for="rsPitCall">„Muss an die Box“ ab Tank (%)</label><input id="rsPitCall" name="pitCall" type="number" min="0" max="100" value="${s.pitCallFuelPct}"></div>
           <div class="form-group"><label for="rsEmpty">Tempo bei leerem Tank (Stufe 0–15)</label><input id="rsEmpty" name="emptyTank" type="number" min="0" max="15" value="${s.emptyTankSpeed}"><small class="muted">${M.levelToPct(s.emptyTankSpeed)} % · bis wieder getankt ist</small></div>
-          <div class="form-group"><label for="rsPitDrive">Boxendurchfahrt (ms)</label><input id="rsPitDrive" name="pitDrive" type="number" min="0" max="30000" step="100" value="${s.pitDriveMs}"><small class="muted">So lange nach der Einfahrt zählt die Zeit weder für Strafen noch fürs Tanken</small></div>
+          <div class="form-group"><label for="rsPitDrive">Boxendurchfahrt (ms)</label><input id="rsPitDrive" name="pitDrive" type="number" min="0" max="30000" step="100" value="${s.pitDriveMs}"><small class="muted">Fahrzeit vom Box-Sensor bis zum nächsten Sensor. Zählt live mit und wird beim Rausfahren von Tanken und Strafe wieder abgezogen</small></div>
         </div>
         <div class="form-group"><label for="rsFactor">Einfluss des Tempos auf den Verbrauch <strong id="rsFactorVal">${fPct} %</strong></label>
           <div class="tick-range" style="--pct:${fPct / 2}%">

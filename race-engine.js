@@ -348,34 +348,52 @@
       if (c.inPit) {
         c.pitStops += 1;
         c.pitLastT = t; c.pitStandMs = 0; c.pitThisLap = true;
-        c.pitDriveLeft = this.settings.pitDriveMs;   // Durchfahrtzeit zählt weder für Strafe noch Tanken
+        c.pitServedMs = 0; c.pitFuelPct = 0;          // für die Korrektur beim Rausfahren
         this.emit('pitIn', { ctrl: c.ctrl, driverId: c.driverId, penaltySec: c.penaltyMs / 1000 });
       } else {
         c.inPit = true; this.updatePit(c, t); c.inPit = false;
         c.pitLastT = null;
+        this.pitDriveCorrection(c);
         this.emit('pitOut', { ctrl: c.ctrl, driverId: c.driverId, fuel: c.fuel, penaltySec: c.penaltyMs / 1000 });
       }
       this.emit('change');
     }
 
-    /** Box: nach der Durchfahrtzeit (pitDriveMs) erst Strafe absitzen (auch teilweise), dann tanken (refuelPctPerSec). Läuft über tick(). */
+    /**
+     * Beim Rausfahren: Die CU meldet „raus“ erst am nächsten Sensor nach der Box, die Fahrzeit dorthin
+     * (pitDriveMs) wurde live mitgezählt. Sie wird jetzt wieder abgezogen – zuerst vom Tanken, dann von der Strafe.
+     */
+    pitDriveCorrection (c) {
+      let back = Math.min(this.settings.pitDriveMs, c.pitStandMs);
+      if (back <= 0) return;
+      const fuelMs = (c.pitFuelPct || 0) / this.settings.refuelPctPerSec * 1000;
+      const fuelBack = Math.min(back, fuelMs);
+      if (fuelBack > 0) {
+        const pct = fuelBack / 1000 * this.settings.refuelPctPerSec;
+        c.fuel = Math.max(0, c.fuel - pct);
+        back -= fuelBack;
+      }
+      const penBack = Math.min(back, c.pitServedMs || 0);
+      if (penBack > 0) c.penaltyMs += penBack;
+      if (fuelBack > 0 || penBack > 0) this.emit('pitCorrection', { ctrl: c.ctrl, driverId: c.driverId, fuelPct: fuelBack / 1000 * this.settings.refuelPctPerSec, penaltySec: penBack / 1000 });
+    }
+
+    /** Box: erst Strafe absitzen (auch teilweise), dann tanken (refuelPctPerSec). Läuft über tick(). Fahrzeit siehe pitDriveCorrection. */
     updatePit (c, t) {
       if (!c.inPit || c.pitLastT == null) return;
       if (this.phase === 'red' || this.phase === 'finished') { c.pitLastT = t; return; }
       let dt = Math.max(0, t - c.pitLastT);
       c.pitLastT = t;
       c.pitStandMs += dt;
-      const drive = Math.min(dt, c.pitDriveLeft || 0);
-      c.pitDriveLeft = (c.pitDriveLeft || 0) - drive; dt -= drive;
-      if (dt <= 0) return;
       if (c.penaltyMs > 0) {
         const serve = Math.min(dt, c.penaltyMs);
-        c.penaltyMs -= serve; dt -= serve;
+        c.penaltyMs -= serve; dt -= serve; c.pitServedMs = (c.pitServedMs || 0) + serve;
         if (c.penaltyMs <= 0) { c.penaltyMs = 0; this.emit('penaltyServed', { ctrl: c.ctrl, driverId: c.driverId }); }
       }
       if (c.penaltyMs > 0 || !this.fuelOn || dt <= 0) return;
       const before = c.fuel;
       c.fuel = Math.min(100, c.fuel + dt / 1000 * this.settings.refuelPctPerSec);
+      c.pitFuelPct = (c.pitFuelPct || 0) + (c.fuel - before);
       if (c.fuel > this.settings.pitCallFuelPct) c.pitCalled = false;
       if (c.fuelEmpty && c.fuel > 0) { c.fuelEmpty = false; this.emit('fuelRestored', { ctrl: c.ctrl, driverId: c.driverId }); }
       if (c.fuel >= 100 && before < 100) this.emit('refueled', { ctrl: c.ctrl, driverId: c.driverId });

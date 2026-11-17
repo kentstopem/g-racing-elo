@@ -34,7 +34,7 @@
     penaltyOptionsSec: [2, 5, 7, 10], // Auswahl im Strafendialog
     pitCallFuelPct: 20,         // „[Fahrer] muss an die Box“ ab diesem Tankstand
     emptyTankSpeed: 4,          // CU-Tempostufe (0–15), solange der Tank leer ist
-    pitDriveMs: 2000,           // Fahrzeit durch die Boxengasse: so lange nach der Einfahrt wird weder Strafe abgesessen noch getankt
+    pitDriveMs: 2000,           // Fahrzeit vom Box-Sensor bis zum nächsten Sensor: wird beim Rausfahren von Tanken/Strafe wieder abgezogen
     fuelSpeedFactor: 1,         // 0 = Verbrauch unabhängig vom Tempo, 1 = proportional zum Tempo
     voice: 'ingrid'             // Sprachausgabe: 'ingrid' | 'leni' (siehe voice.js)
   });

@@ -318,20 +318,32 @@ test('Alle fahren volle Distanz: Überrundete fahren nach dem Sieg weiter', () =
   assert.equal(n.cars.get(2).laps, 1);
 });
 
-test('Boxendurchfahrt: die ersten pitDriveMs zählen weder für Strafe noch Tanken', () => {
-  const { s } = race(30);                                        // Standard 2000 ms
+test('Boxendurchfahrt: zählt live, wird beim Rausfahren abgezogen (erst Tanken, dann Strafe)', () => {
+  const { s, events } = race(30);                               // Standard 2000 ms
   assert.equal(s.settings.pitDriveMs, 2000);
   s.addPenalty(1, 5);
   lap(s, 1, 6500);
   s.cars.get(1).fuel = 50;
+  // nur durchgefahren (1,5 s): live abgesessen, danach komplett zurück
   s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 10000 });
   s.tick(11500);
-  assert.equal(s.cars.get(1).penaltyMs, 5000);                  // noch in der Durchfahrt
-  s.tick(14000);                                                // 2 s Durchfahrt + 2 s abgesessen
-  assert.equal(s.cars.get(1).penaltyMs, 3000);
-  s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 14000 });
-  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 30000 });    // neue Einfahrt: wieder 2 s Durchfahrt
-  s.tick(36000);                                                // 2 s Durchfahrt, 3 s Strafe, 1 s tanken
+  assert.equal(s.cars.get(1).penaltyMs, 3500);                  // live sichtbar
+  s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 11500 });
+  assert.equal(s.cars.get(1).penaltyMs, 5000);
+  assert.ok(events.some(e => e[0] === 'pitCorrection'));
+  // Stopp: 9 s in der Box = 5 s Strafe + 4 s Tanken (+40 %), beim Rausfahren 2 s Tanken zurück (−20 %)
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 30000 });
+  s.tick(39000);
   assert.equal(s.cars.get(1).penaltyMs, 0);
-  assert.ok(Math.abs(s.cars.get(1).fuel - 60) < 1e-9);
+  assert.ok(Math.abs(s.cars.get(1).fuel - 90) < 1e-9);
+  s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 39000 });
+  assert.ok(Math.abs(s.cars.get(1).fuel - 70) < 1e-9);
+  assert.equal(s.cars.get(1).penaltyMs, 0);
+  // Stopp mit 1 s Tanken: 1 s vom Tanken, 1 s zurück auf die Strafe
+  s.addPenalty(1, 2);
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 50000 });
+  s.tick(53000);
+  s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 53000 });
+  assert.ok(Math.abs(s.cars.get(1).fuel - 70) < 1e-9);
+  assert.equal(s.cars.get(1).penaltyMs, 1000);
 });
