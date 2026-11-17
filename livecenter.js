@@ -25,7 +25,8 @@
   let voiceOn = readVoice();
   let lastSay = { prio: 0, at: 0 };
   let shellKey = '';
-  let endArmed = 0;            // „Beenden“ zweimal tippen
+  let endArmed = 0;            // „Beenden“: Auswahl (werten / neu starten / weiterfahren) offen
+  let restartArmed = false;    // „Neu starten“ in der Roten Flagge zweimal tippen
   let redPen = {};             // Strafendialog bei Roter Flagge: { ctrl: Sekunden }
   let redReason = '';
   let resultOrder = null;      // Ergebnis-Reihenfolge (Regler), von Hand korrigierbar
@@ -474,6 +475,18 @@
     }
   }
 
+  /** Quali bzw. Rennen mit denselben Fahrern, Autos und derselben Startaufstellung von vorn */
+  function restartEvent () {
+    if (!session || session.mode === 'practice') return;
+    const mode = session.mode;
+    const entries = [...session.cars.values()].sort((a, b) => a.grid - b.grid).map(c => ({ ctrl: c.ctrl, driverId: c.driverId, carId: c.carId }));
+    cfg.mode = mode; saveCfg();
+    endArmed = 0; restartArmed = false;
+    startSession({ mode, entries, fromQuali: true });
+    note(null, `${MODE_LABEL[mode]} neu gestartet`);
+  }
+  const restartLabel = () => `${session.mode === 'race' ? 'Rennen' : 'Quali'} neu starten`;
+
   /** Nach dem Qualifying: Rennen mit der Quali-Reihenfolge als Startaufstellung */
   function raceFromQuali () {
     const grid = session.standings().map(s => ({ ctrl: s.ctrl, driverId: s.driverId, carId: s.carId }));
@@ -727,6 +740,7 @@
         }).join('')}</div>
         ${canEdit() ? `<div class="lc-red-actions">
           <button class="lc-btn lc-big lc-white" data-act="resume">Weiter geht's</button>
+          <button class="lc-btn lc-ghost" data-act="restart">${restartArmed ? 'Wirklich neu starten?' : restartLabel()}</button>
           <button class="lc-btn lc-ghost" data-act="finish">Rennen abbrechen und werten</button>
         </div>` : ''}
       </div>` : `<div class="lc-red">
@@ -734,9 +748,18 @@
         <p>${redReason === 'short' ? 'Kurzschluss – Strom ist aus.' : redReason === 'crash' ? 'Verbindung war weg – Sitzung wiederhergestellt.' : 'Unterbrochen.'} Fahrzeuge wieder einsetzen.</p>
         ${canEdit() ? `<div class="lc-red-actions">
           <button class="lc-btn lc-big lc-white" data-act="resume">Weiter</button>
+          ${session.mode === 'quali' ? `<button class="lc-btn lc-ghost" data-act="restart">${restartArmed ? 'Wirklich neu starten?' : restartLabel()}</button>` : ''}
           <button class="lc-btn lc-ghost" data-act="finish">Beenden</button>
         </div>` : ''}
       </div>`;
+
+    // „Beenden“ während der Sitzung: werten, neu starten oder weiterfahren
+    const endHtml = !endArmed || phase === 'finished' || phase === 'ready' ? '' : `<div class="lc-endask"><div class="lc-endask-box">
+        <h3>${MODE_LABEL[session.mode]} beenden?</h3>
+        <button class="lc-btn lc-primary lc-big" data-act="finishNow">Beenden und werten</button>
+        ${session.mode !== 'practice' ? `<button class="lc-btn lc-big" data-act="restartNow">${restartLabel()}</button>` : ''}
+        <button class="lc-btn lc-ghost" data-act="endCancel">Weiterfahren</button>
+      </div></div>`;
 
     // ---------- Ergebnis: Reihenfolge korrigierbar, Rekorde übernehmen, G!RP auswerten ----------
     const resultHtml = phase !== 'finished' ? '' : (() => {
@@ -777,6 +800,7 @@
           ${race && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="girp" ${girpDone ? 'disabled' : ''}>G!RP auswerten</button>` : ''}
           ${session.mode === 'quali' && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="raceFromQuali">Rennen mit ${cfg.raceLaps} Runden starten</button>
             <span class="lc-laps-adj"><button class="lc-btn" data-act="raceLaps" data-d="-1" aria-label="eine Runde weniger">−</button><button class="lc-btn" data-act="raceLaps" data-d="1" aria-label="eine Runde mehr">+</button></span>` : ''}
+          ${session.mode !== 'practice' && canEdit() ? `<button class="lc-btn" data-act="restartNow">${restartLabel()}</button>` : ''}
           <button class="lc-btn" data-act="again">Zurück zur Vorbereitung</button>
           <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
         </div>`;
@@ -859,7 +883,7 @@
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
     const menuCar = menuCtrl != null ? session.cars.get(menuCtrl) : null;
     const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
-      session.lights, session.lightsRunning, endArmed, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, resTab,
+      session.lights, session.lightsRunning, endArmed, restartArmed, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, resTab,
       phase === 'red' ? st.map(s => s.ctrl + s.status + s.penaltySec + s.inPit + Math.round(s.pitStandMs / 100)).join() : ''].join('|');
     if (key === shellKey && root.querySelector('.lc-live')) {
       root.querySelector('.lc-board').innerHTML = rows;
@@ -886,13 +910,13 @@
             ${canEdit() && source.kind === 'sim' ? `<button class="lc-btn ${simOpen ? 'on' : ''}" data-act="sim">Sim</button>` : ''}
             ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) ? '<button class="lc-btn lc-yellow" data-act="reset">Zurücksetzen</button>' : ''}
             ${canEdit() && (phase === 'green' || (phase === 'lights' && session.lightsRunning)) ? '<button class="lc-btn lc-danger" data-act="red">Rote Flagge</button>' : ''}
-            <button class="lc-btn lc-ghost" data-act="end">${phase === 'finished' ? 'Schließen' : endArmed ? 'Nochmal tippen' : 'Beenden'}</button>
+            <button class="lc-btn lc-ghost" data-act="end">${phase === 'finished' ? 'Schließen' : 'Beenden'}</button>
           </div>
         </header>
         <div class="lc-head-row">${head}</div>
         <div class="lc-board">${rows}</div>
         <footer class="lc-ticker">${tickHtml}</footer>
-        ${simHtml}${menuHtml}${lightsHtml}${redHtml}${resultHtml}
+        ${simHtml}${menuHtml}${lightsHtml}${redHtml}${resultHtml}${endHtml}
       </div>`;
   }
 
@@ -942,9 +966,15 @@
       case 'end':
         if (session.phase === 'finished' || session.phase === 'ready') { close(); break; }
         if (!canEdit()) break;
-        // Laufende Sitzung: zweimal tippen (kein Browser-Dialog, der das Livecenter blockiert)
-        if (endArmed) { endArmed = 0; session.finish(source.now()); }
-        else { endArmed = 1; renderLive(); setTimeout(() => { endArmed = 0; renderLive(); }, 2500); }
+        // Laufende Sitzung: eigene Auswahl (kein Browser-Dialog, der das Livecenter blockiert)
+        endArmed = 1; renderLive();
+        break;
+      case 'finishNow': endArmed = 0; session.finish(source.now()); renderLive(); break;
+      case 'endCancel': endArmed = 0; renderLive(); break;
+      case 'restartNow': restartEvent(); break;
+      case 'restart':
+        if (restartArmed) restartEvent();
+        else { restartArmed = true; renderLive(); setTimeout(() => { restartArmed = false; renderLive(); }, 3000); }
         break;
       case 'voice': voiceOn = !voiceOn; try { localStorage.setItem(VOICE_KEY, voiceOn ? 'on' : 'off'); } catch (err) {} if (!voiceOn) window.Voice?.stop?.(); renderLive(); break;
       case 'sim': simOpen = !simOpen; renderLive(); break;

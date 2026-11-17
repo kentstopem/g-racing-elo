@@ -393,3 +393,8 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-pen-name { flex-wrap: wrap; row-gap: 3px; column-gap: 6px; align-content: center; }
 .lc-pen-nm { flex: 1 0 100%; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
 .lc-pen-name .lc-pen-open, .lc-pen-name .lc-pen-pit { font-size: 13px; padding: 1px 7px; line-height: 1.3; }
+
+/* Beenden: Auswahl */
+.lc-endask { position: absolute; inset: 76px 0 0 0; z-index: 8; background: rgba(8,9,11,.82); display: flex; align-items: center; justify-content: center; }
+.lc-endask-box { background: var(--lc-panel, #1B1D22); border: 1px solid var(--lc-line); border-radius: 16px; padding: 28px 32px; display: flex; flex-direction: column; gap: 14px; min-width: 340px; text-align: center; }
+.lc-endask-box h3 { margin: 0 0 6px; font-size: 26px; }
