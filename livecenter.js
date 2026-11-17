@@ -108,7 +108,33 @@
     window.Livecenter.onClose?.();
   }
 
+  /**
+   * Gefahrene Runden am Ende einer Sitzung zu Fahrer und Fahrzeug addieren (practiceLaps, je ein Schreibvorgang).
+   * Training und Quali zählen hier; Rennrunden kommen wie bisher über die G!RP-Wertung (totalRounds) dazu.
+   */
+  function countLaps () {
+    if (!session || session.lapsCounted || session.mode === 'race' || !window.isAdmin || !window.Storage?.updateDriverFields) return;
+    session.lapsCounted = true;
+    const inc = n => firebase.firestore.FieldValue.increment(n);
+    const byDriver = {}, byCar = {};
+    for (const c of session.cars.values()) {
+      if (!(c.laps > 0)) continue;
+      byDriver[c.driverId] = (byDriver[c.driverId] || 0) + c.laps;
+      byCar[c.carId] = (byCar[c.carId] || 0) + c.laps;
+    }
+    const fail = err => window.Helpers.showToast?.(`Runden nicht gespeichert: ${err.message}`, { icon: 'alert' });
+    for (const [id, n] of Object.entries(byDriver)) {
+      const d = (appData().drivers || []).find(x => String(x.id) === id); if (d) d.practiceLaps = (d.practiceLaps || 0) + n;
+      window.Storage.updateDriverFields(d?.id ?? id, { practiceLaps: inc(n) }).catch(fail);
+    }
+    for (const [id, n] of Object.entries(byCar)) {
+      const c = (appData().cars || []).find(x => String(x.id) === id); if (c) c.practiceLaps = (c.practiceLaps || 0) + n;
+      window.Storage.updateCarFields(c?.id ?? id, { practiceLaps: inc(n) }).catch(fail);
+    }
+  }
+
   function stopSession () {
+    try { countLaps(); } catch (e) { console.error(e); }
     clearInterval(loop); loop = null;
     source?.close(); source = null;
     session = null;
@@ -447,7 +473,7 @@
       case 'win': say(type, 'race_win', d.driverId); note(d.ctrl, `${name} gewinnt!`, 'win'); break;
       case 'qualiDone': note(d.ctrl, `${name}: Quali beendet`); break;
       case 'pole': say(type, 'pole', d.driverId); break;
-      case 'end': source?.stopCars(); recPick = new Set(recordCandidates().map(r => r.key)); break;
+      case 'end': source?.stopCars(); try { countLaps(); } catch (e) { console.error(e); } recPick = new Set(recordCandidates().map(r => r.key)); break;
     }
     if (type !== 'lap' && type !== 'change') renderLive();
   }
