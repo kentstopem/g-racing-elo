@@ -541,7 +541,7 @@
       case 'pole': say(type, 'pole', d.driverId); break;
       case 'end': source?.stopCars(); try { countLaps(); } catch (e) { console.error(e); } recPick = new Set(recordCandidates().map(r => r.key)); break;
     }
-    if (type !== 'lap' && type !== 'change') renderLive();
+    if (type !== 'lap' && type !== 'change') { renderLive(); saveSnap(true); }   // Wichtiges (Strafen, Rote Flagge …) sofort sichern
   }
 
   // ---------- Live-Ansicht ----------
@@ -714,10 +714,10 @@
           const gap = out ? '' : s.pos === 1 ? `Rd. ${s.laps}` : fmtGap(s);
           return `<div class="lc-pen-row ${sel ? 'on' : ''} ${out ? 'out' : ''}" style="${ctrlStyle(s.ctrl)}">
             <span class="lc-pen-pos">${out ? '–' : s.pos}</span>
-            <span class="lc-pen-name">${who(s.driverId)}${state}${s.penaltySec ? `<em class="lc-pen-open">offen ${sec1(s.penaltySec * 1000)} s</em>${canEdit() && !out ? `<button class="lc-btn lc-credit lc-credit-sm" data-act="credit" data-ctrl="${s.ctrl}" title="Gutschrift: 5 s von der offenen Strafe abziehen">−5 s</button>` : ''}` : ''}</span>
+            <span class="lc-pen-name"><span class="lc-pen-nm">${who(s.driverId)}</span>${state}${s.penaltySec ? `<em class="lc-pen-open">offen ${sec1(s.penaltySec * 1000)} s</em>` : ''}</span>
             <span class="lc-pen-gap">${gap}</span>
             ${session.fuelOn ? `<span class="lc-fuel lc-pen-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''}" title="Tank"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : ''}
-            ${canEdit() ? `<span class="lc-pen-opts">${[0, ...session.settings.penaltyOptionsSec].map(sec => `<button class="lc-btn ${sel === sec ? 'on' : ''}" data-act="redPen" data-ctrl="${s.ctrl}" data-sec="${sec}" ${out ? 'disabled' : ''}>${sec ? `+${String(sec).replace('.', ',')}` : '0'}</button>`).join('')}</span>
+            ${canEdit() ? `<span class="lc-pen-opts">${[0, ...session.settings.penaltyOptionsSec].map(sec => `<button class="lc-btn ${sel === sec ? 'on' : ''}" data-act="redPen" data-ctrl="${s.ctrl}" data-sec="${sec}" ${out ? 'disabled' : ''}>${sec ? `+${String(sec).replace('.', ',')}` : '0'}</button>`).join('')}<button class="lc-btn lc-credit" data-act="credit" data-ctrl="${s.ctrl}" title="Gutschrift: 5 s von der offenen Strafe abziehen" ${s.penaltySec && !out ? '' : 'style="visibility:hidden" disabled'}>−5</button></span>
             <span class="lc-pen-acts">
               <button class="lc-btn lc-pen-car" data-act="openMenu" data-ctrl="${s.ctrl}" ${out ? 'disabled' : ''}>Auto / Tuning</button>
               <button class="lc-btn lc-pen-st ${out === 'dnf' ? 'on' : ''}" data-act="redStatus" data-s="dnf" data-ctrl="${s.ctrl}">DNF</button>

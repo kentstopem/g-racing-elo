@@ -228,6 +228,7 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-pen-opts { display: flex; gap: 6px; }
 .lc-pen-opts { gap: 4px; }
 .lc-pen-opts .lc-btn { min-height: 52px; min-width: 52px; padding: 0 8px; font-size: 18px; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.35); color: #fff; }
+.lc-pen-opts .lc-btn.lc-credit { background: #2E7D4F; border-color: #2E7D4F; color: #fff; }
 .lc-pen-opts .lc-btn.on { background: #fff; color: #8A0F0A; border-color: #fff; }
 .lc-red-pen .lc-red-actions { margin-top: 1vh; }
 
@@ -387,3 +388,8 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-resume-bar > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .lc-resume-bar b { font-size: 18px; }
 .lc-resume-bar span { font-size: 14px; color: var(--lc-muted); }
+
+/* Strafendialog: Name oben, darunter Box/offene Strafe (Platz für −5 neben den Strafen) */
+.lc-pen-name { flex-wrap: wrap; row-gap: 3px; column-gap: 6px; align-content: center; }
+.lc-pen-nm { flex: 1 0 100%; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
+.lc-pen-name .lc-pen-open, .lc-pen-name .lc-pen-pit { font-size: 13px; padding: 1px 7px; line-height: 1.3; }
