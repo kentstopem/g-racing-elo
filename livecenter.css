@@ -217,6 +217,8 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-pen-gap { flex: none; min-width: 74px; text-align: right; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; opacity: .9; }
 .lc-pen-pit { font-style: normal; font-size: 15px; font-weight: 700; background: #FFC94D; color: #3A2A00; padding: 3px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; }
 .lc-pen-acts { display: flex; gap: 6px; }
+.lc-pen-fuel { flex: none; display: block; width: 76px; height: 40px; background: rgba(0,0,0,.35); border-color: rgba(255,255,255,.35); }
+.lc-pen-fuel span { font-size: 17px; }
 .lc-pen-st { min-height: 52px; min-width: 60px; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.35); color: #fff; }
 .lc-pen-st.on { background: #fff; color: #8A0F0A; border-color: #fff; }
 .lc-pen-row.on { background: rgba(0,0,0,.5); border-color: #fff; }

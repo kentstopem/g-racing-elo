@@ -651,6 +651,7 @@
             <span class="lc-pen-pos">${out ? '–' : s.pos}</span>
             <span class="lc-pen-name">${who(s.driverId)}${state}${s.penaltySec ? `<em class="lc-pen-open">offen ${sec1(s.penaltySec * 1000)} s</em>${canEdit() && !out ? `<button class="lc-btn lc-credit lc-credit-sm" data-act="credit" data-ctrl="${s.ctrl}" title="Gutschrift: 5 s von der offenen Strafe abziehen">−5 s</button>` : ''}` : ''}</span>
             <span class="lc-pen-gap">${gap}</span>
+            ${session.fuelOn ? `<span class="lc-fuel lc-pen-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''}" title="Tank"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : ''}
             ${canEdit() ? `<span class="lc-pen-opts">${[0, ...session.settings.penaltyOptionsSec].map(sec => `<button class="lc-btn ${sel === sec ? 'on' : ''}" data-act="redPen" data-ctrl="${s.ctrl}" data-sec="${sec}" ${out ? 'disabled' : ''}>${sec ? `+${String(sec).replace('.', ',')}` : '0'}</button>`).join('')}</span>
             <span class="lc-pen-acts">
               <button class="lc-btn lc-pen-car" data-act="openMenu" data-ctrl="${s.ctrl}" ${out ? 'disabled' : ''}>Auto / Tuning</button>
