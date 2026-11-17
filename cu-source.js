@@ -3,7 +3,7 @@
 // Gleiche Schnittstelle wie der Simulator (live-sim.js): on, now, prepare, release, startLights,
 // stopCars, limitSpeed, setTuning, close. Grundlage ist der Test an der Bahn vom 17.11.2026:
 // • Ampel der CU: 0 = frei, 1 = Rot (Start-Taste/Buzzer bzw. Befehl START), 2–6 = Lampen 1–5,
-//   7 = Start (Lampen aus, ~1 s), danach 0. „Los“ kommt bei 7. 8/9 = Fehlstart (ohne Angabe, wer).
+//   7 ~1 s, danach 0. Ansagen eine Stufe früher: START aus Rot = „5“, 2–5 = „4“–„1“, 6 = „Los“. 8/9 = Fehlstart (ohne Angabe, wer).
 // • Start-Taste und Buzzer während der Fahrt: 0 → 1 = Rote Flagge. Kurzschluss meldet die CU nicht.
 // • START aus der App wirkt wie die Taste, ESC bei Ampel 1 gibt die Strecke frei (→ 0).
 // • Box: Bit „in der Box“ ab dem Box-Sensor bis zum nächsten Sensor.
@@ -115,7 +115,11 @@
       if (st == null || hub.state !== 'connected' || performance.now() - this.lastSend < RESEND_MS) return;
       const countdown = st >= 2 && st <= 7;
       if (this.want === 'start') {
-        if (!countdown && [0, 1, 8, 9].includes(st)) this.press(B().START);    // 0/9 → 1 → Countdown
+        if (!countdown && [0, 1, 8, 9].includes(st)) {
+          this.press(B().START);                                                // 0/9 → 1 → Countdown
+          // Ansagen eine CU-Stufe früher (Tristan 17.11.): „5“ schon mit dem Start-Befehl aus Rot
+          if (st === 1 && !this.counting) { this.counting = true; this.emit({ type: 'lights', step: 1 }); }
+        }
       } else if (this.want === 'release') {
         if (st === 0) this.want = null;
         else if (!countdown) this.press(B().ESC);                              // 1 → 0
@@ -144,11 +148,11 @@
       const st = ev.start, prev = this.prevStart;
       this.prevStart = st;
       if (prev !== st && prev != null) {
-        if (st >= 2 && st <= 6) {
+        if (st >= 2 && st <= 5) {
+          // Countdown eine Stufe früher als die Lampen der CU: 2 → „4“ … 5 → „1“, 6 → „Los“ (Tristan 17.11. an der Bahn)
           this.counting = this.counting || this.want === 'start' || this.want === null;
-          if (this.counting) this.emit({ type: 'lights', step: st - 1 });
-        } else if ((st === 7 || st === 0) && this.counting) {
-          // 7 = Lampen aus, die Autos fahren schon (Tristan 17.11.: „Los“ kam bei 0 deutlich zu spät); 0 folgt ~1 s später
+          if (this.counting) this.emit({ type: 'lights', step: st });
+        } else if ((st === 6 || st === 7 || st === 0) && this.counting) {
           this.counting = false;
           if (this.want === 'start') this.want = null;
           this.emit({ type: 'go' });
