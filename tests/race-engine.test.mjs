@@ -72,6 +72,18 @@ test('Fehlstart: Durchfahrt vor Ampel aus → Strafe aus den Renneinstellungen',
   assert.equal(s.standings().find(x => x.ctrl === 2).penaltySec, 5);
 });
 
+test('CU: Durchfahrten vor dem Start geben keine Fehlstart-Strafe (lapFalseStart: false)', () => {
+  const s = new RaceEngine.Session({ mode: 'race', laps: 5, entries, track, settings: { falseStartPenaltySec: 5 }, lapFalseStart: false });
+  const ev = [];
+  s.on(t => ev.push(t));
+  s.start(0);
+  lap(s, 1, 500); lap(s, 2, 600);
+  s.handle({ type: 'lights', step: 3, t: 3000 });
+  lap(s, 2, 3500);
+  assert.ok(!ev.includes('falseStart'));
+  assert.ok(s.standings().every(x => !x.penaltySec));
+});
+
 test('Strafen summieren sich und werden scheibchenweise in der Box abgesessen, erst danach wird getankt', () => {
   const { s, types } = race(30, { settings: { pitDriveMs: 0 } });
   s.addPenalty(1, 10); s.addPenalty(1, 13);

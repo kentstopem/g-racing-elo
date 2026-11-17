@@ -28,7 +28,7 @@
      * track: Strecken-Dokument (refLapMs, minLapMs …), settings: Renneinstellungen
      * records: [{ driverId, carId, ms }] bisherige Rekorde dieser Strecke
      */
-    constructor ({ mode = 'practice', laps = 0, entries = [], track = {}, settings = {}, records = [], fuel, finishCount = 0, dqOpenPenalties = false, fullDistance = false } = {}) {
+    constructor ({ mode = 'practice', laps = 0, entries = [], track = {}, settings = {}, records = [], fuel, finishCount = 0, dqOpenPenalties = false, fullDistance = false, lapFalseStart = true } = {}) {
       this.mode = MODES[mode] ? mode : 'practice';
       this.laps = Math.max(0, Math.round(laps || 0));
       this.track = track || {};
@@ -43,6 +43,7 @@
       this.redTotalMs = 0;      // Summe aller Unterbrechungen (für die Rennzeit)
       this.finishCount = Math.max(0, Math.round(finishCount || 0));   // Rennende, wenn so viele im Ziel sind (0 = alle)
       this.dqOpenPenalties = !!dqOpenPenalties;
+      this.lapFalseStart = lapFalseStart !== false;   // Fehlstart aus Durchfahrten während der Ampel (Simulator); die CU meldet Fehlstarts selbst
       this.fullDistance = !!fullDistance;   // alle fahren die volle Rundenzahl (Überrundete fahren nach dem Sieg weiter)                      // offene Strafen bei Rennende → disqualifiziert
       this.sessionBest = null;  // { ctrl, ms }
       this.leaderFinished = false;
@@ -173,7 +174,7 @@
       this.lastT = t;
       if (this.phase === 'lights') {
         // Über die Linie, bevor die Ampel aus ist → Fehlstart (nur beim ersten Start des Rennens)
-        if (this.goT == null) this.onFalseStart(c.ctrl, t);
+        if (this.goT == null && this.lapFalseStart) this.onFalseStart(c.ctrl, t);
         return;
       }
       if (this.phase !== 'green') return;            // Rote Flagge / beendet: keine Wertung

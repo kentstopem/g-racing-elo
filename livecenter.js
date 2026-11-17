@@ -291,7 +291,8 @@
       mode,
       laps: mode === 'race' ? cfg.raceLaps : mode === 'quali' ? cfg.qualiLaps : 0,
       entries, track: t, settings: settings(), records,
-      finishCount: cfg.finishCount || 0, dqOpenPenalties: !!cfg.dqOpen, fullDistance: !!cfg.fullDistance
+      finishCount: cfg.finishCount || 0, dqOpenPenalties: !!cfg.dqOpen, fullDistance: !!cfg.fullDistance,
+      lapFalseStart: !(cfg.source === 'cu' && window.LiveCU)   // CU: Fehlstart kommt als Ampel 8/9, Durchfahrten vor dem Start sind Fehlmeldungen
     });
     resTab = 'result';
     redPen = {}; redReason = ''; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; baseRecords = records.slice();
