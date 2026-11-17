@@ -333,7 +333,7 @@ test('Boxendurchfahrt: zählt live, wird beim Rausfahren abgezogen (erst Tanken,
   assert.ok(events.some(e => e[0] === 'pitCorrection'));
   // Stopp: 9 s in der Box = 5 s Strafe + 4 s Tanken (+40 %), beim Rausfahren 2 s Tanken zurück (−20 %)
   s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 30000 });
-  s.tick(39000);
+  s.tick(35000); s.tick(37000); s.tick(39000);
   assert.equal(s.cars.get(1).penaltyMs, 0);
   assert.ok(Math.abs(s.cars.get(1).fuel - 90) < 1e-9);
   s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 39000 });
@@ -342,8 +342,14 @@ test('Boxendurchfahrt: zählt live, wird beim Rausfahren abgezogen (erst Tanken,
   // Stopp mit 1 s Tanken: 1 s vom Tanken, 1 s zurück auf die Strafe
   s.addPenalty(1, 2);
   s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 50000 });
-  s.tick(53000);
+  s.tick(51000); s.tick(52000); s.tick(53000);
   s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 53000 });
   assert.ok(Math.abs(s.cars.get(1).fuel - 70) < 1e-9);
   assert.equal(s.cars.get(1).penaltyMs, 1000);
+  // schon voll und noch gewartet: nichts wird abgezogen
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 60000 });
+  s.tick(70000); s.tick(75000);
+  assert.equal(s.cars.get(1).fuel, 100);
+  s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 75000 });
+  assert.equal(s.cars.get(1).fuel, 100);
 });
