@@ -107,6 +107,8 @@
         this.redAt = null;
       } else {
         this.goT = t;
+        // Rennstart: Box-Status von vorher (Aufstellen, Quali) zählt nicht
+        for (const c of this.cars.values()) { c.inPit = false; c.pitLastT = null; c.pitStandMs = 0; c.pitStops = 0; c.pitLog = []; c.pitThisLap = false; }
       }
       this.phase = 'green';
       this.emit('go', { t, restart });

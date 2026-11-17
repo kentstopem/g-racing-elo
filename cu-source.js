@@ -75,6 +75,8 @@
       this.want = null;          // null | 'start' | 'release' | 'hold'
       this.lastSend = 0;
       this.diag = { timers: 0, used: 0, last: null, msgs: 0 };   // Anzeige im Livecenter zur Fehlersuche
+      // Boxen-Bits aus der vorigen Sitzung gelten nicht: nur Änderungen ab jetzt melden (Tristan 17.11.)
+      (hub.lastStatus?.pit || []).forEach((inPit, i) => { this.pit[i + 1] = !!inPit; });
       this.unsub = hub.subscribe(ev => this.onCu(ev));
       this.loop = setInterval(() => this.drive(), 150);
     }

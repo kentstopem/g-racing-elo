@@ -425,3 +425,13 @@ test('Absturz vor dem Start: Ampel bleibt bereit', () => {
   assert.equal(r.phase, 'lights');
   assert.equal(r.goT, null);
 });
+
+test('Rennstart: Box-Status aus der Aufstellung wird gelöscht', () => {
+  const s = new RaceEngine.Session({ mode: 'race', laps: 5, entries, track });
+  s.start(0);
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 100 });
+  assert.equal(s.cars.get(1).inPit, true);
+  s.handle({ type: 'go', t: 6000 });
+  assert.equal(s.cars.get(1).inPit, false);
+  assert.equal(s.cars.get(1).pitStops, 0);
+});
