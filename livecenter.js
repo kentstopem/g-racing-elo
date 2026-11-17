@@ -497,6 +497,7 @@
 
   function lightsGo () {
     if (!session || session.phase !== 'lights') return;
+    window.Voice?.preload?.()?.catch?.(() => {});   // Countdown-Ansagen ohne Ladeverzögerung
     source.startLights();
     session.lightsRunning = true;
     renderLive();

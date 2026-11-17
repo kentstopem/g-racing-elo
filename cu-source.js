@@ -3,7 +3,7 @@
 // Gleiche Schnittstelle wie der Simulator (live-sim.js): on, now, prepare, release, startLights,
 // stopCars, limitSpeed, setTuning, close. Grundlage ist der Test an der Bahn vom 17.11.2026:
 // • Ampel der CU: 0 = frei, 1 = Rot (Start-Taste/Buzzer bzw. Befehl START), 2–6 = Lampen 1–5,
-//   7 = alle an, danach 0 = Los. 8/9 = Fehlstart (ohne Angabe, wer).
+//   7 = Start (Lampen aus, ~1 s), danach 0. „Los“ kommt bei 7. 8/9 = Fehlstart (ohne Angabe, wer).
 // • Start-Taste und Buzzer während der Fahrt: 0 → 1 = Rote Flagge. Kurzschluss meldet die CU nicht.
 // • START aus der App wirkt wie die Taste, ESC bei Ampel 1 gibt die Strecke frei (→ 0).
 // • Box: Bit „in der Box“ ab dem Box-Sensor bis zum nächsten Sensor.
@@ -147,7 +147,8 @@
         if (st >= 2 && st <= 6) {
           this.counting = this.counting || this.want === 'start' || this.want === null;
           if (this.counting) this.emit({ type: 'lights', step: st - 1 });
-        } else if (st === 0 && this.counting) {
+        } else if ((st === 7 || st === 0) && this.counting) {
+          // 7 = Lampen aus, die Autos fahren schon (Tristan 17.11.: „Los“ kam bei 0 deutlich zu spät); 0 folgt ~1 s später
           this.counting = false;
           if (this.want === 'start') this.want = null;
           this.emit({ type: 'go' });
