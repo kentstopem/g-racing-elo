@@ -323,3 +323,52 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 
 /* Training: Zurücksetzen */
 .lc-yellow { background: #FFC94D; border-color: #FFC94D; color: #2B2000; }
+
+/* Ergebnis: schnellste Runde des Events */
+.lc-res-row .lc-fl { color: var(--lc-purple); font-weight: 700; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; }
+.lc-res-row .lc-fl em { font-style: normal; font-size: clamp(11px, 1.4vh, 16px); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; background: var(--lc-purple); color: #fff; padding: 1px 6px; border-radius: 4px; margin-top: 2px; }
+
+/* ---------- Nach dem Event: Seiten Ergebnis / Tabelle / Runden / Statistik ---------- */
+.lc-result h2 { margin-bottom: 1.2vh; }
+.lc-res-tabs { margin-bottom: 2vh; }
+.lc-res-tabs button { min-width: 120px; }
+.lc-table-wrap { width: min(1300px, 100%); overflow: auto; border: 1px solid var(--lc-line); border-radius: 12px; background: var(--lc-panel); }
+.lc-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: clamp(16px, 2.4vh, 28px); }
+.lc-table th { position: sticky; top: 0; background: var(--lc-panel-2); font-size: 13px; color: var(--lc-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; padding: 10px 14px; text-align: right; z-index: 1; }
+.lc-table td { padding: 8px 14px; text-align: right; border-top: 1px solid var(--lc-line); white-space: nowrap; }
+.lc-table .l { text-align: left; } .lc-table .c { text-align: center; }
+.lc-table tr.out td { color: var(--lc-muted); }
+.lc-table td.fl { color: var(--lc-purple); font-weight: 700; }
+.lc-table td.pb { color: var(--lc-green); }
+.lc-table td.int { color: var(--lc-muted); font-style: italic; }
+.lc-table-car img { height: 34px; max-width: 80px; object-fit: contain; vertical-align: middle; }
+.lc-table-car { font-size: 14px; }
+.lc-st-who { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; }
+.lc-st-who i { width: 18px; height: 18px; border-radius: 4px; background: var(--cc); box-shadow: 0 0 0 1px rgba(255,255,255,.5); flex: none; }
+.lc-laps-wrap { max-height: 52vh; }
+.lc-laps td, .lc-laps th { padding: 6px 12px; }
+.lc-laps-head { border-top: 5px solid var(--cc); color: var(--lc-text) !important; text-transform: none !important; font-size: 15px !important; letter-spacing: 0 !important; }
+.lc-pitmark { font-style: normal; display: inline-block; margin-left: 6px; font-size: 12px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: #FFC94D; color: #2B2000; vertical-align: middle; }
+.lc-legend { color: var(--lc-muted); font-size: 14px; }
+.lc-legend .fl { color: var(--lc-purple); font-weight: 700; } .lc-legend .pb { color: var(--lc-green); } .lc-legend .int { font-style: italic; }
+.lc-stats { width: min(1300px, 100%); display: grid; grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr); gap: 16px; }
+.lc-stats-side { display: flex; flex-direction: column; gap: 16px; }
+.lc-chart { background: var(--lc-panel); border: 1px solid var(--lc-line); border-radius: 12px; padding: 12px 16px; }
+.lc-chart h3 { margin: 0 0 10px; }
+.lc-chart svg { width: 100%; height: auto; display: block; }
+.lc-grid-line { stroke: var(--lc-line); stroke-width: 1; }
+.lc-axis { fill: var(--lc-muted); font-size: 14px; }
+.lc-line-label { fill: var(--lc-text); font-size: 15px; font-weight: 700; }
+.lc-line-black { stroke: #000; filter: drop-shadow(0 0 1.5px rgba(255,255,255,.9)); }
+.lc-bar-row { display: grid; grid-template-columns: minmax(90px, 40%) 1fr 36px; align-items: center; gap: 10px; min-height: 34px; font-size: 16px; }
+.lc-bar-row .lc-st-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-bar-track { height: 18px; }
+.lc-bar-track i { display: block; height: 100%; min-width: 2px; background: var(--cc); border-radius: 0 4px 4px 0; box-shadow: 0 0 0 1px rgba(255,255,255,.35); }
+.lc-bar-row b { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 1150px) { .lc-stats { grid-template-columns: 1fr; } .lc-stats-side { flex-direction: row; } .lc-stats-side .lc-chart { flex: 1; min-width: 0; } }
+.lc-chart-wide svg { max-height: 46vh; }
+.lc-credit { background: #2E7D4F; border-color: #2E7D4F; color: #fff; }
+.lc-credit-sm { min-height: 36px; padding: 0 10px; font-size: 15px; }
+@media (max-width: 1150px) { .lc-table th, .lc-table td { padding-left: 8px; padding-right: 8px; } .lc-table { font-size: 17px; } }
+.lc-table th { white-space: nowrap; }
+.lc-menu-btns .lc-btn { padding: 0 8px; font-size: 18px; min-width: 0; }

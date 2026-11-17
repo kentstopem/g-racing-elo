@@ -26,7 +26,7 @@
      * track: Strecken-Dokument (refLapMs, minLapMs …), settings: Renneinstellungen
      * records: [{ driverId, carId, ms }] bisherige Rekorde dieser Strecke
      */
-    constructor ({ mode = 'practice', laps = 0, entries = [], track = {}, settings = {}, records = [], fuel, finishCount = 0, dqOpenPenalties = false } = {}) {
+    constructor ({ mode = 'practice', laps = 0, entries = [], track = {}, settings = {}, records = [], fuel, finishCount = 0, dqOpenPenalties = false, fullDistance = false } = {}) {
       this.mode = MODES[mode] ? mode : 'practice';
       this.laps = Math.max(0, Math.round(laps || 0));
       this.track = track || {};
@@ -40,7 +40,8 @@
       this.restarts = 0;
       this.redTotalMs = 0;      // Summe aller Unterbrechungen (für die Rennzeit)
       this.finishCount = Math.max(0, Math.round(finishCount || 0));   // Rennende, wenn so viele im Ziel sind (0 = alle)
-      this.dqOpenPenalties = !!dqOpenPenalties;                      // offene Strafen bei Rennende → disqualifiziert
+      this.dqOpenPenalties = !!dqOpenPenalties;
+      this.fullDistance = !!fullDistance;   // alle fahren die volle Rundenzahl (Überrundete fahren nach dem Sieg weiter)                      // offene Strafen bei Rennende → disqualifiziert
       this.sessionBest = null;  // { ctrl, ms }
       this.leaderFinished = false;
       this.listeners = [];
@@ -134,6 +135,21 @@
       c.penaltyLog.push({ sec: -c.penaltyMs / 1000, reason: 'zurückgenommen' });
       c.penaltyMs = 0;
       this.emit('change');
+    }
+
+    /**
+     * Gutschrift: zieht von der offenen Strafe ab (Standard 5 s), nie unter 0.
+     * Ohne offene Strafe gibt es keine Gutschrift.
+     */
+    creditPenalty (ctrl, sec = 5) {
+      const c = this.cars.get(Number(ctrl));
+      if (!c || !c.penaltyMs || !(sec > 0)) return 0;
+      const ms = Math.min(c.penaltyMs, sec * 1000);
+      c.penaltyMs -= ms;
+      c.penaltyLog.push({ sec: -ms / 1000, reason: 'Gutschrift' });
+      this.emit('penaltyCredit', { ctrl: c.ctrl, driverId: c.driverId, sec: ms / 1000, openSec: c.penaltyMs / 1000 });
+      this.emit('change');
+      return ms / 1000;
     }
 
     openPenaltySec (c) { return c.penaltyMs / 1000; }
@@ -270,11 +286,34 @@
       return true;
     }
 
+    /**
+     * Auswertung nach dem Event: Position nach jeder Runde (Reihenfolge der Durchfahrten),
+     * Führungsrunden, Durchschnittsrunde (ohne unterbrochene Runden) und alle Runden je Fahrer.
+     */
+    stats () {
+      const cars = [...this.cars.values()];
+      const maxLaps = Math.max(0, ...cars.map(c => c.laps));
+      const positions = {}, leadLaps = {}, avgMs = {}, laps = {};
+      for (const c of cars) {
+        positions[c.ctrl] = []; leadLaps[c.ctrl] = 0;
+        const clean = c.lapTimes.filter(l => !l.interrupted);
+        avgMs[c.ctrl] = clean.length ? clean.reduce((a, l) => a + l.ms, 0) / clean.length : null;
+        laps[c.ctrl] = c.lapTimes.map(l => ({ ...l }));
+      }
+      for (let n = 1; n <= maxLaps; n++) {
+        const order = cars.filter(c => c.crossings[n] != null).sort((a, b) => a.crossings[n] - b.crossings[n]);
+        order.forEach((c, i) => { positions[c.ctrl][n - 1] = i + 1; });
+        if (order[0]) leadLaps[order[0].ctrl] += 1;
+      }
+      return { maxLaps, positions, leadLaps, avgMs, laps };
+    }
+
     get trackRecord () { return this.records.reduce((m, r) => (m == null || r.ms < m.ms ? r : m), null); }
 
     raceProgress (c, t) {
       if (c.finished) return;
-      if (this.leaderFinished) { this.finishCar(c, t); return; }
+      if (this.leaderFinished && (!this.fullDistance || c.laps >= this.laps)) { this.finishCar(c, t); return; }
+      if (this.leaderFinished) return;
       if (this.laps && c.laps >= this.laps) {
         this.leaderFinished = true;
         this.finishCar(c, t);
@@ -429,7 +468,7 @@
           pos: i + 1, ctrl: c.ctrl, driverId: c.driverId, carId: c.carId,
           laps: c.laps, last: c.last, best: c.best, gap, gapLaps,
           fuel: this.fuelOn ? c.fuel : null, fuelEmpty: c.fuelEmpty, inPit: c.inPit, pitStops: c.pitStops, pitStandMs: c.inPit ? c.pitStandMs : 0,
-          penaltySec: c.penaltyMs / 1000, servingPenalty: c.inPit && c.penaltyMs > 0, status: c.status, dqReason: c.dqReason || null,
+          penaltySec: c.penaltyMs / 1000, penaltyTotalSec: Math.max(0, c.penaltyLog.reduce((a, p) => a + p.sec, 0)), servingPenalty: c.inPit && c.penaltyMs > 0, status: c.status, dqReason: c.dqReason || null,
           finished: c.finished, done: c.done, started: c.started,
           lastInterrupted: c.lapTimes.at(-1)?.interrupted || false,
           sessionBest: this.sessionBest?.ctrl === c.ctrl && c.best === this.sessionBest.ms,

@@ -270,3 +270,50 @@ test('Training zurücksetzen: Runden, Zeiten und Uhr auf 0, Paarungs-Bestzeiten 
   const { s: r } = race(5);
   assert.equal(r.reset(9000), false);                   // nur im Training
 });
+
+test('Statistik: Positionen je Runde, Führungsrunden, Durchschnitt, Boxenrunde', () => {
+  const { s } = race(3);
+  lap(s, 1, 6500); lap(s, 2, 6700);
+  lap(s, 1, 13500); lap(s, 2, 13400);                 // Runde 1: Regler 2 vorn
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 14000 });
+  s.handle({ type: 'pit', ctrl: 1, inPit: false, t: 16000 });
+  lap(s, 2, 20200); lap(s, 1, 22000);                 // Runde 2: Regler 2 vorn, Regler 1 mit Boxenstopp
+  lap(s, 1, 29000); lap(s, 2, 27100);                 // Runde 3: Regler 2 gewinnt
+  const st = s.stats();
+  assert.equal(st.maxLaps, 3);
+  assert.equal(st.positions[1].join(), '2,2,2');
+  assert.equal(st.positions[2].join(), '1,1,1');
+  assert.equal(st.leadLaps[2], 3);
+  assert.equal(st.laps[1][1].pit, true);
+  assert.equal(Math.round(st.avgMs[2]), Math.round((6700 + 6800 + 6900) / 3));
+});
+
+test('Gutschrift: nur von offener Strafe, in 5-s-Schritten, nie unter 0', () => {
+  const { s } = race(10);
+  assert.equal(s.creditPenalty(1), 0);                // keine offene Strafe → keine Gutschrift
+  s.addPenalty(1, 7);
+  assert.equal(s.creditPenalty(1), 5);
+  assert.equal(s.cars.get(1).penaltyMs, 2000);
+  assert.equal(s.creditPenalty(1), 2);                // Rest kleiner als 5 s → 0
+  assert.equal(s.cars.get(1).penaltyMs, 0);
+  s.addPenalty(1, 10);
+  const st = s.standings().find(x => x.ctrl === 1);
+  assert.equal(st.penaltyTotalSec, 10);               // Summe: 7 − 7 Gutschrift + 10
+});
+
+test('Alle fahren volle Distanz: Überrundete fahren nach dem Sieg weiter', () => {
+  const { s } = race(2, { fullDistance: true });
+  lap(s, 1, 6500); lap(s, 2, 6700);
+  lap(s, 1, 13000); lap(s, 1, 19500);                 // Regler 1 gewinnt nach 2 Runden
+  lap(s, 2, 14000);                                   // Regler 2 hat erst 1 Runde → fährt weiter
+  assert.equal(s.cars.get(2).finished, false);
+  assert.equal(s.phase, 'green');
+  lap(s, 2, 21000);                                   // 2. Runde → im Ziel, Rennen vorbei
+  assert.equal(s.cars.get(2).finished, true);
+  assert.equal(s.cars.get(2).laps, 2);
+  assert.equal(s.phase, 'finished');
+  const { s: n } = race(2);                           // Standard: Zielflagge auch für Überrundete
+  lap(n, 1, 6500); lap(n, 2, 6700); lap(n, 1, 13000); lap(n, 1, 19500); lap(n, 2, 14000);
+  assert.equal(n.cars.get(2).finished, true);
+  assert.equal(n.cars.get(2).laps, 1);
+});

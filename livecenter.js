@@ -33,6 +33,8 @@
   let recState = '';           // '' | 'saving' | 'done'
   let girpDone = false;
   let baseRecords = [];        // Rekorde dieser Strecke beim Start der Sitzung
+  let resTab = 'result';       // Ergebnis-Seite: result | details | laps | stats
+  let qualiBests = {};         // beste Quali-Runde je Paarung ("driverId|carId" → ms), fürs Rennen danach
 
   // ---------- Daten aus der App ----------
   const appData = () => window.appData || {};
@@ -55,7 +57,7 @@
   function loadCfg () {
     let c = {};
     try { c = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) {}
-    return { mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen };
+    return { mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen, fullDistance: !!c.fullDistance };
   }
   function saveCfg () { try { localStorage.setItem(STORE, JSON.stringify(cfg)); } catch (e) {} }
   function readVoice () { try { return localStorage.getItem(VOICE_KEY) !== 'off'; } catch (e) { return true; } }
@@ -161,7 +163,8 @@
         <option value="0" ${!cfg.finishCount ? 'selected' : ''}>alle im Ziel</option>
         ${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${cfg.finishCount === n ? 'selected' : ''}>${n} im Ziel</option>`).join('')}
       </select></label></div>
-      <label class="lc-check"><input type="checkbox" data-cfg="dqOpen" ${cfg.dqOpen ? 'checked' : ''}> Offene Strafen bei Rennende: disqualifizieren<small>Sonst wird die offene Zeit auf die Gesamtzeit addiert.</small></label>` : '';
+      <label class="lc-check"><input type="checkbox" data-cfg="dqOpen" ${cfg.dqOpen ? 'checked' : ''}> Offene Strafen bei Rennende: disqualifizieren<small>Sonst wird die offene Zeit auf die Gesamtzeit addiert.</small></label>
+      <label class="lc-check"><input type="checkbox" data-cfg="fullDistance" ${cfg.fullDistance ? 'checked' : ''}> Alle fahren volle Distanz<small>Überrundete fahren nach dem Sieg weiter, bis sie alle Runden haben.</small></label>` : '';
     const fuelNote = cfg.mode === 'race' ? (() => {
       const plan = MD.raceFuelPlan(cfg.raceLaps, MD.trackSetup(t).refLapMs, t, settings());
       const ref = MD.trackSetup(t).refLapMs;
@@ -225,8 +228,9 @@
   }
 
   // ---------- Start ----------
-  function startSession ({ mode = cfg.mode, entries = entriesFromCfg() } = {}) {
+  function startSession ({ mode = cfg.mode, entries = entriesFromCfg(), fromQuali = false } = {}) {
     if (!entries.length) return;
+    if (!fromQuali) qualiBests = {};
     stopSession();
     delete cfg.hint; saveCfg();
     const t = track();
@@ -235,8 +239,9 @@
       mode,
       laps: mode === 'race' ? cfg.raceLaps : mode === 'quali' ? cfg.qualiLaps : 0,
       entries, track: t, settings: settings(), records,
-      finishCount: cfg.finishCount || 0, dqOpenPenalties: !!cfg.dqOpen
+      finishCount: cfg.finishCount || 0, dqOpenPenalties: !!cfg.dqOpen, fullDistance: !!cfg.fullDistance
     });
+    resTab = 'result';
     redPen = {}; redReason = ''; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; baseRecords = records.slice();
     session.on(onEngine);
     source = new window.LiveSim.SimSource();
@@ -354,8 +359,9 @@
   /** Nach dem Qualifying: Rennen mit der Quali-Reihenfolge als Startaufstellung */
   function raceFromQuali () {
     const grid = session.standings().map(s => ({ ctrl: s.ctrl, driverId: s.driverId, carId: s.carId }));
+    qualiBests = Object.fromEntries(session.standings().filter(s => s.best != null).map(s => [`${s.driverId}|${s.carId}`, s.best]));
     cfg.mode = 'race'; saveCfg();
-    startSession({ mode: 'race', entries: grid });
+    startSession({ mode: 'race', entries: grid, fromQuali: true });
   }
 
   function lightsGo () {
@@ -438,6 +444,83 @@
 
   const carCell = (carId, img) => `<div class="lc-car">${img ? `<img src="${img}" alt="${esc(carName(carId))}">` : `<small>${esc(carName(carId))}</small>`}</div>`;
 
+  // ---------- Nach dem Event: Tabelle, Runden, Statistik ----------
+  const swatchName = s => `<span class="lc-st-who" style="${ctrlStyle(s.ctrl)}"><i></i>${who(s.driverId)}</span>`;
+
+  /** Abschlusstabelle: Position, Fahrer, Fahrzeug, Beste, Ø, Quali, Runden, Stopps, Gesamtzeit/Abstand */
+  function detailsHtml (ordered, stats, fastestMs, race) {
+    const lead = ordered[0];
+    const gapCell = s => {
+      if (s.status) return s.status === 'dq' ? 'DQ' : 'DNF';
+      if (!race) return s.ctrl === lead.ctrl ? '' : fmtGap(s);
+      if (s.ctrl === session.standings()[0].ctrl) return fmtTotal(s.total);
+      if (s.gapLaps > 0) return `+${s.gapLaps} Rd.`;
+      return s.gap != null ? `+${(s.gap / 1000).toFixed(3).replace('.', ',')}` : '–';
+    };
+    const q = s => qualiBests[`${s.driverId}|${s.carId}`];
+    return `<div class="lc-table-wrap"><table class="lc-table">
+      <thead><tr><th>Pos</th><th class="l">Fahrer</th><th>Auto</th><th>Beste</th><th>Ø Runde</th>${race ? '<th>Quali</th>' : ''}<th>Runden</th>${race ? '<th>Stopps</th><th>Strafen</th>' : ''}<th>${race ? 'Zeit / Abstand' : 'Abstand'}</th></tr></thead>
+      <tbody>${ordered.map((s, i) => `<tr class="${s.status ? 'out' : ''}">
+        <td class="c"><b>${i + 1}</b></td><td class="l">${swatchName(s)}</td>
+        <td class="c lc-table-car">${carImg(s.carId) ? `<img src="${carImg(s.carId)}" alt="${esc(carName(s.carId))}">` : esc(carName(s.carId))}</td>
+        <td class="${s.best != null && s.best === fastestMs ? 'fl' : ''}">${fmt(s.best)}</td>
+        <td>${fmt(stats.avgMs[s.ctrl] != null ? Math.round(stats.avgMs[s.ctrl]) : null)}</td>
+        ${race ? `<td>${fmt(q(s) ?? null)}</td>` : ''}
+        <td>${s.laps}</td>${race ? `<td>${s.pitStops}</td><td>${s.penaltyTotalSec ? `${sec1(s.penaltyTotalSec * 1000)} s` : '–'}</td>` : ''}<td>${gapCell(s)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <p class="lc-note">Ø ohne unterbrochene Runden (Rote Flagge, Fahrzeugwechsel).${race ? ' Strafen: Summe aller vergebenen Strafen, abzüglich Gutschriften.' : ''}${race && !Object.keys(qualiBests).length ? ' Quali-Zeiten gibt es, wenn das Rennen direkt aus dem Qualifying gestartet wurde.' : ''}</p>`;
+  }
+
+  /** Alle Runden aller Fahrer: Zeile je Runde, schnellste markiert, Boxenstopp markiert */
+  function lapsHtml (ordered, stats, fastestMs) {
+    if (!stats.maxLaps) return '<p class="lc-note">Keine Runden gefahren.</p>';
+    const rows = [];
+    for (let n = 1; n <= stats.maxLaps; n++) {
+      rows.push(`<tr><td class="c">${n}</td>${ordered.map(s => {
+        const l = stats.laps[s.ctrl][n - 1];
+        if (!l) return '<td></td>';
+        const cls = [l.ms === fastestMs && !l.interrupted ? 'fl' : !l.interrupted && l.ms === s.best ? 'pb' : '', l.interrupted ? 'int' : ''].join(' ');
+        return `<td class="${cls}">${fmt(l.ms)}${l.pit ? '<em class="lc-pitmark" title="Boxenstopp">B</em>' : ''}</td>`;
+      }).join('')}</tr>`);
+    }
+    return `<div class="lc-table-wrap lc-laps-wrap"><table class="lc-table lc-laps">
+      <thead><tr><th>Rd.</th>${ordered.map(s => `<th style="${ctrlStyle(s.ctrl)}" class="lc-laps-head">${who(s.driverId)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.join('')}</tbody></table></div>
+      <p class="lc-legend"><span class="fl">lila</span> schnellste Runde des Events · <span class="pb">grün</span> beste Runde des Fahrers · <em class="lc-pitmark">B</em> Boxenstopp in dieser Runde · <span class="int">grau</span> unterbrochen</p>`;
+  }
+
+  /** Statistik: Boxenstopps, Führungsrunden (Balken), Entwicklung der Position (Linien in Reglerfarbe) */
+  function statsHtml (ordered, stats) {
+    const bars = (title, val) => {
+      const max = Math.max(1, ...ordered.map(val));
+      return `<section class="lc-chart"><h3>${title}</h3>${ordered.map(s => `<div class="lc-bar-row" title="${who(s.driverId)}: ${val(s)}">
+          ${swatchName(s)}<span class="lc-bar-track"><i style="${ctrlStyle(s.ctrl)};width:${(val(s) / max * 100).toFixed(1)}%"></i></span><b>${val(s)}</b></div>`).join('')}</section>`;
+    };
+    // Liniendiagramm: x = Runde, y = Position (1 oben)
+    const n = ordered.length, L = stats.maxLaps;
+    const W = 760, H = 300, l = 40, r = 120, t = 14, b = 30;
+    const x = k => l + (L <= 1 ? 0 : (k - 1) / (L - 1) * (W - l - r));
+    const y = p => t + (n <= 1 ? 0 : (p - 1) / (n - 1) * (H - t - b));
+    const ticks = Array.from({ length: L }, (_, i) => i + 1).filter(k => k === 1 || k === L || k % Math.max(1, Math.ceil(L / 10)) === 0);
+    const lines = ordered.map(s => {
+      const pts = stats.positions[s.ctrl].map((p, i) => p ? `${x(i + 1).toFixed(1)},${y(p).toFixed(1)}` : null).filter(Boolean);
+      if (!pts.length) return '';
+      const last = stats.positions[s.ctrl].length;
+      const c = MD.controller(s.ctrl);
+      return `<g><title>${who(s.driverId)}</title>
+        <polyline points="${pts.join(' ')}" fill="none" stroke="#0E0F12" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+        <polyline points="${pts.join(' ')}" fill="none" stroke="${c.color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" ${c.color === '#000000' ? 'class="lc-line-black"' : ''}/>
+        <text x="${x(last) + 8}" y="${y(stats.positions[s.ctrl][last - 1]) + 5}" class="lc-line-label">${who(s.driverId)}</text></g>`;
+    }).join('');
+    const chart = `<section class="lc-chart lc-chart-wide"><h3>Entwicklung der Position</h3>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Position nach jeder Runde">
+        ${Array.from({ length: n }, (_, i) => `<line x1="${l}" x2="${W - r}" y1="${y(i + 1)}" y2="${y(i + 1)}" class="lc-grid-line"/><text x="${l - 10}" y="${y(i + 1) + 5}" class="lc-axis" text-anchor="end">${i + 1}</text>`).join('')}
+        ${ticks.map(k => `<text x="${x(k)}" y="${H - 8}" class="lc-axis" text-anchor="middle">${k}</text>`).join('')}
+        ${lines}
+      </svg><p class="lc-note">Position nach jeder Runde (Runde unten, Platz links).</p></section>`;
+    return `<div class="lc-stats">${chart}<div class="lc-stats-side">${bars('Boxenstopps', s => s.pitStops)}${bars('Führungsrunden', s => stats.leadLaps[s.ctrl] || 0)}</div></div>`;
+  }
+
   function renderLive () {
     if (!root || view !== 'live' || !session) return;
     const st = session.standings();
@@ -513,7 +596,7 @@
           const gap = out ? '' : s.pos === 1 ? `Rd. ${s.laps}` : fmtGap(s);
           return `<div class="lc-pen-row ${sel ? 'on' : ''} ${out ? 'out' : ''}" style="${ctrlStyle(s.ctrl)}">
             <span class="lc-pen-pos">${out ? '–' : s.pos}</span>
-            <span class="lc-pen-name">${who(s.driverId)}${state}${s.penaltySec ? `<em class="lc-pen-open">offen ${sec1(s.penaltySec * 1000)} s</em>` : ''}</span>
+            <span class="lc-pen-name">${who(s.driverId)}${state}${s.penaltySec ? `<em class="lc-pen-open">offen ${sec1(s.penaltySec * 1000)} s</em>${canEdit() && !out ? `<button class="lc-btn lc-credit lc-credit-sm" data-act="credit" data-ctrl="${s.ctrl}" title="Gutschrift: 5 s von der offenen Strafe abziehen">−5 s</button>` : ''}` : ''}</span>
             <span class="lc-pen-gap">${gap}</span>
             ${canEdit() ? `<span class="lc-pen-opts">${[0, ...session.settings.penaltyOptionsSec].map(sec => `<button class="lc-btn ${sel === sec ? 'on' : ''}" data-act="redPen" data-ctrl="${s.ctrl}" data-sec="${sec}" ${out ? 'disabled' : ''}>${sec ? `+${String(sec).replace('.', ',')}` : '0'}</button>`).join('')}</span>
             <span class="lc-pen-acts">
@@ -543,6 +626,9 @@
       const ordered = resultOrder.map(c => byCtrl.get(c)).filter(Boolean);
       const edited = resultOrder.join() !== st.map(s => s.ctrl).join();
       const lead = st[0];
+      // Schnellste Runde des Events: besonders markiert
+      const fastestMs = st.reduce((m, s) => (s.best != null && (m == null || s.best < m) ? s.best : m), null);
+      const flCell = s => `<span class="lc-num ${s.best != null && s.best === fastestMs ? 'lc-fl' : ''}">${fmt(s.best)}${s.best != null && s.best === fastestMs ? '<em>Schnellste</em>' : ''}</span>`;
       const timeCell = s => {
         if (!race) return fmt(s.best);
         if (s.status) return '';
@@ -565,8 +651,23 @@
           <button class="lc-btn ${recState === 'done' ? '' : 'lc-primary'}" data-act="saveRecords" ${recState || !recPick.size || !canEdit() ? 'disabled' : ''}>${recState === 'done' ? 'Rekorde übernommen' : recState === 'saving' ? 'Speichere …' : 'Neue Rekorde übernehmen'}</button>
           ${canSave ? '' : '<p class="lc-note">Speichern geht nur in der App mit Admin-Anmeldung.</p>'}
         </section>`;
+      const tabs = [['result', 'Übersicht'], ['details', 'Tabelle'], ['laps', 'Runden'], ...(race ? [['stats', 'Statistik']] : [])];
+      const tabHtml = `<div class="lc-seg lc-res-tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-act="resTab" data-t="${k}" class="${resTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+      const head = `<h2>${race ? 'Ergebnis' : session.mode === 'quali' ? 'Qualifying' : 'Training'}</h2>${tabHtml}`;
+      const actions = `<div class="lc-red-actions">
+          ${race && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="girp" ${girpDone ? 'disabled' : ''}>G!RP auswerten</button>` : ''}
+          ${session.mode === 'quali' && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="raceFromQuali">Rennen mit ${cfg.raceLaps} Runden starten</button>
+            <span class="lc-laps-adj"><button class="lc-btn" data-act="raceLaps" data-d="-1" aria-label="eine Runde weniger">−</button><button class="lc-btn" data-act="raceLaps" data-d="1" aria-label="eine Runde mehr">+</button></span>` : ''}
+          <button class="lc-btn" data-act="again">Zurück zur Vorbereitung</button>
+          <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
+        </div>`;
+      if (resTab !== 'result') {
+        const stats = session.stats();
+        const page = resTab === 'details' ? detailsHtml(ordered, stats, fastestMs, race) : resTab === 'laps' ? lapsHtml(ordered, stats, fastestMs) : statsHtml(ordered, stats);
+        return `<div class="lc-result">${head}${page}${actions}</div>`;
+      }
       return `<div class="lc-result">
-        <h2>${race ? 'Ergebnis' : session.mode === 'quali' ? 'Qualifying – Startaufstellung' : 'Training – Bestzeiten'}</h2>
+        ${head}
         <div class="lc-res-grid ${race ? 'is-race' : ''} ${race && canEdit() ? 'can-move' : ''}">
           <div class="lc-res-head"><span>Pos</span><span>Auto</span><span>Fahrer</span><span>${race ? 'Runden' : ''}</span><span>${race ? 'Gesamtzeit' : 'Beste Runde'}</span><span>${race ? 'Schnellste Runde' : 'Abstand'}</span><span></span>${race && canEdit() ? '<span>Reihenfolge</span>' : ''}</div>
           ${ordered.map((s, i) => {
@@ -576,8 +677,8 @@
               ${carCell(s.carId, carImg(s.carId))}
               <span class="lc-res-who"><b>${who(s.driverId)}</b></span>
               <span class="lc-num">${race ? s.laps : ''}</span>
-              <span class="lc-num">${timeCell(s)}</span>
-              <span class="lc-num">${race ? fmt(s.best) : fmtGap(s)}</span>
+              ${race ? `<span class="lc-num">${timeCell(s)}</span>` : flCell(s)}
+              ${race ? flCell(s) : `<span class="lc-num">${fmtGap(s)}</span>`}
               ${out ? `<span class="lc-badge out">${esc(out)}</span>` : s.penaltySec ? `<span class="lc-badge pen">+${sec1(s.penaltySec * 1000)} s</span>` : '<span></span>'}
               ${race && canEdit() ? `<span class="lc-move"><button class="lc-btn" data-act="move" data-ctrl="${s.ctrl}" data-d="-1" ${i === 0 || girpDone ? 'disabled' : ''} aria-label="nach oben">▲</button><button class="lc-btn" data-act="move" data-ctrl="${s.ctrl}" data-d="1" ${i === ordered.length - 1 || girpDone ? 'disabled' : ''} aria-label="nach unten">▼</button></span>` : ''}
             </div>`;
@@ -585,13 +686,7 @@
         </div>
         ${race && canEdit() ? `<p class="lc-note">${edited ? 'Reihenfolge von Hand geändert. ' : ''}Mit ▲ ▼ korrigierst du die Zielreihenfolge, bevor sie in die G!RP-Wertung geht.</p>` : ''}
         ${recHtml}
-        <div class="lc-red-actions">
-          ${race && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="girp" ${girpDone ? 'disabled' : ''}>G!RP auswerten</button>` : ''}
-          ${session.mode === 'quali' && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="raceFromQuali">Rennen mit ${cfg.raceLaps} Runden starten</button>
-            <span class="lc-laps-adj"><button class="lc-btn" data-act="raceLaps" data-d="-1" aria-label="eine Runde weniger">−</button><button class="lc-btn" data-act="raceLaps" data-d="1" aria-label="eine Runde mehr">+</button></span>` : ''}
-          <button class="lc-btn" data-act="again">Zurück zur Vorbereitung</button>
-          <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
-        </div>
+        ${actions}
       </div>`;
     })();
 
@@ -615,7 +710,9 @@
         ${race && phase !== 'red' ? `<div class="lc-menu-label">Zeitstrafe (in der Box absitzen)${c.penaltyMs ? ` · offen +${sec1(c.penaltyMs)} s` : ''}</div>
         <div class="lc-menu-btns">${session.settings.penaltyOptionsSec.map(sec => `<button class="lc-btn" data-act="penalty" data-sec="${sec}">+${String(sec).replace('.', ',')} s</button>`).join('')}</div>
         <div class="lc-menu-btns">
-          ${c.penaltyMs ? '<button class="lc-btn lc-ghost" data-act="penaltyClear">Strafe zurücknehmen</button>' : ''}
+          ${c.penaltyMs ? '<button class="lc-btn lc-credit" data-act="credit" data-ctrl="' + c.ctrl + '">Gutschrift −5 s</button><button class="lc-btn lc-ghost" data-act="penaltyClear">Alles zurücknehmen</button>' : ''}
+        </div>
+        <div class="lc-menu-btns">
           ${c.status ? `<button class="lc-btn" data-act="status" data-s="">${c.status === 'dq' ? 'DQ' : 'DNF'} aufheben</button>`
             : '<button class="lc-btn" data-act="status" data-s="dnf">Ausgefallen (DNF)</button><button class="lc-btn lc-danger" data-act="status" data-s="dq">Disqualifizieren</button>'}
         </div>` : ''}
@@ -639,8 +736,8 @@
     // Nur neu aufbauen, wenn sich Knöpfe/Overlays ändern – sonst gehen Fingertipps während des Neuzeichnens verloren
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
     const menuCar = menuCtrl != null ? session.cars.get(menuCtrl) : null;
-    const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, menuCar ? `${!!menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
-      session.lights, session.lightsRunning, endArmed, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone,
+    const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
+      session.lights, session.lightsRunning, endArmed, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, resTab,
       phase === 'red' ? st.map(s => s.ctrl + s.status + s.penaltySec + s.inPit + Math.round(s.pitStandMs / 100)).join() : ''].join('|');
     if (key === shellKey && root.querySelector('.lc-live')) {
       root.querySelector('.lc-board').innerHTML = rows;
@@ -702,6 +799,7 @@
         break;
       case 'redPen': redPen[ctrl] = +b.dataset.sec; if (!redPen[ctrl]) delete redPen[ctrl]; renderLive(); break;
       case 'raceFromQuali': raceFromQuali(); break;
+      case 'resTab': resTab = b.dataset.t; renderLive(); break;
       case 'move': {
         const i = resultOrder.indexOf(ctrl), j = i + +b.dataset.d;
         if (i >= 0 && j >= 0 && j < resultOrder.length) [resultOrder[i], resultOrder[j]] = [resultOrder[j], resultOrder[i]];
@@ -729,6 +827,12 @@
       case 'simFalse': source.falseStart(ctrl); break;
       case 'menuClose': menuCtrl = null; renderLive(); break;
       case 'penalty': session.addPenalty(menuCtrl, +b.dataset.sec, 'Zeitstrafe'); menuCtrl = null; renderLive(); break;
+      case 'credit': {
+        const c = session.cars.get(ctrl);
+        const got = session.creditPenalty(ctrl, 5);
+        if (got) note(ctrl, `${driverName(c.driverId)}: Gutschrift ${sec1(got * 1000)} s`);
+        renderLive(); break;
+      }
       case 'penaltyClear': session.clearPenalty(menuCtrl); note(menuCtrl, `${driverName(session.cars.get(menuCtrl).driverId)}: Strafe zurückgenommen`); menuCtrl = null; renderLive(); break;
     }
   }
@@ -784,6 +888,7 @@
     if (inp) {
       const k = inp.dataset.cfg;
       if (k === 'dqOpen') cfg.dqOpen = inp.checked;
+      else if (k === 'fullDistance') cfg.fullDistance = inp.checked;
       else if (k === 'finishCount') cfg.finishCount = +inp.value || 0;
       else cfg[k] = Math.max(1, Math.min(999, Math.round(+inp.value || 0)));
       saveCfg(); renderSetup();
