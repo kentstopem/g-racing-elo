@@ -452,8 +452,10 @@
    * G!RP auswerten: Ergebnis (Reihenfolge wie korrigiert) als Entwurf in „Neues Rennen“ eintragen.
    * Dort prüfst du es und speicherst wie gewohnt mit „Rennen auswerten“ – derselbe Weg wie bisher.
    */
-  function toGirp () {
+  async function toGirp () {
     if (!session || !resultOrder) return;
+    // Ausgewählte neue Rekorde vorher übernehmen – sonst gehen sie beim Wechsel zu „Neues Rennen“ verloren
+    if (!recState && recPick.size && canEdit()) await saveRecords();
     const byCtrl = new Map([...session.cars.values()].map(c => [c.ctrl, c]));
     const d = new Date();
     const draft = {
