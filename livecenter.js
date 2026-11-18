@@ -16,6 +16,8 @@
   let loop = null;
   let wakeLock = null;
   let view = 'setup';
+  // Simulator nur noch zum Testen (Adresse mit ?sim), sonst immer die Control Unit
+  const SIM_OK = /[?&]sim\b/.test(location.search);
   let cfg = loadCfg();
   let ticker = [];
   let lapFlash = {};
@@ -61,7 +63,7 @@
   function loadCfg () {
     let c = {};
     try { c = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) {}
-    return { source: c.source === 'sim' ? 'sim' : 'cu', mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen, fullDistance: !!c.fullDistance, broadcast: !!c.broadcast };
+    return { source: SIM_OK && c.source === 'sim' ? 'sim' : 'cu', mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen, fullDistance: !!c.fullDistance, broadcast: !!c.broadcast };
   }
   function saveCfg () { try { localStorage.setItem(STORE, JSON.stringify(cfg)); } catch (e) {} }
   function readVoice () { try { return localStorage.getItem(VOICE_KEY) !== 'off'; } catch (e) { return true; } }
@@ -309,11 +311,11 @@
             </div>
             ${cfg.mode === 'race' ? `<div class="lc-field-row">${lapsField}${raceOpts}` : lapsField}
             ${fuelNote}
-            <h3>Datenquelle</h3>
-            <div class="lc-seg">
+            <h3>Verbindung</h3>
+            ${SIM_OK ? `<div class="lc-seg">
               <button data-act="src" data-src="cu" class="${cfg.source === 'cu' ? 'on' : ''}">Control Unit</button>
               <button data-act="src" data-src="sim" class="${cfg.source === 'sim' ? 'on' : ''}">Simulator</button>
-            </div>
+            </div>` : ''}
             ${cfg.source === 'cu' ? cuBox() : '<p class="lc-note">Der Simulator fährt mit den echten Fahrern, Fahrzeugen und Rekorden.</p>'}
             <h3>Zuschauer</h3>
             <div class="lc-cast-row">
@@ -352,11 +354,11 @@
     const txt = st === 'connected' ? `Verbunden${h.version ? ` · Firmware ${esc(h.version)}` : ''}`
       : st === 'connecting' ? 'Verbinde …' : st === 'lost' ? 'Verbindung verloren' : 'Nicht verbunden';
     return `<div class="lc-field-row lc-cu">
-        <span class="lc-cu-state ${st}">${txt}</span>
+        ${st === 'idle' || st === 'disconnected' || !st ? '' : `<span class="lc-cu-state ${st}">${txt}</span>`}
         ${st === 'connected' ? '<button class="lc-btn" data-act="cuOff">Trennen</button>' : `<button class="lc-btn lc-primary" data-act="cuOn" ${st === 'connecting' ? 'disabled' : ''}>Mit CU verbinden</button>`}
       </div>
       ${h.error && st !== 'connected' ? `<p class="lc-note warn">${esc(h.error)}</p>` : ''}
-      <p class="lc-note">SmartRace vorher schließen – die CU nimmt nur eine Verbindung an.</p>`;
+`;
   }
   let cuWatch = null;
   function watchCu () {
