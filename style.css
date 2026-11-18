@@ -166,7 +166,8 @@ h3 { font-size: 18px; font-weight: 600; }
 .nav-btn.nav-live { background: #000; color: #fff; border-radius: 8px; border-bottom: none; padding: 8px 14px; margin: 4px 4px 6px; align-self: center; }
 .nav-btn.nav-live:hover { color: #fff; opacity: .85; }
 
-.sub-nav { display: flex; gap: 4px; margin: 0 0 20px; border-bottom: 1px solid var(--iu-grey); }
+.sub-nav { display: flex; gap: 4px; margin: 0 0 20px; border-bottom: 1px solid var(--iu-grey); overflow-x: auto; scrollbar-width: none; }
+.sub-nav::-webkit-scrollbar { display: none; }
 .sub-tab {
   background: transparent;
   border: none;
@@ -530,6 +531,13 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
   .race-table .old { display: none; }
   .race-table td.pos { width: 28px; font-size: 18px; padding-left: 0; }
   .race-history-item { padding: 12px; }
+  /* Setup-Listen (Fahrer, Fahrzeuge, Strecken): Infos oben, darunter „aktiv“ + Wert und die Knöpfe nebeneinander */
+  :is(#driversList, #carsList) .list-item, .list-item:has(> .edit-track) { flex-wrap: wrap; align-items: stretch; }
+  :is(#driversList, #carsList) .list-item > div:first-child, .list-item:has(> .edit-track) > div { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
+  :is(#driversList, #carsList) .list-item > div:last-child { flex: 1 1 100%; display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important; }
+  :is(#driversList, #carsList) .list-item > div:last-child .elo-score { grid-column: 2; justify-self: end; align-self: center; }
+  :is(#driversList, #carsList) .list-item > div:last-child .btn { width: 100%; padding-left: 8px; padding-right: 8px; }
+  .list-item:has(> .edit-track) > .edit-track { width: 100%; }
 }
 
 /* ---------- Live-Zeitnahme (Feature Flag „live“) ---------- */
