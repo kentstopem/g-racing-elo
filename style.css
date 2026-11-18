@@ -653,6 +653,13 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .car-stats { margin: 0 0 10px; }
 .check-label { display: flex !important; align-items: center; gap: 8px; color: var(--iu-black) !important; font-size: 15px !important; font-weight: 400 !important; }
 .tuning-row label strong { color: var(--iu-black); }
+.level-step { display: flex; align-items: center; gap: 12px; }
+.level-step-btn { font: inherit; font-size: 28px; font-weight: 600; line-height: 1; width: 56px; height: 52px; border-radius: var(--radius-btn); border: 1px solid var(--iu-black); background: var(--iu-white); color: var(--iu-black); cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.level-step-btn:active:not(:disabled) { background: var(--iu-accent); }
+.level-step-btn:disabled { opacity: .3; cursor: default; }
+.level-step-val { min-width: 92px; text-align: center; display: flex; flex-direction: column; line-height: 1.2; }
+.level-step-val strong { font-size: 20px; color: var(--iu-black); }
+.level-step-val .muted { font-size: 12px; }
 .setup-h { font-size: 17px; margin: 8px 0 12px; }
 .form-group input.level-range, .form-group input.level-range:focus { padding: 0; border: 0; background: transparent; box-shadow: none; outline: none; }
 .bal-table td:first-child { font-weight: 600; }

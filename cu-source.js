@@ -18,6 +18,9 @@
     error: '',
     subs: new Set(),
     stateSubs: new Set(),
+    progSubs: new Set(),
+    pending: {},              // ctrl → Zeitpunkt, seit dem Gas/Bremse gesendet, aber noch kein Sensor gemeldet ist
+    programmedAt: 0,
 
     available () { return !!window.CU?.Connection?.available?.(); },
 
@@ -35,6 +38,11 @@
             if (ev.ok === false) return;
             if (ev.type === 'status') this.lastStatus = ev;
             if (ev.type === 'version') this.version = ev.version;
+            // Programmieren endet, wenn das Auto über einen Sensor fährt (Bahntest 17.11.2026)
+            if (ev.type === 'timer' && this.pending[ev.address] && performance.now() - this.pending[ev.address] > 300) {
+              delete this.pending[ev.address];
+              this.progSubs.forEach(fn => { try { fn(ev.address); } catch (e) {} });
+            }
             this.subs.forEach(fn => { try { fn(ev); } catch (e) { console.error(e); } });
           },
           onDisconnect: () => this.setState('lost', 'Verbindung zur CU getrennt'),
@@ -54,7 +62,19 @@
 
     disconnect () { this.conn?.disconnect(); this.lastStatus = null; this.setState('idle'); },
 
-    send (cmd) { if (this.state === 'connected') this.conn.command(cmd); }
+    send (cmd) { if (this.state === 'connected') this.conn.command(cmd); },
+
+    /** Gas/Bremse (Stufe 0–15) ins Auto auf diesem Regler programmieren */
+    program (ctrl, { speed, brake } = {}) {
+      if (this.state !== 'connected') return false;
+      const C = window.CU.Commands;
+      this.programmedAt = this.pending[ctrl] = performance.now();
+      this.send(C.speed(ctrl, speed ?? 15));
+      this.send(C.brake(ctrl, brake ?? 15));
+      this.progSubs.forEach(fn => { try { fn(ctrl); } catch (e) {} });
+      return true;
+    },
+    onProgram (fn) { this.progSubs.add(fn); return () => this.progSubs.delete(fn); }
   };
 
   const C = () => window.CU.Commands;
@@ -104,9 +124,7 @@
     setTuning (ctrl, { speed, brake } = {}, { send = false } = {}) {
       const t = this.tuning[ctrl] = { speed: speed ?? 15, brake: brake ?? 15 };
       if (!send) return;
-      this.programmedAt = performance.now();
-      hub.send(C().speed(ctrl, t.speed));
-      hub.send(C().brake(ctrl, t.brake));
+      hub.program(ctrl, t);
     }
 
     /** Leerer Tank: vorerst ohne Drosselung über die CU (siehe setTuning) */
@@ -163,7 +181,7 @@
           this.emit({ type: 'go' });
         } else if (st === 9 || st === 8) {
           if (prev !== 8 && prev !== 9) { this.counting = false; this.want = 'hold'; this.emit({ type: 'falseStart' }); }
-        } else if (st === 1 && prev === 0 && this.want !== 'start' && this.want !== 'hold' && !(performance.now() - (this.programmedAt || 0) < 15000)) {
+        } else if (st === 1 && prev === 0 && this.want !== 'start' && this.want !== 'hold' && !(performance.now() - (hub.programmedAt || 0) < 15000)) {
           this.want = 'hold';
           this.emit({ type: 'stop' });                                          // Start-Taste oder Buzzer
         }
