@@ -217,12 +217,15 @@
     let newImage = null;   // nur beim Anlegen: gewähltes Bild bis zum Speichern
     const tot = isNew ? null : M.carTotals(id, window.appData.allRaces || window.appData.races, c);
     const t = c.tuning || { speed: M.MAX_LEVEL, brake: M.MAX_LEVEL };
+    // −/+ statt Schieberegler: eine CU-Stufe (0–15) pro Tipp (Tristan 18.11.2026)
     const slider = (name, label, val) => `
       <div class="form-group tuning-row">
-        <label for="tun_${name}">${label} <strong id="tunVal_${name}">${M.levelToPct(val)} %</strong> <span class="muted">(Stufe ${val})</span></label>
-        <div class="tick-range" style="--pct:${val / M.MAX_LEVEL * 100}%">
-          <div class="tick-track"><div class="tick-fill"></div>${Array.from({ length: M.MAX_LEVEL + 1 }, (_, i) => `<span class="tick${i <= val ? ' on' : ''}"></span>`).join('')}</div>
-          <input type="range" class="level-range" id="tun_${name}" name="${name}" min="0" max="${M.MAX_LEVEL}" step="1" value="${val}">
+        <label>${label}</label>
+        <div class="level-step">
+          <button type="button" class="level-step-btn" data-step="-1" data-for="${name}" aria-label="${label} eine Stufe weniger" ${val <= 0 ? 'disabled' : ''}>−</button>
+          <span class="level-step-val"><strong id="tunVal_${name}">${M.levelToPct(val)} %</strong><span class="muted" id="tunLvl_${name}">Stufe ${val}</span></span>
+          <button type="button" class="level-step-btn" data-step="1" data-for="${name}" aria-label="${label} eine Stufe mehr" ${val >= M.MAX_LEVEL ? 'disabled' : ''}>+</button>
+          <input type="hidden" name="${name}" value="${val}">
         </div>
       </div>`;
 
@@ -265,13 +268,13 @@
       form.cname.addEventListener('input', () => { if (!newImage) showImg({ id, name: form.cname.value.trim() }); });
     }
     form.hasTuning.onchange = () => body.querySelector('#tuningFields').classList.toggle('hidden', !form.hasTuning.checked);
-    ['speed', 'brake'].forEach(n => {
-      form[n].oninput = () => {
-        const box = form[n].closest('.tick-range');
-        box.style.setProperty('--pct', `${form[n].value / M.MAX_LEVEL * 100}%`);
-        box.querySelectorAll('.tick').forEach((t, i) => t.classList.toggle('on', i <= form[n].value));
-        body.querySelector(`#tunVal_${n}`).textContent = `${M.levelToPct(form[n].value)} %`;
-        body.querySelector(`#tunVal_${n}`).nextElementSibling.textContent = `(Stufe ${form[n].value})`;
+    body.querySelectorAll('.level-step-btn').forEach(btn => {
+      btn.onclick = () => {
+        const n = btn.dataset.for, v = M.clampLevel(+form[n].value + +btn.dataset.step);
+        form[n].value = v;
+        body.querySelector(`#tunVal_${n}`).textContent = `${M.levelToPct(v)} %`;
+        body.querySelector(`#tunLvl_${n}`).textContent = `Stufe ${v}`;
+        btn.parentElement.querySelectorAll('.level-step-btn').forEach(b => { b.disabled = +b.dataset.step < 0 ? v <= 0 : v >= M.MAX_LEVEL; });
       };
     });
     body.querySelector('#carImgFile').onchange = async e => {

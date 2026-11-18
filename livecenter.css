@@ -319,9 +319,33 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 
 /* Fahrzeug + Tuning im Fahrer-Menü */
 .lc-menu-sel { width: 100%; font: inherit; font-size: 16px; min-height: 46px; border-radius: 8px; border: 1px solid var(--lc-line); background: var(--lc-bg); color: var(--lc-text); padding: 0 10px; margin-bottom: 4px; }
-.lc-tune { display: grid; grid-template-columns: 64px 1fr 56px; align-items: center; gap: 10px; min-height: 44px; }
-.lc-tune input { width: 100%; accent-color: var(--lc-accent); }
-.lc-tune b { text-align: right; font-variant-numeric: tabular-nums; }
+.lc-tune { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 56px; }
+.lc-tune > span { font-size: 17px; }
+
+/* Tuning: −/+ statt Schieberegler (große Knöpfe fürs iPad) */
+.lc-step { display: grid; grid-template-columns: 56px 64px 56px; align-items: center; gap: 4px; }
+.lc-step-btn { font: inherit; font-size: 30px; font-weight: 600; line-height: 1; width: 56px; height: 52px; border-radius: 10px; border: 1px solid var(--lc-line); background: var(--lc-panel-2); color: var(--lc-text); cursor: pointer; touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.lc-step-btn:active:not(:disabled) { background: var(--lc-accent); color: #001A1B; border-color: var(--lc-accent); }
+.lc-step-btn:disabled { opacity: .3; cursor: default; }
+.lc-step-val { text-align: center; font-size: 19px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lc-menu .lc-step-btn { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.35); }
+.lc-tune-st.wait, .lc-tune-who em.wait { color: var(--lc-pit); }
+.lc-tune-st.ok, .lc-tune-who em.ok { color: var(--lc-green); }
+
+/* Vorbereitung: Tuning aller Fahrer unter der Reglertabelle */
+.lc-tune-card:empty { display: none; }
+.lc-tune-card { grid-column: 1 / -1; }
+.lc-tune-head, .lc-tune-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 184px 184px 86px; align-items: center; gap: 10px 28px; }
+.lc-tune-head { color: var(--lc-muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; padding: 0 9px 4px; }
+.lc-tune-head span:nth-child(2), .lc-tune-head span:nth-child(3) { text-align: center; }
+.lc-tune-head span:first-child { grid-column: 1 / 3; }
+.lc-tune-list { display: flex; flex-direction: column; gap: 8px; }
+.lc-tune-row { padding: 6px 8px; border-radius: 10px; background: var(--lc-bg); border: 1px solid var(--cc); box-shadow: inset 4px 0 0 var(--cc); }
+.lc-tune-who { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.lc-tune-who b, .lc-tune-who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-tune-who small { color: var(--lc-muted); font-size: 13px; }
+.lc-tune-who em { font-style: normal; font-size: 12px; font-weight: 600; }
+.lc-tune-send { padding: 0 10px; font-size: 13px; }
 .lc-pen-car { min-height: 52px; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.35); color: #fff; }
 
 /* Training: Zurücksetzen */
@@ -451,3 +475,16 @@ html.lc-open .modal { z-index: 6000; }
 .lc-add-ctrls .lc-btn.on { outline: 3px solid var(--lc-accent); outline-offset: 1px; background: var(--lc-panel-2); color: var(--lc-text); border-color: var(--lc-line); }
 .lc-addbar { display: flex; justify-content: center; padding: 0 20px 8px; }
 .lc-addbar .lc-btn { border-style: dashed; background: transparent; color: var(--lc-muted); }
+
+/* Tuning auf dem Handy (hochkant): Name + Senden oben, Gas und Bremse darunter */
+@media (max-width: 700px) {
+  .lc-tune-head { display: none; }
+  .lc-tune-row { grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px 10px; }
+  .lc-tune-row .lc-tune-send { grid-column: 3; grid-row: 1; }
+  .lc-tune-row .lc-step { grid-row: 2; grid-column: 1 / -1; grid-template-columns: 64px 52px 64px 52px; justify-content: start; }
+  .lc-tune-row .lc-step + .lc-step { grid-row: 3; }
+  .lc-tune-row .lc-step::before { content: attr(aria-label); color: var(--lc-muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+  .lc-tune-row .lc-step { grid-template-columns: 72px 52px 72px 52px; }
+  .lc-tune-row .lc-step-btn { width: 52px; }
+}
+.lc-res-tune { margin: 12px 0 4px; padding: 12px 14px; border-radius: 12px; background: var(--lc-panel); border: 1px solid var(--lc-line); }

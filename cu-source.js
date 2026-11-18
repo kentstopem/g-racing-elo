@@ -18,6 +18,9 @@
     error: '',
     subs: new Set(),
     stateSubs: new Set(),
+    progSubs: new Set(),
+    pending: {},              // ctrl → Zeitpunkt, seit dem Gas/Bremse gesendet, aber noch kein Sensor gemeldet ist
+    programmedAt: 0,
 
     available () { return !!window.CU?.Connection?.available?.(); },
 
@@ -35,6 +38,11 @@
             if (ev.ok === false) return;
             if (ev.type === 'status') this.lastStatus = ev;
             if (ev.type === 'version') this.version = ev.version;
+            // Programmieren endet, wenn das Auto über einen Sensor fährt (Bahntest 17.11.2026)
+            if (ev.type === 'timer' && this.pending[ev.address] && performance.now() - this.pending[ev.address] > 300) {
+              delete this.pending[ev.address];
+              this.progSubs.forEach(fn => { try { fn(ev.address); } catch (e) {} });
+            }
             this.subs.forEach(fn => { try { fn(ev); } catch (e) { console.error(e); } });
           },
           onDisconnect: () => this.setState('lost', 'Verbindung zur CU getrennt'),
@@ -54,7 +62,30 @@
 
     disconnect () { this.conn?.disconnect(); this.lastStatus = null; this.setState('idle'); },
 
-    send (cmd) { if (this.state === 'connected') this.conn.command(cmd); }
+    send (cmd) { if (this.state === 'connected') this.conn.command(cmd); },
+
+    /** Gas/Bremse (Stufe 0–15) ins Auto auf diesem Regler programmieren */
+    // Bei Rot (Ampel 1) nimmt die CU kein Tuning an (Tristan 18.11.2026): mit release vorher per ESC freigeben.
+    // release nur, wo nichts gewertet wird: Vorbereitung und Quali-Ergebnis.
+    program (ctrl, { speed, brake } = {}, { release = false } = {}) {
+      if (this.state !== 'connected') return false;
+      const C = window.CU.Commands;
+      this.programmedAt = this.pending[ctrl] = performance.now();
+      this.progSubs.forEach(fn => { try { fn(ctrl); } catch (e) {} });
+      const go = () => { this.send(C.speed(ctrl, speed ?? 15)); this.send(C.brake(ctrl, brake ?? 15)); };
+      const free = () => [0, undefined, null].includes(this.lastStatus?.start);
+      if (free() || !release) { go(); return true; }
+      const t0 = performance.now(), esc = () => { this.send(C.press(window.CU.BUTTON.ESC)); lastEsc = performance.now(); };
+      let lastEsc = 0;
+      const wait = () => {
+        if (free() || performance.now() - t0 > 3000) { go(); return; }
+        if (performance.now() - lastEsc > 900) esc();                       // Befehle gehen per Bluetooth auch mal verloren
+        setTimeout(wait, 150);
+      };
+      esc(); setTimeout(wait, 150);
+      return true;
+    },
+    onProgram (fn) { this.progSubs.add(fn); return () => this.progSubs.delete(fn); }
   };
 
   const C = () => window.CU.Commands;
@@ -101,12 +132,11 @@
     // Gas/Bremse programmiert die CU ins Auto (Lampen an der CU leuchten, bis das Auto über einen
     // Sensor fährt). Während dieser Zeit meldet die CU Durchfahrten/Ampel unzuverlässig (Test 17.11.2026).
     // Deshalb nur auf ausdrücklichen Wunsch senden (Tuning-Menü), nicht automatisch beim Start.
-    setTuning (ctrl, { speed, brake } = {}, { send = false } = {}) {
+    setTuning (ctrl, { speed, brake } = {}, { send = false, release = false } = {}) {
       const t = this.tuning[ctrl] = { speed: speed ?? 15, brake: brake ?? 15 };
       if (!send) return;
-      this.programmedAt = performance.now();
-      hub.send(C().speed(ctrl, t.speed));
-      hub.send(C().brake(ctrl, t.brake));
+      if (release) this.want = null;                                        // Quali-Ergebnis: Rot nicht wieder erzwingen
+      hub.program(ctrl, t, { release });
     }
 
     /** Leerer Tank: vorerst ohne Drosselung über die CU (siehe setTuning) */
@@ -163,7 +193,7 @@
           this.emit({ type: 'go' });
         } else if (st === 9 || st === 8) {
           if (prev !== 8 && prev !== 9) { this.counting = false; this.want = 'hold'; this.emit({ type: 'falseStart' }); }
-        } else if (st === 1 && prev === 0 && this.want !== 'start' && this.want !== 'hold' && !(performance.now() - (this.programmedAt || 0) < 15000)) {
+        } else if (st === 1 && prev === 0 && this.want !== 'start' && this.want !== 'hold' && !(performance.now() - (hub.programmedAt || 0) < 15000)) {
           this.want = 'hold';
           this.emit({ type: 'stop' });                                          // Start-Taste oder Buzzer
         }
