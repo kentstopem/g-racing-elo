@@ -487,3 +487,4 @@ html.lc-open .modal { z-index: 6000; }
   .lc-tune-row .lc-step { grid-template-columns: 72px 52px 72px 52px; }
   .lc-tune-row .lc-step-btn { width: 52px; }
 }
+.lc-res-tune { margin: 12px 0 4px; padding: 12px 14px; border-radius: 12px; background: var(--lc-panel); border: 1px solid var(--lc-line); }

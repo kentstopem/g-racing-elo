@@ -556,8 +556,9 @@
     const t = tuningOf(carId);
     if (save) saveTuning(carId, t);
     tuneOk[ctrl] = false;
-    if (session) source?.setTuning?.(ctrl, t, { send: true });
-    else cuHub()?.program?.(ctrl, t);
+    // Freigeben (ESC) nur, wo nichts gewertet wird: Vorbereitung und Quali-Ergebnis
+    if (session) source?.setTuning?.(ctrl, t, { send: true, release: session.mode === 'quali' && session.phase === 'finished' });
+    else cuHub()?.program?.(ctrl, t, { release: true });
     refreshTune();
   }
   function refreshTune () {
@@ -568,7 +569,7 @@
   }
   /** Vorbereitung: Tuning aller eingeteilten Fahrer auf einen Blick */
   function tuneCardHtml () {
-    const list = entriesFromCfg();
+    const list = session ? [...session.cars.values()].map(c => ({ ctrl: c.ctrl, driverId: c.driverId, carId: c.carId })) : entriesFromCfg();
     if (!list.length || !canEdit()) return '';
     const h = cuHub(), on = cfg.source === 'cu' && h?.state === 'connected';
     const rows = list.map(e => {
@@ -957,7 +958,7 @@
             ${session.fuelOn ? `<span class="lc-fuel lc-pen-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''}" title="Tank"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : ''}
             ${canEdit() ? `<span class="lc-pen-opts">${[0, ...session.settings.penaltyOptionsSec].map(sec => `<button class="lc-btn ${sel === sec ? 'on' : ''}" data-act="redPen" data-ctrl="${s.ctrl}" data-sec="${sec}" ${out ? 'disabled' : ''}>${sec ? `+${String(sec).replace('.', ',')}` : '0'}</button>`).join('')}<button class="lc-btn lc-credit" data-act="credit" data-ctrl="${s.ctrl}" title="Gutschrift: 5 s von der offenen Strafe abziehen" ${s.penaltySec && !out ? '' : 'style="visibility:hidden" disabled'}>−5</button></span>
             <span class="lc-pen-acts">
-              <button class="lc-btn lc-pen-car" data-act="openMenu" data-ctrl="${s.ctrl}" ${out ? 'disabled' : ''}>Auto / Tuning</button>
+              <button class="lc-btn lc-pen-car" data-act="openMenu" data-ctrl="${s.ctrl}" ${out ? 'disabled' : ''}>Auto tauschen</button>
               <button class="lc-btn lc-pen-st ${out === 'dnf' ? 'on' : ''}" data-act="redStatus" data-s="dnf" data-ctrl="${s.ctrl}">DNF</button>
               <button class="lc-btn lc-pen-st ${out === 'dq' ? 'on' : ''}" data-act="redStatus" data-s="dq" data-ctrl="${s.ctrl}">DQL</button>
             </span>` : `<span class="lc-pen-gap">${out === 'dq' ? 'DQL' : out === 'dnf' ? 'DNF' : ''}</span>`}
@@ -1029,7 +1030,8 @@
       const tabHtml = `<div class="lc-seg lc-res-tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-act="resTab" data-t="${k}" class="${resTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
       const girpNote = girpData && resTab === 'result' ? `<p class="lc-note lc-girp-note">${girpDone || source.kind === 'view' ? 'In G!RP gespeichert' : 'Vorschau G!RP-Änderung'} · ${session.laps} Runden · K ${girpData.k ?? '–'}</p>` : '';
       const head = `<h2>${race ? 'Ergebnis' : session.mode === 'quali' ? 'Qualifying' : 'Training'}</h2>${tabHtml}${girpNote}`;
-      const actions = `<div class="lc-red-actions">
+      const qualiTune = session.mode === 'quali' && canEdit() && source.kind !== 'view' ? `<div class="lc-tune-card lc-res-tune">${tuneCardHtml()}</div>` : '';
+      const actions = `${qualiTune}<div class="lc-red-actions">
           ${race && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="girp" ${girpDone || girpSaving ? 'disabled' : ''}>${girpDone ? 'In G!RP gespeichert ✓' : girpSaving ? 'Speichere …' : `Ergebnis speichern${recPick.size && !recState ? ' (mit Rekorden)' : ''}`}</button>` : ''}
           ${session.mode === 'quali' && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="raceFromQuali">Rennen mit ${cfg.raceLaps} Runden starten</button>
             <span class="lc-laps-adj"><button class="lc-btn" data-act="raceLaps" data-d="-1" aria-label="eine Runde weniger">−</button><button class="lc-btn" data-act="raceLaps" data-d="1" aria-label="eine Runde mehr">+</button></span>` : ''}
@@ -1073,14 +1075,17 @@
 
     // Fahrzeug wechseln und Tuning: Training/Quali jederzeit, im Rennen nur bei Roter Flagge
     function carTuneHtml (c, locked) {
-      if (locked) return '<div class="lc-menu-label">Fahrzeug und Tuning ändern: bei Roter Flagge.</div>';
+      if (locked) return '<div class="lc-menu-label">Fahrzeug tauschen: bei Roter Flagge.</div>';
       const used = [...session.cars.values()].filter(x => x.ctrl !== c.ctrl).map(x => x.carId);
       const opts = cars([c.carId]).filter(x => !used.includes(x.id));
       const tu = tuningOf(c.carId);
       const st = tuneState(c.ctrl);
       const slider = (k, label) => `<div class="lc-tune"><span>${label}</span>${stepperHtml(c.ctrl, k, label, tu[k])}</div>`;
-      return `<div class="lc-menu-label">Fahrzeug${race ? ' (gilt ab dem Neustart)' : ' – die laufende Runde zählt nicht'}</div>
-        <select class="lc-menu-sel" data-carswap="${c.ctrl}">${opts.map(x => `<option value="${x.id}" ${x.id === c.carId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
+      const sel = `<div class="lc-menu-label">Fahrzeug${race ? ' (gilt ab dem Neustart)' : ' – die laufende Runde zählt nicht'}</div>
+        <select class="lc-menu-sel" data-carswap="${c.ctrl}">${opts.map(x => `<option value="${x.id}" ${x.id === c.carId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`;
+      // Im Rennen kein Tuning: bei Rot nimmt die CU nichts an, während der Fahrt stört das Programmieren die Zeitnahme
+      if (race) return sel + '<div class="lc-menu-label">Tuning: vor dem Rennen in der Vorbereitung oder nach der Quali.</div>';
+      return `${sel}
         <div class="lc-menu-label">Tuning · wird ans Fahrzeug gespeichert${st ? ` · <span class="lc-tune-st ${st.cls}">${esc(st.txt)}</span>` : ''}</div>
         ${slider('speed', 'Gas')}${slider('brake', 'Bremse')}`;
     }
@@ -1306,7 +1311,7 @@
       if (session.changeCar(ctrl, carId)) {
         const c = session.cars.get(ctrl);
         source?.setPace?.(ctrl, simPace(c.driverId, carId));
-        source?.setTuning?.(ctrl, tuningOf(carId), { send: true });
+        if (session.mode !== 'race') source?.setTuning?.(ctrl, tuningOf(carId), { send: true });   // Rennen: Tuning steckt schon im Auto
         note(ctrl, `${driverName(c.driverId)} fährt jetzt ${carName(carId)}`);
       }
       shellKey = ''; renderLive(); return;

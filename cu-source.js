@@ -65,16 +65,16 @@
     send (cmd) { if (this.state === 'connected') this.conn.command(cmd); },
 
     /** Gas/Bremse (Stufe 0–15) ins Auto auf diesem Regler programmieren */
-    // Bei Rot (Ampel 1) nimmt die CU kein Tuning an (Tristan 18.11.2026): vorher mit ESC freigeben.
-    // Nur in der Vorbereitung (ohne laufende Sitzung) aufrufen, dort wird nichts gewertet.
-    program (ctrl, { speed, brake } = {}) {
+    // Bei Rot (Ampel 1) nimmt die CU kein Tuning an (Tristan 18.11.2026): mit release vorher per ESC freigeben.
+    // release nur, wo nichts gewertet wird: Vorbereitung und Quali-Ergebnis.
+    program (ctrl, { speed, brake } = {}, { release = false } = {}) {
       if (this.state !== 'connected') return false;
       const C = window.CU.Commands;
       this.programmedAt = this.pending[ctrl] = performance.now();
       this.progSubs.forEach(fn => { try { fn(ctrl); } catch (e) {} });
       const go = () => { this.send(C.speed(ctrl, speed ?? 15)); this.send(C.brake(ctrl, brake ?? 15)); };
       const free = () => [0, undefined, null].includes(this.lastStatus?.start);
-      if (free()) { go(); return true; }
+      if (free() || !release) { go(); return true; }
       const t0 = performance.now(), esc = () => { this.send(C.press(window.CU.BUTTON.ESC)); lastEsc = performance.now(); };
       let lastEsc = 0;
       const wait = () => {
@@ -132,10 +132,11 @@
     // Gas/Bremse programmiert die CU ins Auto (Lampen an der CU leuchten, bis das Auto über einen
     // Sensor fährt). Während dieser Zeit meldet die CU Durchfahrten/Ampel unzuverlässig (Test 17.11.2026).
     // Deshalb nur auf ausdrücklichen Wunsch senden (Tuning-Menü), nicht automatisch beim Start.
-    setTuning (ctrl, { speed, brake } = {}, { send = false } = {}) {
+    setTuning (ctrl, { speed, brake } = {}, { send = false, release = false } = {}) {
       const t = this.tuning[ctrl] = { speed: speed ?? 15, brake: brake ?? 15 };
       if (!send) return;
-      hub.program(ctrl, t);
+      if (release) this.want = null;                                        // Quali-Ergebnis: Rot nicht wieder erzwingen
+      hub.program(ctrl, t, { release });
     }
 
     /** Leerer Tank: vorerst ohne Drosselung über die CU (siehe setTuning) */
