@@ -411,3 +411,6 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 
 /* Stoppuhr in der ersten Rennrunde (statt Rundenzahl) */
 .lc-laps.lc-watch { font-size: min(26cqh, 2.4vw); font-variant-numeric: tabular-nums; color: var(--lc-accent); }
+.lc-laps.lc-waiting { color: var(--lc-pit); animation: lc-wait-blink 1s steps(2) infinite; }
+@keyframes lc-wait-blink { 50% { opacity: .15; } }
+@media (prefers-reduced-motion: reduce) { .lc-laps.lc-waiting { animation: none; } }

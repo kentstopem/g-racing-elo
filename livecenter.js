@@ -570,6 +570,10 @@
       const tNow = session.phase === 'green' ? source.now() : (session.redAt ?? session.endT ?? source.now());
       return `<div class="lc-num lc-laps lc-watch">${sec1(Math.max(0, tNow - c.lastCross - (c.pausedMs || 0)))}</div>`;
     }
+    // Nach „Los“ noch nicht über Start/Ziel (ab 0,5 s): blinkender Strich – fällt sofort auf, wenn ein Auto nicht erfasst wird
+    if (session?.mode === 'race' && c && !c.started && !s.status && session.phase === 'green' && session.goT != null && source.now() - session.goT > 500) {
+      return '<div class="lc-num lc-laps lc-waiting">–</div>';
+    }
     return `<div class="lc-num lc-laps">${s.laps}</div>`;
   }
 
