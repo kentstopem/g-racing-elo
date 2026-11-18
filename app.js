@@ -385,6 +385,7 @@ function initNavigation() {
     const navButtons = document.querySelectorAll('.nav-btn');
     navButtons.forEach(button => {
         button.addEventListener('click', function () {
+            if (this.dataset.open === 'livecenter') { window.Livecenter?.open(); return; }   // „Live“ springt direkt ins Livecenter
             const sectionName = this.getAttribute('data-section');
             showSection(sectionName);
         });

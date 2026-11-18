@@ -162,6 +162,9 @@ h3 { font-size: 18px; font-weight: 600; }
 }
 .nav-btn:hover { color: var(--iu-black); }
 .nav-btn.active { color: var(--iu-black); font-weight: 700; border-bottom-color: var(--iu-accent); }
+/* „Live“ öffnet direkt das Livecenter – schwarz hinterlegt, damit klar ist: hier geht es woanders hin */
+.nav-btn.nav-live { background: #000; color: #fff; border-radius: 8px; border-bottom: none; padding: 8px 14px; margin: 4px 4px 6px; align-self: center; }
+.nav-btn.nav-live:hover { color: #fff; opacity: .85; }
 
 .sub-nav { display: flex; gap: 4px; margin: 0 0 20px; border-bottom: 1px solid var(--iu-grey); }
 .sub-tab {
