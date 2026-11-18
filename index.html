@@ -60,6 +60,7 @@
             <button class="nav-btn" data-section="history"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>Rennen</button>
             <button class="nav-btn" data-section="records"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg>Rekorde</button>
             <button class="nav-btn" data-section="stats"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Statistik</button>
+            <button class="nav-btn" data-section="halloffame"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg>Ruhmeshalle</button>
             <button class="nav-btn admin-only" data-section="drivers" data-hide-feature="live"><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer</button>
             <button class="nav-btn admin-only" data-section="cars" data-hide-feature="live"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge</button>
             <button class="nav-btn admin-only" data-section="setup" data-feature="live" style="display:none"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Setup</button>
@@ -235,6 +236,9 @@
             <div id="statsTableWrap"></div>
         </div>
 
+        <!-- Ruhmeshalle: Endstand abgeschlossener Saisons (halloffame.js) -->
+        <div id="halloffame" class="section"></div>
+
         <!-- G!RP Chart Modal -->
         <div id="eloModal" class="modal hidden">
             <div class="modal-content" style="max-width:600px;">
@@ -408,6 +412,7 @@
     <script src="history.js" defer></script>
     <script src="records.js" defer></script>
     <script src="statistics.js" defer></script>
+    <script src="halloffame.js" defer></script>
     <script src="wheel.js" defer></script>
     <script src="slot.js"  defer></script>
     <script src="seasons-ui.js" defer></script>

@@ -682,3 +682,40 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 /* Livecenter-Einstieg im Live-Bereich */
 .live-lc { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .live-lc h3 { margin-bottom: 4px; }
+
+/* ---------- Ruhmeshalle ---------- */
+.hof-season { background: var(--iu-white); border: 1px solid var(--iu-grey); margin-bottom: 20px; padding: 20px; }
+.hof-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.hof-title { font-size: 22px; font-weight: 700; }
+.hof-meta { color: var(--text-muted); font-size: 14px; margin-top: 2px; }
+.hof-count { text-align: right; font-size: 13px; color: var(--text-muted); line-height: 1.35; white-space: nowrap; }
+.hof-count strong { color: var(--iu-black); font-variant-numeric: tabular-nums; }
+.hof-champs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.hof-champ { display: flex; gap: 12px; align-items: center; background: var(--iu-black); color: var(--iu-white); border-radius: var(--radius); border-left: 4px solid var(--iu-accent); padding: 14px 16px; min-width: 0; }
+.hof-champ > .ic { width: 28px; height: 28px; flex: none; stroke: var(--iu-accent); }
+.hof-champ div { display: flex; flex-direction: column; min-width: 0; }
+.hof-champ span { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; opacity: .75; }
+.hof-champ strong { font-size: 18px; line-height: 1.2; overflow-wrap: anywhere; }
+.hof-champ em { font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--iu-accent); }
+.hof-champ-wide { grid-column: 1 / -1; }
+.hof-champ em.hof-champ-car { color: var(--iu-white); font-weight: 400; opacity: .85; }
+.hof-tabs { margin-bottom: 16px; }
+.hof-podium { margin-bottom: 12px; }
+.hof-podium-meta { font-size: .75em; opacity: .85; }
+.hof-table { margin-bottom: 20px; }
+.hof-table summary { cursor: pointer; color: var(--text-muted); font-size: 14px; padding: 6px 0; }
+.hof-table[open] summary { margin-bottom: 8px; }
+.hof-sub { font-size: 15px; margin: 4px 0 10px; }
+.hof-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.hof-tile { background: var(--iu-light-grey); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
+.hof-tile-title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.hof-tile-title .ic { width: 15px; height: 15px; }
+.hof-tile-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.hof-tile-who { font-weight: 600; }
+.hof-tile-sub { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .hof-season { padding: 14px; }
+  .hof-champs { grid-template-columns: 1fr; }
+  .hof-grid { grid-template-columns: 1fr 1fr; }
+  .hof-tile-value { font-size: 17px; }
+}

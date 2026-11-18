@@ -363,6 +363,7 @@ function refreshViews(info = {}) {
     updateCarsList();
     RaceUI.refreshPredictions?.();
     if (currentSection === 'stats') window.StatsUI?.reload();
+    if (currentSection === 'halloffame') window.HallOfFame?.render(document.getElementById('halloffame'), rawState);
     if (currentSection === 'records' && info.collection === 'lapRecords') window.RecordsUI?.reload();
     if (currentSection === 'seasons' && ['seasons', 'tracks', 'races'].includes(info.collection)) window.SeasonsUI?.render();
     if (currentSection === 'setup' && ['seasons', 'tracks', 'settings'].includes(info.collection)) window.SetupUI?.render();
@@ -459,6 +460,8 @@ function showSection(sectionName) {
         window.SeasonsUI?.render();
     } else if (sectionName === 'setup') {
         window.SetupUI?.render();
+    } else if (sectionName === 'halloffame') {
+        window.HallOfFame?.render(document.getElementById('halloffame'), rawState);
     } else if (sectionName === 'stats') {
         window.StatsUI?.reload();
     } else if (sectionName==='records'){
