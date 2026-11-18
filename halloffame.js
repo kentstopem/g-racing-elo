@@ -36,7 +36,7 @@
       bestStreak && bestStreak[1].max > 1 && { icon: 'flag', title: 'Längste Siegesserie', value: `${bestStreak[1].max} in Folge`, who: k.name(bestStreak[0]) },
       peak && { icon: 'chart', title: 'Höchster G!RP-Wert', value: num(peak.v), who: peak.who, sub: peak.date },
       jump && { icon: 'refresh', title: 'Größter Sprung', value: `+${jump.v} G!RP`, who: jump.who, sub: `${k.id === 'carId' ? 'mit ' : ''}${jump.other} · ${jump.date}` },
-      bestDuo && bestDuo.w > 0 && { icon: k.id === 'carId' ? 'driver' : 'car', title: 'Erfolgreichstes Duo', value: `${bestDuo.w} Siege`, who: k.name(bestDuo.a), sub: `mit ${k.otherName(bestDuo.b)} · ${bestDuo.n} Rennen` },
+      bestDuo && bestDuo.w > 0 && { icon: k.id === 'carId' ? 'driver' : 'car', title: 'Erfolg\u00ADreichstes Duo', value: `${bestDuo.w} Siege`, who: k.name(bestDuo.a), sub: `mit ${k.otherName(bestDuo.b)} · ${bestDuo.n} Rennen` },
       byRaces && { icon: k.icon, title: 'Dauerbrenner', value: `${byRaces.races} Rennen`, who: byRaces.name, sub: `${num(byRaces.totalRounds)} Runden` }
     ].filter(Boolean);
   }
@@ -121,7 +121,7 @@
       ${tab === 'driver' ? podium(h.drivers, 'driver') + table(h.drivers, 'driver') : podium(h.cars, 'car') + table(h.cars, 'car')}
       <h4 class="hof-sub">Höhepunkte</h4>
       <div class="hof-grid">${(h.highlights[tab] || []).map(x => `<div class="hof-tile">
-        <div class="hof-tile-title">${ic(x.icon)}${esc(x.title)}</div>
+        <div class="hof-tile-title">${ic(x.icon)}<span>${esc(x.title)}</span></div>
         <div class="hof-tile-value">${esc(x.value)}</div>
         <div class="hof-tile-who">${esc(x.who)}</div>
         ${x.sub ? `<div class="hof-tile-sub">${esc(x.sub)}</div>` : ''}

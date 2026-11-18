@@ -710,7 +710,9 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .hof-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 .hof-tile { background: var(--iu-light-grey); border-radius: var(--radius); padding: 12px 14px; min-width: 0; }
 .hof-tile-title { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
-.hof-tile-title .ic { width: 15px; height: 15px; }
+.hof-tile-title .ic { width: 15px; height: 15px; flex: none; }
+.hof-tile-title span { min-width: 0; hyphens: manual; -webkit-hyphens: manual; overflow-wrap: anywhere; }
+.hof-tile-who { overflow-wrap: anywhere; }
 .hof-tile-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 4px; }
 .hof-tile-who { font-weight: 600; }
 .hof-tile-sub { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
@@ -719,4 +721,6 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
   .hof-champs { grid-template-columns: 1fr; }
   .hof-grid { grid-template-columns: 1fr 1fr; }
   .hof-tile-value { font-size: 17px; }
+  .hof-tile { padding: 12px; }
+  .hof-tile-title { font-size: 11px; letter-spacing: .02em; }
 }
