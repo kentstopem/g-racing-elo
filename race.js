@@ -140,11 +140,21 @@
     window.appData.raceCounter=rows.length;
   }
 
+  /** „Rennen nachtragen“: Datum und Uhrzeit immer frisch vorbelegen, nie aus einem alten Entwurf */
+  function resetDateTime(){
+    const now=new Date();
+    const dateInput=document.getElementById('raceDate');
+    if(dateInput) dateInput.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const timeInput=document.getElementById('raceTime');
+    if(timeInput) timeInput.value=now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    persistRaceDraft();
+  }
+
   function updateRaceForm(){
     const container=document.getElementById('raceEntries');
     if(!container) return;
     const dateInput=document.getElementById('raceDate');
-    if(dateInput&&!dateInput.value){dateInput.value=new Date().toISOString().split('T')[0];}
+    if(dateInput&&!dateInput.value){const n=new Date();dateInput.value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;}
     const roundsInput=document.getElementById('raceRounds');
     if(roundsInput&&!roundsInput.value){roundsInput.value='60';}
     const timeInput=document.getElementById('raceTime');
@@ -244,7 +254,7 @@
     const chosenPlaces=new Set();
     const raceDateInput=document.getElementById('raceDate');
     const raceRoundsInput=document.getElementById('raceRounds');
-    const raceDate=raceDateInput.value||new Date().toISOString().split('T')[0];
+    const raceDate=raceDateInput.value||(n=>`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`)(new Date());
     const rounds=parseInt(raceRoundsInput.value)||50;
     if(rounds<1||rounds>999){showToast('Rundenzahl muss zwischen 1 und 999 liegen!');return;}
 
@@ -629,7 +639,7 @@
     document.getElementById('raceRounds')?.addEventListener('change', persistRaceDraft);
   }
 
-  window.RaceUI={ init, updateForm:updateRaceForm, refreshPredictions:updatePredictions, saveRaceResult, openAutoSetup };
+  window.RaceUI={ init, updateForm:updateRaceForm, refreshPredictions:updatePredictions, saveRaceResult, openAutoSetup, resetDateTime };
   document.addEventListener('DOMContentLoaded', init);
 
   // global needed by inline onclicks

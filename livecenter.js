@@ -34,6 +34,7 @@
   let recPick = new Set();     // ausgewählte neue Rekorde
   let recState = '';           // '' | 'saving' | 'done'
   let girpDone = false;
+  let startWall = null;        // Uhrzeit (Date.now) beim ersten „Los“ – wird als Rennbeginn gespeichert
   let baseRecords = [];        // Rekorde dieser Strecke beim Start der Sitzung
   let resTab = 'result';       // Ergebnis-Seite: result | details | laps | stats
   let discardArmed = false;   // „Verwerfen“ der gesicherten Sitzung zweimal tippen
@@ -421,7 +422,7 @@
       lapFalseStart: !(cfg.source === 'cu' && window.LiveCU)   // CU: Fehlstart kommt als Ampel 8/9, Durchfahrten vor dem Start sind Fehlmeldungen
     });
     resTab = 'result';
-    redPen = {}; redReason = ''; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; girpShown = null; baseRecords = records.slice();
+    redPen = {}; redReason = ''; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; girpShown = null; baseRecords = records.slice(); startWall = null;
     session.on(onEngine);
     attachSource(entries, records, t);
     ticker = []; lapFlash = {}; overlay = null; menuCtrl = null; shellKey = '';
@@ -464,7 +465,7 @@
     if (!session || !source || (!force && Date.now() - snapAt < 1000)) return;
     snapAt = Date.now();
     try {
-      localStorage.setItem(SNAP, JSON.stringify({ at: snapAt, snap: session.snapshot(source.now()), qualiBests, baseRecords, redReason, lightsRunning: false }));
+      localStorage.setItem(SNAP, JSON.stringify({ at: snapAt, snap: session.snapshot(source.now()), qualiBests, baseRecords, redReason, startWall, lightsRunning: false }));
     } catch (e) { console.warn('Sicherung fehlgeschlagen', e); }
   }
   function readSnap () {
@@ -480,6 +481,7 @@
     qualiBests = saved.qualiBests || {};
     baseRecords = saved.baseRecords || records.slice();
     resTab = 'result'; redPen = {}; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; girpShown = null;
+    startWall = saved.startWall || null;
     attachSource(entries, records, saved.snap.opts.track || {});
     session = window.RaceEngine.Session.restore(saved.snap, source.now());
     session.on(onEngine);
@@ -587,7 +589,7 @@
     girpSaving = true; shellKey = ''; renderLive();
     if (!recState && recPick.size) await saveRecords();     // angehakte Rekorde gleich mit
     const preview = girpPreview();
-    const d = new Date();
+    const d = new Date(startWall || Date.now());   // Rennbeginn, nicht Speicherzeitpunkt
     const res = window.RaceUI.saveRaceResult({
       date: isoDate(d), time: d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
       rounds: session.laps, entries: resultEntries()
@@ -650,6 +652,7 @@
       case 'lights': say(type, `count_${6 - d.step}`); break;
       case 'go':
         say(type, 'count_go');
+        if (!d.restart && startWall == null) startWall = Date.now();
         if (session.mode === 'race') overlay = { kind: 'go', until: performance.now() + 1400 };
         else if (d.restart) note(null, 'Strecke wieder frei');
         session.lightsRunning = false;

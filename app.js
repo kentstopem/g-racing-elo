@@ -382,7 +382,7 @@ function updateTagline() {
 // Navigation
 function initNavigation() {
     document.querySelectorAll('#setupSubNav .sub-tab').forEach(b => b.addEventListener('click', () => showSection(b.dataset.setup)));
-    document.getElementById('addRaceBtn')?.addEventListener('click', () => showSection('race'));   // Handeingabe ohne Livecenter
+    document.getElementById('addRaceBtn')?.addEventListener('click', () => { showSection('race'); window.RaceUI?.resetDateTime?.(); });   // Handeingabe ohne Livecenter
     const navButtons = document.querySelectorAll('.nav-btn');
     navButtons.forEach(button => {
         button.addEventListener('click', function () {
