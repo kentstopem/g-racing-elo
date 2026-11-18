@@ -26,7 +26,7 @@
   let addPanel = null;         // Training: { ctrl, driverId, carId } – Fahrer dazunehmen
   let menuCtrl = null;         // Regler, dessen Strafen-Menü offen ist
   let voiceOn = readVoice();
-  let lastSay = { prio: 0, at: 0 };
+  let lastSay = { prio: 0, type: '', at: 0, until: 0 };
   let shellKey = '';
   let endArmed = 0;            // „Beenden“: Auswahl (werten / neu starten / weiterfahren) offen
   let restartArmed = false;
@@ -713,13 +713,22 @@
   }
 
   // ---------- Meldungen der Engine → Sprache + Laufschrift ----------
-  const PRIO = { lights: 9, go: 9, redFlag: 10, resume: 9, win: 8, pole: 8, trackRecord: 7, falseStart: 7, lastLap: 6, personalRecord: 5, pitCall: 5, fastestLap: 4, penaltyServed: 4, refueled: 3, pitIn: 2 };
-  function say (type, key, driverId) {
+  const PRIO = { lights: 9, go: 9, redFlag: 10, resume: 9, win: 8, pole: 8, trackRecord: 7, finishPlace: 7, falseStart: 7, lastLap: 6, fiveToGo: 6, halfway: 6, status: 6, carRecord: 6, personalRecord: 5, pitCall: 5, leadChange: 5, fastestLap: 4, penaltyServed: 4, refueled: 3, qualiDone: 3, pitIn: 2 };
+  // So lange darf nichts Unwichtigeres dazwischenreden (ms, sonst 2,2 s) – z. B. der Glückwunsch zum Sieg / zur Pole
+  const HOLD = { win: 4500, pole: 4000, trackRecord: 3500 };
+  // Diese Ansagen werden nicht verworfen, sondern nachgeholt, wenn gerade Wichtigeres läuft
+  // (und unterbrechen sich nicht gegenseitig: Platz 2 und Platz 3 kurz hintereinander)
+  const WAIT = new Set(['finishPlace', 'status', 'qualiDone']);
+  function say (type, key, driverId, tries = 0) {
     if (!voiceOn || !window.Voice) return;
+    if (type === 'qualiDone' && (session?.phase === 'finished' || tries && session?.mode !== 'quali')) return;   // nach der Pole nicht mehr nachholen
     const now = performance.now();
     const prio = PRIO[type] || 1;
-    if (prio < lastSay.prio && now - lastSay.at < 2200) return;   // Wichtiges nicht abwürgen
-    lastSay = { prio, at: now };
+    if (now < lastSay.until && (prio < lastSay.prio || (WAIT.has(type) && WAIT.has(lastSay.type)))) {   // Wichtiges nicht abwürgen
+      if (WAIT.has(type) && tries < 4) setTimeout(() => say(type, key, driverId, tries + 1), lastSay.until - now + 150);
+      return;
+    }
+    lastSay = { prio, type, at: now, until: now + (HOLD[type] || 2200) };
     try { window.Voice.announce(key, driverId)?.catch?.(() => {}); } catch (e) {}
   }
   function note (ctrl, text, kind = '') {
@@ -747,7 +756,16 @@
       case 'pitCall': say(type, 'pit_call', d.driverId); note(d.ctrl, `${name}: Tank bald leer`, 'warn'); break;
       case 'fuelEmpty': source?.limitSpeed?.(d.ctrl, d.level); note(d.ctrl, `${name}: Tank leer – gedrosselt`, 'warn'); break;
       case 'fuelRestored': source?.limitSpeed?.(d.ctrl, null); break;
-      case 'status': if (d.status) note(d.ctrl, `${name}: ${d.status === 'dq' ? 'disqualifiziert' : 'ausgefallen'}`, 'warn'); break;
+      case 'status':
+        if (d.status) { say(type, d.status === 'dq' ? 'dq' : 'dnf', d.driverId); note(d.ctrl, `${name}: ${d.status === 'dq' ? 'disqualifiziert' : 'ausgefallen'}`, 'warn'); }
+        break;
+      case 'carRecord':   // nur wenn das Fahrzeug schon eine Zeit hatte und es kein Streckenrekord ist (der wird eigens angesagt)
+        if (d.previous != null && !d.trackRecord) { say(type, 'car_record', d.driverId); note(d.ctrl, `${name}: Fahrzeugrekord ${fmt(d.ms)} s`, 'rec'); }
+        break;
+      case 'leadChange': say(type, 'lead_change', d.driverId); note(d.ctrl, `${name} übernimmt die Führung`); break;
+      case 'finish': if (session.mode === 'race' && (d.position === 2 || d.position === 3)) say('finishPlace', `place_${d.position}`, d.driverId); break;
+      case 'halfway': say(type, 'halfway'); note(null, 'Halbzeit'); break;
+      case 'fiveToGo': say(type, 'five_to_go'); note(null, 'Noch 5 Runden'); break;
       case 'pitIn': say(type, 'in_pit', d.driverId); break;
       case 'refueled': say(type, 'refueled', d.driverId); break;
       case 'penalty': note(d.ctrl, `${name}: ${d.reason} +${d.sec} s`, 'warn'); break;
@@ -761,7 +779,7 @@
         break;
       case 'lastLap': say(type, 'last_lap'); note(null, 'Letzte Runde!'); break;
       case 'win': say(type, 'race_win', d.driverId); note(d.ctrl, `${name} gewinnt!`, 'win'); break;
-      case 'qualiDone': note(d.ctrl, `${name}: Quali beendet`); break;
+      case 'qualiDone': say(type, 'quali_done', d.driverId); note(d.ctrl, `${name}: Quali beendet`); break;
       case 'pole': say(type, 'pole', d.driverId); break;
       case 'end': source?.stopCars(); try { countLaps(); } catch (e) { console.error(e); } recPick = new Set(recordCandidates().map(r => r.key)); break;
     }

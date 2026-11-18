@@ -265,7 +265,7 @@
       let kind = null;
       if (rec.track == null || ms < rec.track.ms) kind = 'trackRecord';
       else if (rec.personal == null || ms < rec.personal) kind = 'personalRecord';
-      if (rec.car == null || ms < rec.car) this.emit('carRecord', { ctrl: c.ctrl, driverId: c.driverId, carId: c.carId, ms });
+      if (rec.car == null || ms < rec.car) this.emit('carRecord', { ctrl: c.ctrl, driverId: c.driverId, carId: c.carId, ms, previous: rec.car ?? null, trackRecord: kind === 'trackRecord' });
       const fastest = this.sessionBest == null || ms < this.sessionBest.ms;
       if (fastest) this.sessionBest = { ctrl: c.ctrl, driverId: c.driverId, carId: c.carId, ms };
       // Jede neue Paarungs-Bestzeit zählt ab sofort mit (auch für Fahrzeug-Rekorde nach einem Autowechsel)
@@ -359,8 +359,19 @@
         this.emit('win', { ctrl: c.ctrl, driverId: c.driverId });
         return;
       }
-      if (this.laps && c.laps === this.laps - 1 && this.leaderLaps() === c.laps) {
-        this.emit('lastLap', { ctrl: c.ctrl, driverId: c.driverId });
+      // Führungswechsel (ab Runde 2, vorher sortiert sich das Feld erst)
+      const lead = this.standings().find(s => !s.status);
+      if (lead && lead.ctrl !== this.leadCtrl) {
+        if (this.leadCtrl != null && lead.ctrl === c.ctrl && c.laps >= 2) this.emit('leadChange', { ctrl: c.ctrl, driverId: c.driverId, previous: this.leadCtrl });
+        this.leadCtrl = lead.ctrl;
+      }
+      // Rundenstand-Ansagen, wenn der Führende die Runde beginnt (jede nur einmal)
+      if (this.laps && this.leaderLaps() === c.laps) {
+        this.calls = this.calls || {};
+        const half = Math.floor(this.laps / 2), call = key => { if (!this.calls[key]) { this.calls[key] = true; this.emit(key, { ctrl: c.ctrl, driverId: c.driverId, lap: c.laps }); } };
+        if (c.laps === this.laps - 1) call('lastLap');
+        else if (c.laps === this.laps - 5 && this.laps >= 8 && this.laps - 5 !== half) call('fiveToGo');
+        else if (c.laps === half && this.laps >= 6) call('halfway');
       }
     }
 
@@ -563,7 +574,7 @@
      * Nach einem Neuladen beginnt die Uhr bei 0 – restore() verschiebt deshalb alle Zeitpunkte.
      */
     snapshot (t) {
-      const keep = ['phase', 'lights', 'goT', 'redAt', 'endT', 'lastT', 'restarts', 'redTotalMs', 'sessionBest', 'leaderFinished', 'lapsCounted'];
+      const keep = ['phase', 'lights', 'goT', 'redAt', 'endT', 'lastT', 'restarts', 'redTotalMs', 'sessionBest', 'leaderFinished', 'lapsCounted', 'leadCtrl', 'calls'];
       return JSON.parse(JSON.stringify({
         v: 1, savedT: t ?? this.lastT ?? 0,
         opts: { mode: this.mode, laps: this.laps, track: this.track, settings: this.settings, records: this.records, fuel: this.fuelOn, finishCount: this.finishCount, dqOpenPenalties: this.dqOpenPenalties, fullDistance: this.fullDistance, lapFalseStart: this.lapFalseStart },

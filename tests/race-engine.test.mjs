@@ -463,3 +463,19 @@ test('Training: Fahrer im laufenden Training dazunehmen und herausnehmen', () =>
   assert.equal(rr.addCar({ ctrl: 3, driverId: 12, carId: 22 }), false);
   assert.equal(rr.removeCar(1), false);
 });
+
+test('Ansagen: Führungswechsel ab Runde 2, Halbzeit, noch 5 Runden, letzte Runde je einmal', () => {
+  const { s, types, events } = race(12);
+  let t = 6000;
+  lap(s, 1, t += 100); lap(s, 2, t += 100);                 // Start/Ziel-Durchfahrt
+  for (let n = 1; n <= 3; n++) { lap(s, 1, t += 7000); lap(s, 2, t += 100); }
+  assert.ok(!types().includes('leadChange'));
+  lap(s, 2, t += 6000); lap(s, 1, t += 500);               // Runde 4: Fahrer 2 überholt
+  assert.equal(events.find(e => e[0] === 'leadChange')[1].ctrl, 2);
+  for (let n = 5; n <= 12; n++) { lap(s, 2, t += 7000); lap(s, 1, t += 100); }
+  const t2 = types();
+  for (const k of ['halfway', 'fiveToGo', 'lastLap']) assert.equal(t2.filter(x => x === k).length, 1, k);
+  assert.equal(events.find(e => e[0] === 'halfway')[1].lap, 6);
+  assert.equal(events.find(e => e[0] === 'fiveToGo')[1].lap, 7);
+  assert.equal(events.filter(e => e[0] === 'finish')[1][1].position, 2);
+});
