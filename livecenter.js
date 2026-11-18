@@ -563,6 +563,15 @@
 
   // ---------- Live-Ansicht ----------
   const sec1 = ms => (ms / 1000).toFixed(1).replace('.', ',');
+  /** Rundenzahl; im Rennen läuft in der ersten Runde (nach der ersten Durchfahrt) stattdessen eine Stoppuhr */
+  function lapsCell (s) {
+    const c = session?.cars.get(s.ctrl);
+    if (session?.mode === 'race' && c && c.started && c.laps === 0 && !c.finished && !s.status && c.lastCross != null) {
+      const tNow = session.phase === 'green' ? source.now() : (session.redAt ?? session.endT ?? source.now());
+      return `<div class="lc-num lc-laps lc-watch">${sec1(Math.max(0, tNow - c.lastCross - (c.pausedMs || 0)))}</div>`;
+    }
+    return `<div class="lc-num lc-laps">${s.laps}</div>`;
+  }
 
   /** Fahrzeugbild (eigenes Bild aus dem Setup oder assets/cars/NN.png), einmal pro Fahrzeug geladen */
   const carImgs = {};
@@ -687,7 +696,7 @@
       const out = s.status === 'dq' ? 'DQ' : s.status === 'dnf' ? 'DNF' : '';
       const cls = ['lc-row', flash && 'flash', (s.finished || s.done || out) && 'done', menuCtrl === s.ctrl && 'menu', s.servingPenalty && 'serving', s.inPit && 'inpit', out && 'out'].filter(Boolean).join(' ');
       const common = `<div class="lc-pos"><span>${out ? '–' : s.pos}</span></div>${carCell(s.carId, img)}<div class="lc-who"><b>${who(s.driverId)}</b></div>
-        <div class="lc-num lc-laps">${s.laps}</div>
+        ${lapsCell(s)}
         <div class="lc-num lc-last ${s.lastInterrupted ? 'int' : ''}">${fmt(s.last)}</div>
         <div class="lc-num lc-best ${bestCls}">${fmt(s.best)}</div>
         <div class="lc-num lc-gap">${out ? '' : fmtGap(s)}</div>`;

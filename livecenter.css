@@ -408,3 +408,6 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 /* Startaufstellung: Fahrer in Controllerfarbe hinterlegt */
 .lc-grid-list > span { background: var(--cc); color: var(--ct); padding: 8px 10px 8px 16px; border-radius: 12px; box-shadow: 0 0 0 2px rgba(255,255,255,.35); }
 .lc-grid-list > span > i { display: none; }
+
+/* Stoppuhr in der ersten Rennrunde (statt Rundenzahl) */
+.lc-laps.lc-watch { font-size: min(26cqh, 2.4vw); font-variant-numeric: tabular-nums; color: var(--lc-accent); }
