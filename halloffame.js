@@ -125,7 +125,7 @@
   function render (el, raw) {
     if (!el) return;
     const list = compute(raw);
-    el.innerHTML = `<div class="ranking-header">${ic('medal')}Ruhmeshalle</div>` + (list.length
+    el.innerHTML = `<div class="ranking-header">${ic('crown')}Ruhmeshalle</div>` + (list.length
       ? list.map(h => seasonCard(h, tabs[h.season.id] || 'driver')).join('')
       : '<p class="empty-state">Hier erscheinen die Sieger, sobald die erste Saison abgeschlossen ist.</p>');
     el.querySelectorAll('.hof-tabs .sub-tab').forEach(b => b.onclick = () => {

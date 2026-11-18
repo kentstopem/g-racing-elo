@@ -393,6 +393,7 @@ function updateTagline() {
 
 // Navigation
 function initNavigation() {
+    document.querySelectorAll('#seasonSubNav .sub-tab').forEach(b => b.addEventListener('click', () => showSection(b.dataset.seasonTab)));
     document.querySelectorAll('#setupSubNav .sub-tab').forEach(b => b.addEventListener('click', () => showSection(b.dataset.setup)));
     document.getElementById('addRaceBtn')?.addEventListener('click', () => { showSection('race'); window.RaceUI?.resetDateTime?.(); });   // Handeingabe ohne Livecenter
     const navButtons = document.querySelectorAll('.nav-btn');
@@ -406,6 +407,8 @@ function initNavigation() {
 }
 
 let lastSetupTab = 'drivers';
+let lastSeasonTab = 'history';
+const SEASON_TABS = ['history', 'records', 'stats'];
 function showSection(sectionName) {
     // Alle Sections verstecken
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -415,6 +418,17 @@ function showSection(sectionName) {
     document.getElementById('rankSubNav')?.classList.add('hidden');
     document.getElementById('recordSubNav')?.classList.add('hidden');
     document.getElementById('setupSubNav')?.classList.add('hidden');
+    document.getElementById('seasonSubNav')?.classList.add('hidden');
+
+    // „Saison“ fasst Rennen, Rekorde und Statistik zusammen (Handeingabe „race“ gehört zu Rennen)
+    if (sectionName === 'season') sectionName = lastSeasonTab;
+    const seasonTab = SEASON_TABS.includes(sectionName) ? sectionName : sectionName === 'race' ? 'history' : null;
+    if (seasonTab) {
+        lastSeasonTab = seasonTab;
+        const sub = document.getElementById('seasonSubNav');
+        sub.classList.remove('hidden');
+        sub.querySelectorAll('.sub-tab').forEach(b => b.classList.toggle('active', b.dataset.seasonTab === seasonTab));
+    }
 
     // Mit Feature Flag "live" sind Fahrer, Fahrzeuge, Strecken, Saisons und Renneinstellungen Unterbereiche von „Setup“
     let setupTab = null;
@@ -430,7 +444,7 @@ function showSection(sectionName) {
     const section = document.getElementById(sectionName);
     if (section) section.classList.add('active');
 
-    const button = document.querySelector(`.nav-btn[data-section="${setupTab ? 'setup' : sectionName === 'race' ? 'history' : sectionName}"]`);
+    const button = document.querySelector(`.nav-btn[data-section="${setupTab ? 'setup' : seasonTab ? 'season' : sectionName}"]`);
     if (button) button.classList.add('active');
     if (setupTab) {
         const sub = document.getElementById('setupSubNav');

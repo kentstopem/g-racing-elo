@@ -22,6 +22,7 @@
     <!-- Icons: Linien-Icons (24er Raster, Strich 1,75), Stil angelehnt an Lucide -->
     <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
       <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></symbol>
+      <symbol id="i-crown" viewBox="0 0 24 24"><path d="M11.56 3.27a.5.5 0 0 1 .88 0l2.95 5.6a1 1 0 0 0 1.52.3l4.28-3.66a.5.5 0 0 1 .8.52l-2.83 10.25a1 1 0 0 1-.97.72H5.81a1 1 0 0 1-.96-.72L2.02 6.03a.5.5 0 0 1 .8-.52l4.28 3.67a1 1 0 0 0 1.52-.3z"/><path d="M5 21h14"/></symbol>
       <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></symbol>
       <symbol id="i-medal" viewBox="0 0 24 24"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/></symbol>
       <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></symbol>
@@ -57,10 +58,8 @@
         <div class="nav">
             <button class="nav-btn active" data-section="rankings"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg>G!RP</button>
             <button class="nav-btn nav-live" data-open="livecenter" title="Livecenter öffnen"><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg>Live</button>
-            <button class="nav-btn" data-section="history"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>Rennen</button>
-            <button class="nav-btn" data-section="records"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg>Rekorde</button>
-            <button class="nav-btn" data-section="stats"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Statistik</button>
-            <button class="nav-btn" data-section="halloffame"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg>Ruhmeshalle</button>
+            <button class="nav-btn" data-section="season"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Saison</button>
+            <button class="nav-btn" data-section="halloffame"><svg class="ic" aria-hidden="true"><use href="#i-crown"/></svg>Ruhmeshalle</button>
             <button class="nav-btn admin-only" data-section="drivers" data-hide-feature="live"><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer</button>
             <button class="nav-btn admin-only" data-section="cars" data-hide-feature="live"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge</button>
             <button class="nav-btn admin-only" data-section="setup" data-feature="live" style="display:none"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg>Setup</button>
@@ -71,6 +70,12 @@
         <div id="rankSubNav" class="sub-nav hidden">
             <button class="sub-tab active" data-rank="drivers"><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer</button>
             <button class="sub-tab" data-rank="cars"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge</button>
+        </div>
+        <!-- Saison-Unterbereiche: Rennen, Rekorde, Statistik -->
+        <div id="seasonSubNav" class="sub-nav hidden">
+            <button class="sub-tab" data-season-tab="history"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>Rennen</button>
+            <button class="sub-tab" data-season-tab="records"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg>Rekorde</button>
+            <button class="sub-tab" data-season-tab="stats"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Statistik</button>
         </div>
         <!-- Setup-Unterbereiche (nur mit Feature Flag "live": Fahrer, Fahrzeuge, Saisons wandern hierher) -->
         <div id="setupSubNav" class="sub-nav hidden">
