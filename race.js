@@ -170,6 +170,9 @@
     draftLoading=false;
   }
 
+  // K-Faktor aus dem Setup (Renneinstellungen); wird mit jedem neuen Rennen gespeichert
+  const currentBaseK=()=>window.appData?.raceSettings?.baseK ?? window.Elo.BASE_K;
+
   // ---- Prognosen & Summen -------------------------------------------
   function updatePredictions(){
     const entries=[...document.querySelectorAll('.race-entry')];
@@ -178,7 +181,7 @@
     const rounds=parseInt(document.getElementById('raceRounds')?.value)||50;
     const totalPlayers=entries.filter(e=>e.querySelector('.driver-select').value && e.querySelector('.car-select').value).length;
     if(totalPlayers<2) return; // keine sinnvolle Prognose
-    const k=calculateKFactor(totalPlayers, rounds);
+    const k=calculateKFactor(totalPlayers, rounds, currentBaseK());
 
     // Sammeln Basisdaten
     const pairs=entries.map((e,idx)=>{
@@ -285,7 +288,7 @@
     const formattedDate=new Date(raceDate).toLocaleDateString('de-DE');
     const raceTimeInput=document.getElementById('raceTime');
     const raceTime=raceTimeInput&&raceTimeInput.value?raceTimeInput.value:new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    const race={id:Date.now(),date:formattedDate,time:raceTime,rounds,results};
+    const race={id:Date.now(),date:formattedDate,time:raceTime,rounds,baseK:currentBaseK(),results};
 
     const { kFactor, saved } = commitRace(race);
     saved.catch(()=>{});   // Fehler zeigt commitRace als Hinweis an
@@ -322,7 +325,7 @@
       const copy=structuredClone({drivers:window.appData.drivers,cars:window.appData.cars,races:[race,...(window.appData.allRaces||window.appData.races)]});
       window.Elo.recomputeSeasons(copy, S.seasonOfRace);
       race.results=copy.races[0].results;
-      kFactor=calculateKFactor(totalPlayers, rounds);
+      kFactor=calculateKFactor(totalPlayers, rounds, race.baseK);
     }else{
       // Ansicht ist beim Erfassen immer die aktuelle Saison → appData.drivers/cars = aktuelle Werte
       kFactor=window.Elo.applyRace(race, window.appData.drivers, window.appData.cars);
@@ -351,7 +354,7 @@
       results.push({ position:e.position, driverId:driver.id, carId:car.id, driverName:driver.name, carName:car.name, oldDriverElo:driver.elo, oldCarElo:car.elo });
     }
     if(results.length<2) return { error:'Mindestens 2 Teilnehmer erforderlich' };
-    const race={ id:Date.now(), date:new Date(date).toLocaleDateString('de-DE'), time, rounds, results };
+    const race={ id:Date.now(), date:new Date(date).toLocaleDateString('de-DE'), time, rounds, baseK:currentBaseK(), results };
     const { kFactor, saved }=commitRace(race);
     return { race, kFactor, saved };
   }

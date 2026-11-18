@@ -574,7 +574,7 @@
       results.push({ ctrl: e.ctrl, position: e.position, driverId: d.id, carId: c.id });
     }
     if (results.length < 2) return null;
-    const race = { rounds: session.laps, results };
+    const race = { rounds: session.laps, baseK: appData().raceSettings?.baseK, results };
     const k = window.Elo.applyRace(race, drivers, cars);
     const out = { k };
     race.results.forEach(r => { out[r.ctrl] = { d: r.driverEloChange, c: r.carEloChange, dNew: r.newDriverElo, cNew: r.newCarElo }; });

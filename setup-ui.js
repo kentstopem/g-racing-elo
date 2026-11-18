@@ -482,6 +482,10 @@
           <div class="form-group"><label for="rsFalse">Fehlstart (Sekunden)</label><input id="rsFalse" name="falseStart" inputmode="decimal" value="${fmtNum(s.falseStartPenaltySec, 1)}"></div>
           <div class="form-group"><label for="rsOpts">Zeitstrafen zur Auswahl (Sekunden)</label><input id="rsOpts" name="opts" value="${s.penaltyOptionsSec.map(v => fmtNum(v, 1)).join('; ')}" placeholder="2; 5; 7; 10"></div>
         </div>
+        <h3 class="setup-h">G!RP-Wertung</h3>
+        <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="form-group"><label for="rsBaseK">K-Faktor (maximal)</label><input id="rsBaseK" name="baseK" type="number" min="1" max="200" step="1" inputmode="numeric" value="${s.baseK}"><small class="muted">So viel kann ein Rennen mit 6 Fahrern über 75 Runden oder mehr höchstens bewegen. Weniger Fahrer oder Runden verringern ihn, im Extremfall auf ein Viertel. Gilt nur für neue Rennen, gewertete Rennen behalten ihren Wert.</small></div>
+        </div>
         <div class="edit-foot"><button type="button" class="btn" id="rsReset">Standardwerte</button><span style="flex:1"></span><button type="submit" class="btn btn-primary">Speichern</button></div>
       </form>
       <details class="bal-details" id="balDetails">
@@ -598,6 +602,7 @@
         fuelSpeedFactor: Number(form.factor.value) / 100,
         falseStartPenaltySec: parseNum(form.falseStart.value),
         penaltyOptionsSec: opts,
+        baseK: parseNum(form.baseK.value),
         voice: window.appData.raceSettings?.voice
       });
       persist(window.Storage.updateRaceSettings(fields), 'Renneinstellungen gespeichert');

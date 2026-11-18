@@ -128,3 +128,14 @@ test('Inaktive Fahrer/Fahrzeuge (Haken „aktiv“ aus) zählen nicht in der Ges
   assert.equal(race.results[1].positionOverallDriver, null);
   assert.equal(race.results[1].positionOverallCar, null);
 });
+
+test('baseK: Rennen nutzt den gespeicherten K-Faktor, ältere ohne Feld 32', () => {
+
+  assert.equal(Elo.calculateKFactor(6, 75), 32);
+  assert.equal(Elo.calculateKFactor(6, 75, 40), 40);
+  assert.equal(Elo.calculateKFactor(3, 3, 40), 15);
+  const mk = () => ({ drivers: [{ id: 1, elo: 1000 }, { id: 2, elo: 1000 }], cars: [{ id: 1, elo: 1000 }, { id: 2, elo: 1000 }] });
+  const race = baseK => ({ rounds: 75, baseK, results: [{ position: 1, driverId: 1, carId: 1 }, { position: 2, driverId: 2, carId: 2 }] });
+  const a = mk(); assert.equal(Elo.applyRace(race(undefined), a.drivers, a.cars), 16);
+  const b = mk(); assert.equal(Elo.applyRace(race(64), b.drivers, b.cars), 32);
+});
