@@ -217,6 +217,8 @@ function renderDetails(){
     const allRaceLaps=(appData.allRaces||appData.races||[]).reduce((n,r)=>n+((r.results||[]).some(isMine)?(r.rounds||0):0),0);
     const entity=(currentEntityType==='driver'?appData.drivers:appData.cars).find(x=>x.id==currentEntityId);
     const totalLaps=allRaceLaps+(entity?.practiceLaps||0);
+    const S=window.Seasons, sel=S?.selectedSeason?.();
+    const seasonTxt=S?.isAll?.()?'(alle Saisons)':sel?`(${S.label(sel)})`:'(diese Saison)';
     const lastDate=stats.dates[stats.dates.length-1]||'-';
     let imgHTML='';
     if(currentEntityType==='car'){
@@ -253,8 +255,8 @@ function renderDetails(){
         <li>Rennen: <strong>${stats.races}</strong></li>
         <li>Siege: <strong>${stats.wins}</strong></li>
         <li>Siegquote: <strong>${stats.races?((stats.wins/stats.races*100).toFixed(1)):0}%</strong></li>
-        <li>Runden in Rennen: <strong>${stats.rounds}</strong></li>
-        <li>Runden gesamt: <strong>${totalLaps}</strong></li>
+        <li>Rennrunden ${seasonTxt}: <strong>${stats.rounds}</strong></li>
+        <li>Runden insgesamt (alle Saisons, mit Training und Quali): <strong>${totalLaps}</strong></li>
         <li>${bestLine}</li>
         <li>Erstes Rennen: <strong>${firstDate}</strong></li>
         <li>Letztes Rennen: <strong>${lastDate}</strong></li>
