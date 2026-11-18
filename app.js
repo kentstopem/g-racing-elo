@@ -382,6 +382,7 @@ function updateTagline() {
 // Navigation
 function initNavigation() {
     document.querySelectorAll('#setupSubNav .sub-tab').forEach(b => b.addEventListener('click', () => showSection(b.dataset.setup)));
+    document.getElementById('addRaceBtn')?.addEventListener('click', () => showSection('race'));   // Handeingabe ohne Livecenter
     const navButtons = document.querySelectorAll('.nav-btn');
     navButtons.forEach(button => {
         button.addEventListener('click', function () {
@@ -417,7 +418,7 @@ function showSection(sectionName) {
     const section = document.getElementById(sectionName);
     if (section) section.classList.add('active');
 
-    const button = document.querySelector(`[data-section="${setupTab ? 'setup' : sectionName}"]`);
+    const button = document.querySelector(`.nav-btn[data-section="${setupTab ? 'setup' : sectionName === 'race' ? 'history' : sectionName}"]`);
     if (button) button.classList.add('active');
     if (setupTab) {
         const sub = document.getElementById('setupSubNav');

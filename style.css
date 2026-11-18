@@ -609,7 +609,7 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .setup-actions { display: flex; gap: 8px; margin-left: auto; }
 .setup-actions .btn { margin: 0; }
 .setup-foot > .btn { margin: 0; }
-.setup-draw { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.setup-draw { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .setup-draw .btn { margin: 0; }
 
 /* ---------- Stammdaten & Setup (Feature Flag "live") ---------- */

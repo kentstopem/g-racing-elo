@@ -59,7 +59,6 @@
             <button class="nav-btn" data-section="history"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>Rennen</button>
             <button class="nav-btn" data-section="records"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg>Rekorde</button>
             <button class="nav-btn" data-section="stats"><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg>Statistik</button>
-            <button class="nav-btn admin-only" data-section="race"><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>Neues Rennen</button>
             <button class="nav-btn nav-live" data-open="livecenter" title="Livecenter öffnen"><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg>Live</button>
             <button class="nav-btn admin-only" data-section="drivers" data-hide-feature="live"><svg class="ic" aria-hidden="true"><use href="#i-driver"/></svg>Fahrer</button>
             <button class="nav-btn admin-only" data-section="cars" data-hide-feature="live"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg>Fahrzeuge</button>
@@ -137,7 +136,7 @@
         
         <!-- Rennen Section -->
         <div id="race" class="section">
-            <h2><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>Neues Rennen eingeben</h2>
+            <h2><svg class="ic" aria-hidden="true"><use href="#i-flag"/></svg>Rennen nachtragen</h2>
             
             <div class="race-meta-grid">
                 <div class="form-group" style="margin-bottom:0;">
@@ -209,10 +208,11 @@
         
         <!-- Historie Section -->
         <div id="history" class="section">
-            <div class="flex justify-between items-center" style="margin-bottom:10px;">
+            <div class="flex justify-between items-center" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
             <h2><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>Renn-Historie</h2>
-                <div style="display:flex;gap:8px;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="ranking-filter-btn" id="historyFilterBtn"><svg class="ic" aria-hidden="true"><use href="#i-filter"/></svg>Filter</button>
+                    <button class="btn admin-only" id="addRaceBtn" title="Rennen ohne Livecenter von Hand eintragen"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Rennen nachtragen</button>
                     <button class="btn admin-only" id="rebuildEloBtn"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>G!RP neu berechnen</button>
                 </div>
             </div>
@@ -329,6 +329,7 @@
           <div class="setup-draw">
             <button class="btn btn-modal" id="setupLuckyWheelBtn"><svg class="ic" aria-hidden="true"><use href="#i-wheel"/></svg>Glücksrad</button>
             <button class="btn btn-modal" id="setupSlotBtn"><svg class="ic" aria-hidden="true"><use href="#i-slot"/></svg>Slotmachine</button>
+            <button class="btn btn-modal" id="setupRandomBtn">Zufall</button>
           </div>
           <div class="setup-foot">
             <button class="btn btn-modal" id="setupBackBtn">Zurück</button>

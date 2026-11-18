@@ -396,9 +396,18 @@
   const slotBtn=document.getElementById('setupSlotBtn');
   let selectedDrivers=[];let selectedCars=[];
   let prevSelectedDrivers=[];
+  let setupDone=null;   // Livecenter: fertige Paarungen an einen Callback statt ins Formular
+
+  /** Auto-Setup für das Livecenter: Fahrer (vorausgewählt) → Fahrzeuge → onDone([{driverId, carId}]) */
+  function openAutoSetup({ drivers, onDone }={}){
+    if(Array.isArray(drivers)&&drivers.length) prevSelectedDrivers=drivers.map(Number);
+    openSetupModal();
+    setupDone=typeof onDone==='function'?onDone:null;
+  }
 
   function openSetupModal(){
     if(!setupModal)return;
+    setupDone=null;
     selectedCars=[];
     // zuletzt gewählte (noch vorhandene) Fahrer sind vorausgewählt
     selectedDrivers=prevSelectedDrivers.filter(id=>window.appData.drivers.some(d=>d.id===id&&window.Elo.isActive(d)));
@@ -497,6 +506,18 @@
      });
   });
 
+  // Zufall: fehlende Fahrzeuge ohne Animation aus den noch nicht gewählten ziehen
+  document.getElementById('setupRandomBtn')?.addEventListener('click',()=>{
+     const need=selectedDrivers.length-selectedCars.length;
+     if(need<=0){finishIfComplete();return;}
+     const pool=[...carListDiv.querySelectorAll('input:not(:checked)')].map(i=>i.value);
+     if(pool.length<need){showToast(`Zu wenige Fahrzeuge: ${pool.length} verfügbar, ${need} benötigt`);return;}
+     for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+     pool.slice(0,need).forEach(id=>{const box=carListDiv.querySelector(`input[value="${id}"]`); if(box) box.checked=true;});
+     carListDiv.dispatchEvent(new Event('change'));
+     finishIfComplete();
+  });
+
   // Glücksrad/Slotmachine haben alle Autos gezogen → direkt die fertigen Paarungen anzeigen
   function finishIfComplete(){
     if(selectedDrivers.length>=2 && selectedCars.length===selectedDrivers.length) finishBtn.click();
@@ -533,6 +554,12 @@
     }
     const driversSorted=[...drvs].sort((a,b)=>cmpArrays(strengthKeyDriver(a),strengthKeyDriver(b)));
     const carsSorted=[...cars].sort((a,b)=>cmpArrays(strengthKeyCar(a),strengthKeyCar(b)));
+    if(setupDone){
+      const cb=setupDone; setupDone=null;
+      setupModal.classList.add('hidden');
+      cb(driversSorted.map((d,i)=>({driverId:d.id,carId:carsSorted[i].id})));
+      return;
+    }
     // Bisherigen Entwurf durch die neue Paarung ersetzen
     clearRaceDraft();
     const container=document.getElementById('raceEntries');
@@ -557,7 +584,7 @@
     persistRaceDraft();
   });
 
-  function closeSetup(){setupModal.classList.add('hidden');}
+  function closeSetup(){setupModal.classList.add('hidden');setupDone=null;}
   cancelBtn1?.addEventListener('click',closeSetup);
   cancelBtn2?.addEventListener('click',closeSetup);
 
@@ -582,7 +609,7 @@
   function init(){
     const setupBtn=document.getElementById('setupRaceBtn');
     const calcBtn=document.getElementById('calculateRaceBtn');
-    if(setupBtn) setupBtn.addEventListener('click', openSetupModal);
+    if(setupBtn) setupBtn.addEventListener('click', ()=>openSetupModal());
     if(calcBtn) calcBtn.addEventListener('click', calculateRace);
     document.getElementById('rebuildEloBtn')?.addEventListener('click', rebuildElo);
     // Erst nach dem Laden der Daten wird das Formular aufgebaut
@@ -599,7 +626,7 @@
     document.getElementById('raceRounds')?.addEventListener('change', persistRaceDraft);
   }
 
-  window.RaceUI={ init, updateForm:updateRaceForm, refreshPredictions:updatePredictions, saveRaceResult };
+  window.RaceUI={ init, updateForm:updateRaceForm, refreshPredictions:updatePredictions, saveRaceResult, openAutoSetup };
   document.addEventListener('DOMContentLoaded', init);
 
   // global needed by inline onclicks

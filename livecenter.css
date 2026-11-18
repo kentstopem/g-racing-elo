@@ -440,3 +440,9 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-girp-note { margin: -1.5vh 0 1.5vh; }
 .lc-res-who .lc-girp { color: var(--ct); opacity: 1; }
 .lc-res-who .lc-girp { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; font-size: 13px; max-width: 100%; }
+
+/* Auto-Setup, Glücksrad und Slotmachine über dem Livecenter */
+html.lc-open .modal { z-index: 6000; }
+.lc-card-btns { display: flex; gap: 8px; }
+.lc-next { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; width: 100%; padding: 10px 0 2px; border-top: 1px solid var(--lc-line); margin-top: 6px; }
+.lc-next > span { color: var(--lc-muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; margin-right: 6px; }

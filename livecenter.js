@@ -234,7 +234,6 @@
     const entries = entriesFromCfg();
     const usedD = Object.values(cfg.assign).map(a => a?.driverId).filter(Boolean);
     const usedC = Object.values(cfg.assign).map(a => a?.carId).filter(Boolean);
-    const draft = readDraft();
     const rows = MD.CONTROLLERS.map(c => {
       const a = cfg.assign[c.n] || {};
       // Nur verfügbare: aktiv und noch nicht auf einem anderen Regler
@@ -325,7 +324,10 @@
           <section class="lc-card">
             <div class="lc-card-head">
               <h3>Regler</h3>
-              <button class="lc-btn" data-act="fromDraft" ${draft.length ? '' : 'disabled'} title="Paarungen aus „Neues Rennen“ / Auto-Setup, Regler nach Wunsch der Fahrer">Aus Auto-Setup${draft.length ? ` (${draft.length})` : ''}</button>
+              ${canEdit() ? `<div class="lc-card-btns">
+                <button class="lc-btn" data-act="rotateCars" ${entries.length >= 2 ? '' : 'disabled'} title="Jeder Fahrer behält seinen Regler, die Autos rücken einen Regler weiter">Autos tauschen</button>
+                <button class="lc-btn lc-primary" data-act="autoSetup" title="Fahrer wählen, Autos auslosen, Regler nach Wunsch der Fahrer">Auto-Setup</button>
+              </div>` : ''}
             </div>
             <div class="lc-slots">${rows}</div>
             <p class="lc-hint ${problems.length ? 'warn' : ''}" id="lcHint">${problems.length ? problems.map(esc).join(' · ') : cfg.hint ? esc(cfg.hint) : 'Leere Regler fahren nicht mit.'}</p>
@@ -364,21 +366,43 @@
     });
   }
 
-  function readDraft () {
-    try { return JSON.parse(localStorage.getItem('raceDraft') || '{}').entries || []; } catch (e) { return []; }
-  }
-
-  function fromDraft () {
-    const draft = readDraft();
-    if (!draft.length) return;
-    const { assignments, conflicts } = MD.suggestControllers(draft.slice(0, 6), appData().drivers || []);
+  /** Paarungen (Fahrer + Auto) auf die Regler verteilen, nach Wunschregler der Fahrer */
+  function applyPairs (pairs) {
+    if (!pairs?.length) return;
+    const { assignments, conflicts } = MD.suggestControllers(pairs.slice(0, 6), appData().drivers || []);
     cfg.assign = {};
     assignments.forEach(a => { if (a.controller) cfg.assign[a.controller] = { driverId: a.driverId, carId: a.carId }; });
-    try { const r = +JSON.parse(localStorage.getItem('raceDraft') || '{}').rounds; if (r > 0) cfg.raceLaps = r; } catch (e) {}
     cfg.hint = conflicts.length
       ? conflicts.map(c => `${MD.controller(c.controller).name} wollten ${c.driverIds.map(driverName).join(' und ')} – ${driverName(c.driverIds[0])} hat ihn`).join(' · ')
       : 'Regler nach Wunsch der Fahrer verteilt. Du kannst alles ändern.';
     saveCfg(); renderSetup();
+  }
+
+  /** Auto-Setup (Fahrer → Fahrzeuge) öffnen; vorausgewählt sind die Fahrer auf den Reglern */
+  function openAutoSetup (driverIds = entriesFromCfg().map(e => e.driverId)) {
+    if (!window.RaceUI?.openAutoSetup) { window.Helpers.showToast?.('Auto-Setup nicht geladen'); return; }
+    window.RaceUI.openAutoSetup({ drivers: driverIds, onDone: applyPairs });
+  }
+
+  /** Fahrer bleiben auf ihrem Regler, die Autos rücken einen belegten Regler weiter */
+  function rotateCars () {
+    const used = entriesFromCfg();
+    if (used.length < 2) return;
+    used.forEach((e, i) => { cfg.assign[e.ctrl] = { driverId: e.driverId, carId: used[(i + used.length - 1) % used.length].carId }; });
+    cfg.hint = 'Autos getauscht: jeder Fahrer fährt auf seinem Regler das Auto des Vorgängers.';
+    saveCfg(); renderSetup();
+  }
+
+  /** Nach dem Rennen: zurück zur Vorbereitung mit gleichen Paarungen, getauschten Autos oder neuer Zuteilung */
+  function nextRace (how) {
+    const entries = [...session.cars.values()].map(c => ({ ctrl: c.ctrl, driverId: c.driverId, carId: c.carId }));
+    stopSession(); view = 'setup';
+    cfg.assign = {};
+    entries.forEach(e => { cfg.assign[e.ctrl] = { driverId: e.driverId, carId: e.carId }; });
+    cfg.hint = 'Gleiche Paarungen wie im letzten Rennen.';
+    saveCfg();
+    if (how === 'swap') rotateCars(); else renderSetup();
+    if (how === 'new') openAutoSetup(entries.map(e => e.driverId));
   }
 
   // ---------- Start ----------
@@ -928,6 +952,10 @@
             <span class="lc-laps-adj"><button class="lc-btn" data-act="raceLaps" data-d="-1" aria-label="eine Runde weniger">−</button><button class="lc-btn" data-act="raceLaps" data-d="1" aria-label="eine Runde mehr">+</button></span>` : ''}
           ${session.mode !== 'practice' && canEdit() ? `<button class="lc-btn" data-act="restartNow">${restartLabel()}</button>` : ''}
           ${source.kind === 'view' ? '' : '<button class="lc-btn" data-act="again">Zurück zur Vorbereitung</button>'}
+          ${race && girpDone && canEdit() ? `<div class="lc-next"><span>Nächstes Rennen</span>
+            <button class="lc-btn" data-act="next" data-how="same">Gleiche Paarungen</button>
+            <button class="lc-btn" data-act="next" data-how="swap">Autos tauschen</button>
+            <button class="lc-btn lc-primary" data-act="next" data-how="new">Neue Zuteilung</button></div>` : ''}
           ${race && canEdit() && !girpDone ? `<button class="lc-link-btn" data-act="noScore">${noScoreArmed ? 'Wirklich verwerfen?' : 'Nicht werten'}</button>` : ''}
           <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
         </div>`;
@@ -1060,7 +1088,9 @@
       case 'close': close(); break;
       case 'mode': cfg.mode = b.dataset.mode; saveCfg(); renderSetup(); break;
       case 'clear': delete cfg.assign[ctrl]; saveCfg(); renderSetup(); break;
-      case 'fromDraft': fromDraft(); break;
+      case 'autoSetup': openAutoSetup(); break;
+      case 'rotateCars': rotateCars(); break;
+      case 'next': nextRace(b.dataset.how); break;
       case 'src': cfg.source = b.dataset.src; saveCfg(); renderSetup(); break;
       case 'cuOn': cuHub()?.connect(); renderSetup(); break;
       case 'cuOff': cuHub()?.disconnect(); break;
