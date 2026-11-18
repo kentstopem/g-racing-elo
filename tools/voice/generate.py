@@ -14,6 +14,7 @@ Fahrer kommen öffentlich lesbar aus Firestore; gesprochen wird `pronunciation`,
 """
 import argparse, asyncio, json, os, sys, urllib.request
 import edge_tts
+from trim import trim   # Stille vorne/hinten abschneiden
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 OUT = os.path.join(ROOT, 'assets', 'voice')
@@ -50,7 +51,8 @@ def fetch_drivers():
 async def say(text, path, voice, rate, pitch):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     await edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(path)
-    print(f'  ✓ {os.path.relpath(path, ROOT)}  «{text}»')
+    cut = trim(path)
+    print(f'  ✓ {os.path.relpath(path, ROOT)}  «{text}»  (−{cut:.2f} s Stille)')
 
 
 SETS = {   # Stimmen, zwischen denen die App umschalten kann (Setup → Renneinstellungen → Sprachausgabe)

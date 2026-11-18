@@ -69,7 +69,61 @@
     if (res.status === 401) throw new Error('Sprach-Schlüssel oder Region falsch');
     if (res.status === 429) throw new Error('Sprachdienst: Limit erreicht, später nochmal');
     if (!res.ok) throw new Error(`Sprachdienst-Fehler ${res.status}`);
-    return res.blob();
+    return trimTail(await res.blob());
+  }
+
+  // ---------- Stille am Ende abschneiden ----------
+  // Die Stimmen hängen hinten 0,5–1,3 s Stille an (vorne ~0,2 s). Die Workflow-Dateien kürzt
+  // tools/voice/trim.py, live erzeugte und hochgeladene Namen kürzt das hier: MP3-Frames vor dem ersten
+  // und hinter dem letzten Laut (bis auf einen kleinen Rest) werden weggelassen, ohne neu zu kodieren.
+  // Geht etwas schief, bleibt der Ton wie er ist.
+  const TAIL_KEEP = 0.12, LEAD_KEEP = 0.06;   // s Stille, die stehen bleibt
+  const MP3_BR = [[0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160]];
+  const MP3_SR = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] };
+  async function trimTail (blob) {
+    try {
+      const buf = await blob.arrayBuffer();
+      const b = new Uint8Array(buf);
+      const AC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (!AC || b.length < 4) return blob;
+      const audio = await new Promise((resolve, reject) => {
+        const p = new AC(1, 1, 24000).decodeAudioData(buf.slice(0), resolve, reject);
+        if (p?.catch) p.catch(reject);
+      });
+      const data = audio.getChannelData(0);
+      let last = data.length - 1, first = 0;
+      while (last > 0 && Math.abs(data[last]) < 0.003) last--;   // ≈ −50 dB
+      while (first < last && Math.abs(data[first]) < 0.003) first++;
+      if (last <= 0) return blob;
+      const from = first / audio.sampleRate - LEAD_KEEP, keep = last / audio.sampleRate + TAIL_KEEP;
+      let start = -1;
+      let i = 0;
+      if (b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33) i = 10 + ((b[6] & 127) << 21 | (b[7] & 127) << 14 | (b[8] & 127) << 7 | (b[9] & 127));
+      let t = 0;
+      while (i + 4 <= b.length) {
+        if (b[i] !== 0xFF || (b[i + 1] & 0xE0) !== 0xE0 || ((b[i + 1] >> 1) & 3) !== 1) return blob;   // kein MP3 (Layer III)
+        const ver = (b[i + 1] >> 3) & 3, br = MP3_BR[ver === 3 ? 0 : 1][b[i + 2] >> 4], sr = MP3_SR[ver]?.[(b[i + 2] >> 2) & 3];
+        if (!br || !sr) return blob;
+        const spf = ver === 3 ? 1152 : 576;
+        const len = Math.floor((spf / 8) * br * 1000 / sr) + ((b[i + 2] >> 1) & 1);
+        if (start < 0 && t + spf / sr > from) start = i;   // erster Frame, der noch gebraucht wird
+        if (t >= keep) break;
+        t += spf / sr;
+        i += len;
+      }
+      i = Math.min(i, b.length);
+      if (start < 0 || (start < 256 && b.length - i < 512)) return blob;   // nichts Nennenswertes zu kürzen
+      return new Blob([b.subarray(start, i)], { type: 'audio/mpeg' });
+    } catch (e) { return blob; }
+  }
+  /** Gespeicherten Namen (Data-URL) gekürzt abspielen – auch Töne, die vor dem Kürzen gespeichert wurden */
+  const trimmed = {};
+  function trimmedSrc (src, cacheKey) {
+    if (typeof src !== 'string' || !src.startsWith('data:audio')) return src;
+    if (!trimmed[cacheKey]) {
+      trimmed[cacheKey] = fetch(src).then(r => r.blob()).then(trimTail).then(blob => URL.createObjectURL(blob)).catch(() => src);
+    }
+    return trimmed[cacheKey];
   }
 
   // ---------- Quellen ----------
@@ -83,7 +137,10 @@
 
   async function ownClip (d, v) {
     if (!d?.[v.rev]) return null;
-    try { return (await window.Storage.getMedia(v.media(d.id)))?.data ?? null; } catch (e) { console.warn(e); return null; }
+    try {
+      const data = (await window.Storage.getMedia(v.media(d.id)))?.data ?? null;
+      return data && trimmedSrc(data, `${v.key}|${d.id}|${d[v.rev]}`);
+    } catch (e) { console.warn(e); return null; }
   }
 
   /** Ton für den Namen eines Fahrers in der (aktiven) Stimme: eigener Ton, sonst Workflow-Datei, sonst die andere Stimme. */
@@ -153,6 +210,6 @@
 
   window.Voice = {
     VOICES, PHRASES, NAME_POS, announce, RATE, voice, savedText, spokenText, listText, azureConfig, setAzureConfig, synthesize,
-    loadManifest, phraseSrc, nameSrc, say, playSources, stop, preload
+    loadManifest, phraseSrc, nameSrc, say, playSources, stop, preload, trimTail
   };
 })();

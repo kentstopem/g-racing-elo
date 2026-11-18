@@ -46,6 +46,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install edge-tts==7.3.1
+      - name: ffmpeg (zum Abschneiden der Stille)
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
       - name: Erzeugen
         run: python tools/voice/generate.py "${MODE}" --driver "${DRIVER}" --set "${SET}" --voice "${VOICE}" --rate "${RATE}"
         env:
