@@ -126,7 +126,7 @@
       c.fuel = Math.round(c.fuel * 10) / 10;
     });
     ['goT', 'redAt', 'endT'].forEach(k => { snap.state[k] = r(snap.state[k]); });
-    const body = { snap, redReason, lightsRunning: !!session.lightsRunning, ticker: ticker.slice(0, 4) };
+    const body = { snap, redReason, lightsRunning: !!session.lightsRunning, ticker: ticker.slice(0, 4), girp: girpDone ? girpShown : null };
     // Vergleich ohne laufende Uhr-Werte: in Pausen (Rote Flagge, Ampel) wird dann nichts geschrieben
     const cmp = JSON.stringify({ ...body, snap: { ...snap, savedT: 0, state: { ...snap.state, lastT: 0 }, cars: snap.cars.map(c => ({ ...c, pitLastT: 0 })) } });
     castPending = false;
@@ -165,7 +165,7 @@
     watchAt = d.at || Date.now();
     session = window.RaceEngine.Session.restore(x.snap, source.now() - age, { live: true });
     session.lightsRunning = !!x.lightsRunning;
-    redReason = x.redReason || ''; ticker = x.ticker || [];
+    redReason = x.redReason || ''; ticker = x.ticker || []; girpShown = x.girp || null;
     if (session.phase !== 'finished') resultOrder = null;
     renderLive();
   }
@@ -397,7 +397,7 @@
       lapFalseStart: !(cfg.source === 'cu' && window.LiveCU)   // CU: Fehlstart kommt als Ampel 8/9, Durchfahrten vor dem Start sind Fehlmeldungen
     });
     resTab = 'result';
-    redPen = {}; redReason = ''; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; baseRecords = records.slice();
+    redPen = {}; redReason = ''; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; girpShown = null; baseRecords = records.slice();
     session.on(onEngine);
     attachSource(entries, records, t);
     ticker = []; lapFlash = {}; overlay = null; menuCtrl = null; shellKey = '';
@@ -455,7 +455,7 @@
     const entries = saved.snap.cars.map(c => ({ ctrl: c.ctrl, driverId: c.driverId, carId: c.carId }));
     qualiBests = saved.qualiBests || {};
     baseRecords = saved.baseRecords || records.slice();
-    resTab = 'result'; redPen = {}; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false;
+    resTab = 'result'; redPen = {}; endArmed = 0; resultOrder = null; recPick = new Set(); recState = ''; girpDone = false; girpShown = null;
     attachSource(entries, records, saved.snap.opts.track || {});
     session = window.RaceEngine.Session.restore(saved.snap, source.now());
     session.on(onEngine);
@@ -532,34 +532,49 @@
     renderLive();
   }
 
-  /**
-   * G!RP auswerten: Ergebnis (Reihenfolge wie korrigiert) als Entwurf in „Neues Rennen“ eintragen.
-   * Dort prüfst du es und speicherst wie gewohnt mit „Rennen auswerten“ – derselbe Weg wie bisher.
-   */
-  async function toGirp () {
-    if (!session || !resultOrder) return;
-    // Ausgewählte neue Rekorde vorher übernehmen – sonst gehen sie beim Wechsel zu „Neues Rennen“ verloren
-    if (!recState && recPick.size && canEdit()) await saveRecords();
+  // ---------- Ergebnis direkt in G!RP speichern ----------
+  const isoDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function resultEntries () {
     const byCtrl = new Map([...session.cars.values()].map(c => [c.ctrl, c]));
-    const d = new Date();
-    const draft = {
-      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-      time: d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
-      rounds: String(session.laps),
-      entries: resultOrder.map((c, i) => ({ driverId: byCtrl.get(c).driverId, carId: byCtrl.get(c).carId, place: i + 1 })),
-      fromLivecenter: true
-    };
-    try { localStorage.setItem('raceDraft', JSON.stringify(draft)); } catch (e) {}
-    girpDone = true;
-    if (typeof window.showSection === 'function' && window.RaceUI) {
-      close();
-      window.showSection('race');
-      window.RaceUI.updateForm?.();
-      window.Helpers.showToast?.('Ergebnis eingetragen – prüfen und „Rennen auswerten“');
-    } else {
-      window.Helpers.showToast?.('In der Vorschau nicht verfügbar – in der App landet das Ergebnis in „Neues Rennen“');
-      renderLive();
+    return (resultOrder || []).map((c, i) => ({ ctrl: c, position: i + 1, driverId: byCtrl.get(c).driverId, carId: byCtrl.get(c).carId }));
+  }
+  /** Vorschau der G!RP-Änderung je Regler – dieselbe Rechnung wie beim Speichern (Elo.applyRace), auf einer Kopie */
+  function girpPreview () {
+    if (!window.Elo?.applyRace || !resultOrder) return null;
+    const drivers = structuredClone(appData().drivers || []), cars = structuredClone(appData().cars || []);
+    const entries = resultEntries();
+    const results = [];
+    for (const e of entries) {
+      const d = drivers.find(x => String(x.id) === String(e.driverId)), c = cars.find(x => String(x.id) === String(e.carId));
+      if (!d || !c) return null;
+      results.push({ ctrl: e.ctrl, position: e.position, driverId: d.id, carId: c.id });
     }
+    if (results.length < 2) return null;
+    const race = { rounds: session.laps, results };
+    const k = window.Elo.applyRace(race, drivers, cars);
+    const out = { k };
+    race.results.forEach(r => { out[r.ctrl] = { d: r.driverEloChange, c: r.carEloChange, dNew: r.newDriverElo, cNew: r.newCarElo }; });
+    return out;
+  }
+  let girpSaving = false, girpShown = null;   // girpShown: Änderungen für die Zuschauer
+  async function saveGirp () {
+    if (!session || !resultOrder || girpDone || girpSaving || !canEdit()) return;
+    if (!window.RaceUI?.saveRaceResult) { window.Helpers.showToast?.('Speichern geht nur in der App'); return; }
+    girpSaving = true; shellKey = ''; renderLive();
+    if (!recState && recPick.size) await saveRecords();     // angehakte Rekorde gleich mit
+    const preview = girpPreview();
+    const d = new Date();
+    const res = window.RaceUI.saveRaceResult({
+      date: isoDate(d), time: d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
+      rounds: session.laps, entries: resultEntries()
+    });
+    girpSaving = false;
+    if (res.error) { window.Helpers.showToast?.(`Nicht gespeichert: ${res.error}`, { icon: 'alert' }); shellKey = ''; renderLive(); return; }
+    girpDone = true; girpShown = preview;
+    clearSnap();
+    window.Helpers.showToast?.('Ergebnis in G!RP gespeichert');
+    castFull = false; broadcast(true);
+    shellKey = ''; renderLive();
   }
 
   /** Quali bzw. Rennen mit denselben Fahrern, Autos und derselben Startaufstellung von vorn */
@@ -864,9 +879,15 @@
         <button class="lc-btn lc-ghost" data-act="endCancel">Weiterfahren</button>
       </div></div>`;
 
+    // G!RP-Änderung je Zeile: Admin = Vorschau (bzw. gespeichert), Zuschauer = was das iPad mitschickt
+    let girpData = null;   // wird im Ergebnis berechnet, sobald die Reihenfolge feststeht
+    const chip = v => (v == null ? '' : `<em class="${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${v > 0 ? '+' : ''}${v}</em>`);
+    const girpLine = ctrl => { const g = girpData?.[ctrl]; return g ? `<small class="lc-girp ${girpDone || source.kind === 'view' ? 'saved' : ''}">G!RP ${chip(g.d)} · Auto ${chip(g.c)}</small>` : ''; };
+
     // ---------- Ergebnis: Reihenfolge korrigierbar, Rekorde übernehmen, G!RP auswerten ----------
     const resultHtml = phase !== 'finished' ? '' : (() => {
       if (!resultOrder) resultOrder = st.map(s => s.ctrl);
+      girpData = !race ? null : source.kind === 'view' ? girpShown : canEdit() ? (girpDone ? girpShown : girpPreview()) : null;
       const byCtrl = new Map(st.map(s => [s.ctrl, s]));
       const ordered = resultOrder.map(c => byCtrl.get(c)).filter(Boolean);
       const edited = resultOrder.join() !== st.map(s => s.ctrl).join();
@@ -898,9 +919,10 @@
         </section>`;
       const tabs = [['result', 'Übersicht'], ['details', 'Tabelle'], ['laps', 'Runden'], ...(race ? [['stats', 'Statistik']] : [])];
       const tabHtml = `<div class="lc-seg lc-res-tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-act="resTab" data-t="${k}" class="${resTab === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-      const head = `<h2>${race ? 'Ergebnis' : session.mode === 'quali' ? 'Qualifying' : 'Training'}</h2>${tabHtml}`;
+      const girpNote = girpData && resTab === 'result' ? `<p class="lc-note lc-girp-note">${girpDone || source.kind === 'view' ? 'In G!RP gespeichert' : 'Vorschau G!RP-Änderung'} · ${session.laps} Runden · K ${girpData.k ?? '–'}</p>` : '';
+      const head = `<h2>${race ? 'Ergebnis' : session.mode === 'quali' ? 'Qualifying' : 'Training'}</h2>${tabHtml}${girpNote}`;
       const actions = `<div class="lc-red-actions">
-          ${race && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="girp" ${girpDone ? 'disabled' : ''}>G!RP auswerten</button>` : ''}
+          ${race && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="girp" ${girpDone || girpSaving ? 'disabled' : ''}>${girpDone ? 'In G!RP gespeichert ✓' : girpSaving ? 'Speichere …' : `Ergebnis speichern${recPick.size && !recState ? ' (mit Rekorden)' : ''}`}</button>` : ''}
           ${session.mode === 'quali' && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="raceFromQuali">Rennen mit ${cfg.raceLaps} Runden starten</button>
             <span class="lc-laps-adj"><button class="lc-btn" data-act="raceLaps" data-d="-1" aria-label="eine Runde weniger">−</button><button class="lc-btn" data-act="raceLaps" data-d="1" aria-label="eine Runde mehr">+</button></span>` : ''}
           ${session.mode !== 'practice' && canEdit() ? `<button class="lc-btn" data-act="restartNow">${restartLabel()}</button>` : ''}
@@ -922,7 +944,7 @@
             return `<div class="lc-res-row ${out ? 'out' : ''} ${i === 0 ? 'first' : ''}" style="${ctrlStyle(s.ctrl)}">
               <span class="lc-pos"><span>${i + 1}</span></span>
               ${carCell(s.carId, carImg(s.carId))}
-              <span class="lc-res-who"><b>${who(s.driverId)}</b></span>
+              <span class="lc-res-who"><b>${who(s.driverId)}</b>${girpLine(s.ctrl)}</span>
               <span class="lc-num">${race ? s.laps : ''}</span>
               ${race ? `<span class="lc-num">${timeCell(s)}</span>` : flCell(s)}
               ${race ? flCell(s) : `<span class="lc-num">${fmtGap(s)}</span>`}
@@ -988,7 +1010,7 @@
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
     const menuCar = menuCtrl != null ? session.cars.get(menuCtrl) : null;
     const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
-      session.lights, session.lightsRunning, endArmed, restartArmed, noScoreArmed, cfg.broadcast, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, resTab,
+      session.lights, session.lightsRunning, endArmed, restartArmed, noScoreArmed, cfg.broadcast, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, girpSaving, resTab,
       phase === 'red' ? st.map(s => s.ctrl + s.status + s.penaltySec + s.inPit + Math.round(s.pitStandMs / 100)).join() : ''].join('|');
     if (key === shellKey && root.querySelector('.lc-live')) {
       root.querySelector('.lc-board').innerHTML = rows;
@@ -1065,7 +1087,7 @@
         renderLive(); break;
       }
       case 'saveRecords': saveRecords(); break;
-      case 'girp': toGirp(); break;
+      case 'girp': saveGirp(); break;
       case 'raceLaps': cfg.raceLaps = Math.max(1, cfg.raceLaps + +b.dataset.d); saveCfg(); renderLive(); break;
       case 'openMenu': menuCtrl = ctrl; renderLive(); break;
       case 'status': session.setStatus(menuCtrl, b.dataset.s || null); menuCtrl = null; renderLive(); break;

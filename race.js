@@ -287,6 +287,25 @@
     const raceTime=raceTimeInput&&raceTimeInput.value?raceTimeInput.value:new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     const race={id:Date.now(),date:formattedDate,time:raceTime,rounds,results};
 
+    const { kFactor, saved } = commitRace(race);
+    saved.catch(()=>{});   // Fehler zeigt commitRace als Hinweis an
+
+    // UI auffrischen – Datum und Runden bleiben für das nächste Rennen stehen, Uhrzeit wird aktualisiert
+    clearRaceDraft();
+    const container=document.getElementById('raceEntries');
+    if(container){container.innerHTML='';window.appData.raceCounter=0;}
+    const timeInput=document.getElementById('raceTime');
+    if(timeInput) timeInput.value=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    updateRaceForm();
+    showToast(`Rennen ausgewertet!\nRunden: ${rounds}\nK: ${kFactor}`);
+  }
+
+  /**
+   * Rennen berechnen und speichern (einzige Stelle – Formular „Neues Rennen“ und Livecenter).
+   * Gibt den K-Faktor und das Speicher-Promise zurück.
+   */
+  function commitRace(race){
+    const totalPlayers=race.results.length, rounds=race.rounds;
     // Rennen nachgetragen (liegt zeitlich vor dem letzten gespeicherten Rennen)?
     // Dann müssen alle späteren Rennen neu bewertet werden.
     // Gehört das Rennen in eine frühere Saison oder liegt es vor dem letzten Rennen der Saison?
@@ -311,20 +330,30 @@
     }
     window.appData.races.unshift(race);
     // Nur das Rennen speichern – G!RP der Fahrer/Fahrzeuge wird aus den Rennen berechnet.
-    window.Storage.saveRace(race)
+    const saved=window.Storage.saveRace(race)
       .then(()=>{ if(isBackfill) window.Sync.schedule(0); })
-      .catch(err=>{console.error(err);showToast('Rennen konnte nicht gespeichert werden!', { icon: 'alert' });});
+      .catch(err=>{console.error(err);showToast('Rennen konnte nicht gespeichert werden!', { icon: 'alert' }); throw err;});
+    window.RankingUI?.update();
+    window.HistoryUI?.update();
+    return { kFactor, saved };
+  }
 
-    // UI auffrischen – Datum und Runden bleiben für das nächste Rennen stehen, Uhrzeit wird aktualisiert
-    clearRaceDraft();
-    const container=document.getElementById('raceEntries');
-    if(container){container.innerHTML='';window.appData.raceCounter=0;}
-    const timeInput=document.getElementById('raceTime');
-    if(timeInput) timeInput.value=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    updateRaceForm();
-    showToast(`Rennen ausgewertet!\nRunden: ${rounds}\nK: ${kFactor}`);
-    window.RankingUI.update();
-    window.HistoryUI.update();
+  /**
+   * Für das Livecenter: Ergebnis direkt speichern, ohne Formular.
+   * entries: [{ position, driverId, carId }], date: 'YYYY-MM-DD', time: 'HH:MM'
+   */
+  function saveRaceResult({ date, time, rounds, entries }){
+    const results=[];
+    for(const e of entries){
+      const driver=window.appData.drivers.find(d=>String(d.id)===String(e.driverId));
+      const car   =window.appData.cars.find(c=>String(c.id)===String(e.carId));
+      if(!(driver&&car)) return { error:'Fahrer oder Fahrzeug nicht gefunden' };
+      results.push({ position:e.position, driverId:driver.id, carId:car.id, driverName:driver.name, carName:car.name, oldDriverElo:driver.elo, oldCarElo:car.elo });
+    }
+    if(results.length<2) return { error:'Mindestens 2 Teilnehmer erforderlich' };
+    const race={ id:Date.now(), date:new Date(date).toLocaleDateString('de-DE'), time, rounds, results };
+    const { kFactor, saved }=commitRace(race);
+    return { race, kFactor, saved };
   }
 
   // -------------------- Rennen löschen --------------------
@@ -570,7 +599,7 @@
     document.getElementById('raceRounds')?.addEventListener('change', persistRaceDraft);
   }
 
-  window.RaceUI={ init, updateForm:updateRaceForm, refreshPredictions:updatePredictions };
+  window.RaceUI={ init, updateForm:updateRaceForm, refreshPredictions:updatePredictions, saveRaceResult };
   document.addEventListener('DOMContentLoaded', init);
 
   // global needed by inline onclicks

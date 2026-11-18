@@ -430,3 +430,12 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc input[type="checkbox"]:checked { background: var(--lc-accent); border-color: var(--lc-accent); }
 .lc input[type="checkbox"]:checked::after { opacity: 1; }
 .lc input[type="checkbox"]:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* G!RP-Änderung im Ergebnis */
+.lc-res-who { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 3px; min-width: 0; }
+.lc-girp { font-size: 14px; font-weight: 700; color: var(--ct); }
+.lc-girp em { font-style: normal; font-variant-numeric: tabular-nums; background: rgba(0,0,0,.6); color: #fff; padding: 1px 7px; border-radius: 6px; }
+.lc-girp em.up { color: #7CFFA8; }
+.lc-girp em.down { color: #FF9C9C; }
+.lc-girp-note { margin: -1.5vh 0 1.5vh; }
+.lc-res-who .lc-girp { color: var(--ct); opacity: 1; }
