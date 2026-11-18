@@ -191,8 +191,8 @@
    * Gefahrene Runden am Ende einer Sitzung zu Fahrer und Fahrzeug addieren (practiceLaps, je ein Schreibvorgang).
    * Training und Quali zählen hier; Rennrunden kommen wie bisher über die G!RP-Wertung (totalRounds) dazu.
    */
-  function countLaps () {
-    if (!session || session.lapsCounted || session.mode === 'race' || !window.isAdmin || !window.Storage?.updateDriverFields) return;
+  function countLaps ({ unscored = false } = {}) {
+    if (!session || session.lapsCounted || (session.mode === 'race' && !unscored) || !window.isAdmin || !window.Storage?.updateDriverFields) return;
     session.lapsCounted = true;
     const inc = n => firebase.firestore.FieldValue.increment(n);
     const byDriver = {}, byCar = {};
@@ -1128,7 +1128,7 @@
       case 'finish': session.finish(source.now()); break;
       case 'again': stopSession(); view = 'setup'; renderSetup(); break;
       case 'noScore':   // Testrennen: nichts speichern, Sicherung verwerfen
-        if (noScoreArmed) { noScoreArmed = false; stopSession(); view = 'setup'; renderSetup(); window.Helpers.showToast?.('Rennen nicht gewertet'); }
+        if (noScoreArmed) { noScoreArmed = false; try { countLaps({ unscored: true }); } catch (err) { console.error(err); } stopSession(); view = 'setup'; renderSetup(); window.Helpers.showToast?.('Rennen nicht gewertet'); }
         else { noScoreArmed = true; shellKey = ''; renderLive(); setTimeout(() => { noScoreArmed = false; shellKey = ''; renderLive(); }, 3000); }
         break;
       case 'end':

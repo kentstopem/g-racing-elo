@@ -212,6 +212,11 @@ function renderDetails(){
         return a.localeCompare(b);
     });
     const firstDate=stats.dates[0]||'-';
+    // Runden gesamt: gewertete Rennen aller Saisons + Training/Quali/nicht gewertete Rennen (practiceLaps)
+    const isMine=e=>currentEntityType==='driver'?e.driverId==currentEntityId:e.carId==currentEntityId;
+    const allRaceLaps=(appData.allRaces||appData.races||[]).reduce((n,r)=>n+((r.results||[]).some(isMine)?(r.rounds||0):0),0);
+    const entity=(currentEntityType==='driver'?appData.drivers:appData.cars).find(x=>x.id==currentEntityId);
+    const totalLaps=allRaceLaps+(entity?.practiceLaps||0);
     const lastDate=stats.dates[stats.dates.length-1]||'-';
     let imgHTML='';
     if(currentEntityType==='car'){
@@ -248,7 +253,8 @@ function renderDetails(){
         <li>Rennen: <strong>${stats.races}</strong></li>
         <li>Siege: <strong>${stats.wins}</strong></li>
         <li>Siegquote: <strong>${stats.races?((stats.wins/stats.races*100).toFixed(1)):0}%</strong></li>
-        <li>Runden: <strong>${stats.rounds}</strong></li>
+        <li>Runden in Rennen: <strong>${stats.rounds}</strong></li>
+        <li>Runden gesamt: <strong>${totalLaps}</strong></li>
         <li>${bestLine}</li>
         <li>Erstes Rennen: <strong>${firstDate}</strong></li>
         <li>Letztes Rennen: <strong>${lastDate}</strong></li>
