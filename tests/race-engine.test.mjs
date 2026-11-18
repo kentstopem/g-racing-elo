@@ -435,3 +435,31 @@ test('Rennstart: Box-Status aus der Aufstellung wird gelöscht', () => {
   assert.equal(s.cars.get(1).inPit, false);
   assert.equal(s.cars.get(1).pitStops, 0);
 });
+
+test('Training: Fahrer im laufenden Training dazunehmen und herausnehmen', () => {
+  const s = new RaceEngine.Session({ mode: 'practice', entries, track });
+  s.start(0);
+  lap(s, 1, 1000); lap(s, 1, 7000); lap(s, 2, 1200); lap(s, 2, 7400);
+  assert.equal(s.addCar({ ctrl: 2, driverId: 12, carId: 22 }), false, 'Regler belegt');
+  assert.equal(s.addCar({ ctrl: 3, driverId: 10, carId: 22 }), false, 'Fahrer fährt schon');
+  assert.ok(s.addCar({ ctrl: 3, driverId: 12, carId: 22 }));
+  lap(s, 3, 8000); lap(s, 3, 14000);
+  assert.equal(s.cars.get(3).laps, 1);
+  assert.ok(s.removeCar(2));
+  assert.equal(s.cars.has(2), false);
+  lap(s, 2, 14000);                                   // freier Regler zählt nicht
+  assert.equal(s.allCars().find(c => c.driverId === 11).laps, 1);
+  // wieder dazu (anderer Regler): Runden laufen weiter, erste Durchfahrt startet nur die Zeit
+  assert.ok(s.addCar({ ctrl: 4, driverId: 11, carId: 21 }));
+  lap(s, 4, 15000); lap(s, 4, 21000);
+  assert.equal(s.cars.get(4).laps, 2);
+  assert.equal(s.retired.length, 0);
+  // Sicherung enthält herausgenommene Fahrer
+  s.removeCar(4);
+  const r = RaceEngine.Session.restore(s.snapshot(22000), 50000);
+  assert.equal(r.allCars().length, 3);
+  // im Rennen nicht erlaubt
+  const rr = new RaceEngine.Session({ mode: 'race', laps: 3, entries, track });
+  assert.equal(rr.addCar({ ctrl: 3, driverId: 12, carId: 22 }), false);
+  assert.equal(rr.removeCar(1), false);
+});

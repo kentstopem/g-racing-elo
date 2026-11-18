@@ -48,15 +48,48 @@
       this.sessionBest = null;  // { ctrl, ms }
       this.leaderFinished = false;
       this.listeners = [];
-      this.cars = new Map(entries.map((e, i) => [Number(e.ctrl), {
-        ctrl: Number(e.ctrl), driverId: e.driverId, carId: e.carId, grid: i + 1,
+      this.cars = new Map(entries.map((e, i) => [Number(e.ctrl), Session.newCar(e, i + 1)]));
+      this.retired = [];        // Training: herausgenommene Fahrer (Runden und Bestzeiten bleiben für Rundenzähler und Rekorde)
+    }
+
+    static newCar (e, grid) {
+      return {
+        ctrl: Number(e.ctrl), driverId: e.driverId, carId: e.carId, grid,
         laps: 0, last: null, best: null, lastCross: null, crossings: [], lapTimes: [],
         pausedMs: 0, interrupted: false,
         fuel: 100, pitCalled: false, fuelEmpty: false,
         inPit: false, pitLastT: null, pitStandMs: 0, pitStops: 0,
         penaltyMs: 0, penaltyLog: [], status: null, pairBests: {},       // status: null | 'dnf' | 'dq'
         finished: false, finishT: null, done: false, started: false
-      }]));
+      };
+    }
+
+    /** Alle Fahrzeuge der Sitzung, auch im Training herausgenommene */
+    allCars () { return [...this.cars.values(), ...this.retired]; }
+
+    /** Training: Fahrer auf einem freien Regler dazunehmen, ohne neu zu starten. Die erste Durchfahrt startet seine Zeitnahme. */
+    addCar ({ ctrl, driverId, carId }) {
+      ctrl = Number(ctrl);
+      if (this.mode !== 'practice' || this.phase === 'finished' || this.cars.has(ctrl) || driverId == null || carId == null) return false;
+      if ([...this.cars.values()].some(c => c.driverId === driverId)) return false;
+      const back = this.retired.findIndex(c => c.driverId === driverId);     // war schon dabei: Runden und Bestzeiten weiterführen
+      const c = back >= 0 ? this.retired.splice(back, 1)[0] : Session.newCar({ ctrl, driverId, carId }, this.cars.size + 1);
+      Object.assign(c, { ctrl, carId, lastCross: null, last: null, inPit: false, pitLastT: null, interrupted: false, best: c.pairBests[carId] ?? null });
+      this.cars.set(ctrl, c);
+      this.emit('carAdded', { ctrl, driverId, carId });
+      this.emit('change');
+      return true;
+    }
+
+    /** Training: Fahrer herausnehmen; der Regler wird frei */
+    removeCar (ctrl) {
+      const c = this.cars.get(Number(ctrl));
+      if (this.mode !== 'practice' || this.phase === 'finished' || !c || this.cars.size <= 1) return false;
+      this.cars.delete(c.ctrl);
+      this.retired.push(c);
+      this.emit('carRemoved', { ctrl: c.ctrl, driverId: c.driverId });
+      this.emit('change');
+      return true;
     }
 
     on (fn) { this.listeners.push(fn); return () => { this.listeners = this.listeners.filter(f => f !== fn); }; }
@@ -535,7 +568,8 @@
         v: 1, savedT: t ?? this.lastT ?? 0,
         opts: { mode: this.mode, laps: this.laps, track: this.track, settings: this.settings, records: this.records, fuel: this.fuelOn, finishCount: this.finishCount, dqOpenPenalties: this.dqOpenPenalties, fullDistance: this.fullDistance, lapFalseStart: this.lapFalseStart },
         state: Object.fromEntries(keep.map(k => [k, this[k] ?? null])),
-        cars: [...this.cars.values()]
+        cars: [...this.cars.values()],
+        retired: this.retired
       }));
     }
 
@@ -551,6 +585,7 @@
         Object.assign(c, { lastCross: sh(c.lastCross), finishT: sh(c.finishT), pitLastT: sh(c.pitLastT), crossings: (c.crossings || []).map(sh) });
         s.cars.set(Number(c.ctrl), c);
       }
+      s.retired = snap.retired || [];
       if (live) return s;                                                    // Zuschauer-Spiegel: Stand unverändert übernehmen
       s.lights = 0;
       if (s.phase === 'green') { s.phase = 'red'; s.redAt = t; }

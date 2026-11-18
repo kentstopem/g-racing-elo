@@ -54,6 +54,12 @@
       }]));
     }
 
+    /** Training: Fahrzeug dazunehmen (fährt gleich los) bzw. herausnehmen */
+    addCar ({ ctrl, paceMs }) {
+      this.cars.set(ctrl, { ctrl, pace: paceMs || this.refLapMs * rnd(0.85, 0.97), next: this.running ? this.now() + rnd(800, 2500) : null, frozenLeft: null, inPit: false, pitUntil: null, wantPit: false, grid: this.cars.size });
+    }
+    removeCar (ctrl) { this.cars.delete(ctrl); }
+
     /** Tempo eines Reglers begrenzen (CU-Stufe 0–15, null = frei) – z. B. bei leerem Tank */
     limitSpeed (ctrl, level) { const c = this.cars.get(ctrl); if (c) c.limit = level; }
 

@@ -23,6 +23,7 @@
   let lapFlash = {};
   let overlay = null;          // { kind: 'go' | 'resume', until }
   let simOpen = false;
+  let addPanel = null;         // Training: { ctrl, driverId, carId } – Fahrer dazunehmen
   let menuCtrl = null;         // Regler, dessen Strafen-Menü offen ist
   let voiceOn = readVoice();
   let lastSay = { prio: 0, at: 0 };
@@ -95,7 +96,7 @@
         const row = e.target.closest('.lc-row[data-ctrl]');
         if (!row || !session || !canEdit()) return;
         const ctrl = +row.dataset.ctrl;
-        menuCtrl = menuCtrl === ctrl ? null : ctrl;
+        menuCtrl = menuCtrl === ctrl ? null : ctrl; addPanel = null;
         renderLive();
       });
       root.addEventListener('change', onChange);
@@ -198,7 +199,7 @@
     session.lapsCounted = true;
     const inc = n => firebase.firestore.FieldValue.increment(n);
     const byDriver = {}, byCar = {};
-    for (const c of session.cars.values()) {
+    for (const c of session.allCars()) {
       if (!(c.laps > 0)) continue;
       byDriver[c.driverId] = (byDriver[c.driverId] || 0) + c.laps;
       byCar[c.carId] = (byCar[c.carId] || 0) + c.laps;
@@ -525,7 +526,7 @@
     const min = list => list.reduce((m, r) => (m == null || r.ms < m ? r.ms : m), null);
     const trackBest = min(baseRecords) ?? Infinity;
     const list = [];
-    for (const c of session.cars.values()) {
+    for (const c of session.allCars()) {
       for (const [carKey, best] of Object.entries(c.pairBests)) {
         const carId = isNaN(+carKey) ? carKey : +carKey;
         const ms = Math.round(best);
@@ -1020,8 +1021,30 @@
             : '<button class="lc-btn" data-act="status" data-s="dnf">Ausgefallen (DNF)</button><button class="lc-btn lc-danger" data-act="status" data-s="dq">Disqualifizieren</button>'}
         </div>` : ''}
         ${carTuneHtml(c, race && phase !== 'red')}
+        ${session.mode === 'practice' && session.cars.size > 1 ? `<div class="lc-menu-btns"><button class="lc-btn lc-ghost" data-act="removeCar" data-ctrl="${c.ctrl}">Aus dem Training nehmen</button></div>` : ''}
       </div>`;
     })() : '';
+
+    // Training: Fahrer auf einem freien Regler dazunehmen
+    const freeCtrls = MD.CONTROLLERS.map(x => x.n).filter(n => !session.cars.has(n));
+    if (addPanel && (session.mode !== 'practice' || phase === 'finished' || !freeCtrls.length)) addPanel = null;
+    if (addPanel && !freeCtrls.includes(addPanel.ctrl)) addPanel.ctrl = freeCtrls[0];
+    const addHtml = !addPanel || !canEdit() ? '' : (() => {
+      const onD = [...session.cars.values()].map(c => c.driverId), onC = [...session.cars.values()].map(c => c.carId);
+      const dOpts = drivers().filter(d => !onD.includes(d.id)), cOpts = cars().filter(x => !onC.includes(x.id));
+      const ok = addPanel.driverId != null && addPanel.carId != null;
+      return `<div class="lc-menu lc-add" style="${ctrlStyle(addPanel.ctrl)}">
+        <div class="lc-menu-head"><span class="lc-swatch"></span><b>Fahrer dazunehmen</b><button class="lc-icon-btn" data-act="addClose" aria-label="Schließen">×</button></div>
+        <div class="lc-menu-label">Regler</div>
+        <div class="lc-menu-btns lc-add-ctrls">${freeCtrls.map(n => `<button class="lc-btn ${n === addPanel.ctrl ? 'on' : ''}" data-act="addCtrl" data-ctrl="${n}" style="${ctrlStyle(n)}"><span class="lc-swatch"></span>${MD.controller(n).name}</button>`).join('')}</div>
+        <div class="lc-menu-label">Fahrer</div>
+        <select class="lc-menu-sel" data-add="driverId"><option value="">– Fahrer wählen –</option>${dOpts.map(d => `<option value="${d.id}" ${d.id === addPanel.driverId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>
+        <div class="lc-menu-label">Fahrzeug</div>
+        <select class="lc-menu-sel" data-add="carId"><option value="">– Fahrzeug wählen –</option>${cOpts.map(x => `<option value="${x.id}" ${x.id === addPanel.carId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
+        <div class="lc-menu-btns"><button class="lc-btn lc-primary" data-act="addDo" ${ok ? '' : 'disabled'}>Dazunehmen</button></div>
+        <p class="lc-note">Seine Zeit läuft ab der ersten Durchfahrt.</p>
+      </div>`;
+    })();
 
     const simHtml = source.kind !== 'sim' ? '' : `<div class="lc-sim ${simOpen ? 'open' : ''}">
         <div class="lc-sim-row"><b>Simulator</b>
@@ -1035,7 +1058,7 @@
 
     const tick = ticker.map(n => `<span class="lc-tick ${n.kind}" ${n.ctrl ? `style="${ctrlStyle(n.ctrl)}"` : ''}>${n.ctrl ? '<i></i>' : ''}${esc(n.text)}</span>`).join('');
     const cuWarn = source.kind === 'cu' && cuHub()?.state !== 'connected' ? '<span class="lc-tick red">CU nicht verbunden – Bluetooth prüfen</span>' : '';
-    const dg = source.diag;
+    const dg = /[?&]diag\b/.test(location.search) ? source.diag : null;   // Diagnosezeile nur mit ?diag
     const cuDiag = dg ? `<span class="lc-tick muted">CU: ${dg.msgs} Meldungen · ${dg.timers} Durchfahrten (${dg.used} gewertet)${dg.last ? ` · zuletzt ${esc(MD.controller(dg.last.addr)?.name || 'Regler ' + dg.last.addr)} Sensor ${dg.last.sector}` : ''} · Ampel ${cuHub()?.lastStatus?.start ?? '–'} · Phase ${phase}${(() => { const c = dg.last && session.cars.get(dg.last.addr); return c ? ` · Wertung: ${c.laps} Rd., Start ${c.lastCross != null ? 'ja' : 'nein'}${c.rejectedMs != null ? `, verworfen ${Math.round(c.rejectedMs)} ms` : ''}, Mindestzeit ${MD.trackSetup(session.track).minLapMs ?? '–'}` : (dg.last ? ' · Regler nicht im Livecenter' : ''); })()}</span>` : '';
     const stale = source.kind === 'view' && session.phase !== 'finished' && Date.now() - watchAt > 15000 ? `<span class="lc-tick warn">Letzte Übertragung vor ${Math.round((Date.now() - watchAt) / 1000)} s</span>` : '';
     const tickHtml = stale + cuWarn + cuDiag + tick || `<span class="lc-tick muted">${!canEdit() ? 'Eingaben nur mit Admin-Anmeldung.' : race ? 'Fahrer antippen für Strafe, Ausfall oder Disqualifikation.' : 'Fahrer antippen für Fahrzeug und Tuning.'}</span>`;
@@ -1043,7 +1066,7 @@
     // Nur neu aufbauen, wenn sich Knöpfe/Overlays ändern – sonst gehen Fingertipps während des Neuzeichnens verloren
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
     const menuCar = menuCtrl != null ? session.cars.get(menuCtrl) : null;
-    const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
+    const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, JSON.stringify(addPanel), session.cars.size, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
       session.lights, session.lightsRunning, endArmed, restartArmed, noScoreArmed, cfg.broadcast, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, girpSaving, resTab,
       phase === 'red' ? st.map(s => s.ctrl + s.status + s.penaltySec + s.inPit + Math.round(s.pitStandMs / 100)).join() : ''].join('|');
     if (key === shellKey && root.querySelector('.lc-live')) {
@@ -1077,8 +1100,9 @@
         </header>
         <div class="lc-head-row">${head}</div>
         <div class="lc-board">${rows}</div>
+        ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) && MD.CONTROLLERS.some(x => !session.cars.has(x.n)) ? '<div class="lc-addbar"><button class="lc-btn" data-act="addOpen">+ Fahrer dazunehmen</button></div>' : ''}
         <footer class="lc-ticker">${tickHtml}</footer>
-        ${simHtml}${menuHtml}${lightsHtml}${redHtml}${resultHtml}${endHtml}
+        ${simHtml}${menuHtml}${addHtml}${lightsHtml}${redHtml}${resultHtml}${endHtml}
       </div>`;
   }
 
@@ -1125,7 +1149,7 @@
       case 'saveRecords': saveRecords(); break;
       case 'girp': saveGirp(); break;
       case 'raceLaps': cfg.raceLaps = Math.max(1, cfg.raceLaps + +b.dataset.d); saveCfg(); renderLive(); break;
-      case 'openMenu': menuCtrl = ctrl; renderLive(); break;
+      case 'openMenu': menuCtrl = ctrl; addPanel = null; renderLive(); break;
       case 'status': session.setStatus(menuCtrl, b.dataset.s || null); menuCtrl = null; renderLive(); break;
       case 'finish': session.finish(source.now()); break;
       case 'again': stopSession(); view = 'setup'; renderSetup(); break;
@@ -1160,12 +1184,42 @@
         if (got) note(ctrl, `${driverName(c.driverId)}: Gutschrift ${sec1(got * 1000)} s`);
         renderLive(); break;
       }
+      case 'addOpen': menuCtrl = null; addPanel = { ctrl: MD.CONTROLLERS.map(x => x.n).find(n => !session.cars.has(n)), driverId: null, carId: null }; renderLive(); break;
+      case 'addClose': addPanel = null; renderLive(); break;
+      case 'addCtrl': if (addPanel) addPanel.ctrl = ctrl; renderLive(); break;
+      case 'addDo': addDriver(); break;
+      case 'removeCar': {
+        const c = session.cars.get(ctrl);
+        if (c && session.removeCar(ctrl)) {
+          source?.removeCar?.(ctrl);
+          delete cfg.assign[ctrl]; saveCfg();
+          note(ctrl, `${driverName(c.driverId)} ist raus, ${MD.controller(ctrl).name} ist frei`);
+        }
+        menuCtrl = null; renderLive(); break;
+      }
       case 'penaltyClear': session.clearPenalty(menuCtrl); note(menuCtrl, `${driverName(session.cars.get(menuCtrl).driverId)}: Strafe zurückgenommen`); menuCtrl = null; renderLive(); break;
     }
   }
 
+  /** Training: Fahrer aus dem Dazunehmen-Feld auf den freien Regler setzen */
+  function addDriver () {
+    if (!addPanel || !session) return;
+    const { ctrl, driverId, carId } = addPanel;
+    if (!session.addCar({ ctrl, driverId, carId })) { window.Helpers.showToast?.('Geht nicht: Regler oder Fahrer schon belegt'); return; }
+    source?.addCar?.({ ctrl, paceMs: simPace(driverId, carId) });
+    source?.setTuning?.(ctrl, tuningOf(carId), { send: true });
+    cfg.assign[ctrl] = { driverId, carId }; saveCfg();
+    note(ctrl, `${driverName(driverId)} fährt jetzt mit, ${carName(carId)} auf ${MD.controller(ctrl).name}`);
+    addPanel = null; saveSnap(true); renderLive();
+  }
+
   function onChange (e) {
     if (session && !canEdit()) return;
+    const add = e.target.closest('select[data-add]');
+    if (add && addPanel) {
+      addPanel[add.dataset.add] = add.value ? (isNaN(+add.value) ? add.value : +add.value) : null;
+      renderLive(); return;
+    }
     const swap = e.target.closest('select[data-carswap]');
     if (swap && session) {
       const ctrl = +swap.dataset.carswap, carId = isNaN(+swap.value) ? swap.value : +swap.value;

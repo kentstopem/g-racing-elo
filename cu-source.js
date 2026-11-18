@@ -87,6 +87,9 @@
     now () { return performance.now(); }
 
     prepare (cars) { this.ctrls = new Set(cars.map(c => Number(c.ctrl))); }
+    /** Training: Regler dazunehmen / freigeben (nur noch Durchfahrten bekannter Regler zählen) */
+    addCar ({ ctrl }) { this.ctrls.add(Number(ctrl)); }
+    removeCar (ctrl) { this.ctrls.delete(Number(ctrl)); }
 
     /** Training/Quali und nach Roter Flagge im Training: Strecke freigeben */
     release () { this.want = 'release'; this.drive(); }
