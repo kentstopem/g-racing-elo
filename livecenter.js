@@ -26,7 +26,8 @@
   let lastSay = { prio: 0, at: 0 };
   let shellKey = '';
   let endArmed = 0;            // „Beenden“: Auswahl (werten / neu starten / weiterfahren) offen
-  let restartArmed = false;    // „Neu starten“ in der Roten Flagge zweimal tippen
+  let restartArmed = false;
+  let noScoreArmed = false;    // „Nicht werten“ (zum Testen) zweimal tippen    // „Neu starten“ in der Roten Flagge zweimal tippen
   let redPen = {};             // Strafendialog bei Roter Flagge: { ctrl: Sekunden }
   let redReason = '';
   let resultOrder = null;      // Ergebnis-Reihenfolge (Regler), von Hand korrigierbar
@@ -904,6 +905,7 @@
             <span class="lc-laps-adj"><button class="lc-btn" data-act="raceLaps" data-d="-1" aria-label="eine Runde weniger">−</button><button class="lc-btn" data-act="raceLaps" data-d="1" aria-label="eine Runde mehr">+</button></span>` : ''}
           ${session.mode !== 'practice' && canEdit() ? `<button class="lc-btn" data-act="restartNow">${restartLabel()}</button>` : ''}
           ${source.kind === 'view' ? '' : '<button class="lc-btn" data-act="again">Zurück zur Vorbereitung</button>'}
+          ${race && canEdit() && !girpDone ? `<button class="lc-link-btn" data-act="noScore">${noScoreArmed ? 'Wirklich verwerfen?' : 'Nicht werten'}</button>` : ''}
           <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
         </div>`;
       if (resTab !== 'result') {
@@ -986,7 +988,7 @@
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
     const menuCar = menuCtrl != null ? session.cars.get(menuCtrl) : null;
     const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
-      session.lights, session.lightsRunning, endArmed, restartArmed, cfg.broadcast, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, resTab,
+      session.lights, session.lightsRunning, endArmed, restartArmed, noScoreArmed, cfg.broadcast, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, resTab,
       phase === 'red' ? st.map(s => s.ctrl + s.status + s.penaltySec + s.inPit + Math.round(s.pitStandMs / 100)).join() : ''].join('|');
     if (key === shellKey && root.querySelector('.lc-live')) {
       root.querySelector('.lc-board').innerHTML = rows;
@@ -1069,6 +1071,10 @@
       case 'status': session.setStatus(menuCtrl, b.dataset.s || null); menuCtrl = null; renderLive(); break;
       case 'finish': session.finish(source.now()); break;
       case 'again': stopSession(); view = 'setup'; renderSetup(); break;
+      case 'noScore':   // Testrennen: nichts speichern, Sicherung verwerfen
+        if (noScoreArmed) { noScoreArmed = false; stopSession(); view = 'setup'; renderSetup(); window.Helpers.showToast?.('Rennen nicht gewertet'); }
+        else { noScoreArmed = true; shellKey = ''; renderLive(); setTimeout(() => { noScoreArmed = false; shellKey = ''; renderLive(); }, 3000); }
+        break;
       case 'end':
         if (session.phase === 'finished' || session.phase === 'ready') { close(); break; }
         if (!canEdit()) break;
