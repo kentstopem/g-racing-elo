@@ -178,7 +178,7 @@
     root.innerHTML = `<div class="lc-setup">
         <header class="lc-top"><div class="lc-brand">Livecenter</div><div class="lc-track">Zuschauen</div>
           <button class="lc-btn lc-ghost" data-act="close">Schließen</button></header>
-        <div class="lc-watch-idle"><h2>${esc(msg)}</h2><p class="lc-note">Sobald am iPad „Live übertragen“ an ist, erscheint das Rennen hier automatisch.</p></div>
+        <div class="lc-watch-idle"><h2>${esc(msg)}</h2><p class="lc-note">Sobald von der Strecke live übertragen wird, siehst du hier mehr.</p></div>
       </div>`;
   }
 
