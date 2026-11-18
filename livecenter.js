@@ -788,14 +788,15 @@
 
   // ---------- Live-Ansicht ----------
   const sec1 = ms => (ms / 1000).toFixed(1).replace('.', ',');
-  /** Rundenzahl; im Rennen läuft in der ersten Runde (nach der ersten Durchfahrt) stattdessen eine Stoppuhr */
+  /** Rundenzahl; in jeder Session (Training, Quali, Rennen) läuft in der ersten Runde (nach der ersten Durchfahrt) stattdessen eine Stoppuhr */
   function lapsCell (s) {
     const c = session?.cars.get(s.ctrl);
-    if (session?.mode === 'race' && c && c.started && c.laps === 0 && !c.finished && !s.status && c.lastCross != null) {
+    if (c && c.started && c.laps === 0 && !c.finished && !s.status && c.lastCross != null) {
       const tNow = session.phase === 'green' ? source.now() : (session.redAt ?? session.endT ?? source.now());
       return `<div class="lc-num lc-laps lc-watch">${sec1(Math.max(0, tNow - c.lastCross - (c.pausedMs || 0)))}</div>`;
     }
-    // Nach „Los“ noch nicht über Start/Ziel (ab 0,5 s): blinkender Strich – fällt sofort auf, wenn ein Auto nicht erfasst wird
+    // Nur im Rennen: nach „Los“ noch nicht über Start/Ziel (ab 0,5 s) blinkender Strich – fällt sofort auf, wenn ein Auto nicht erfasst wird.
+    // Im Training/in der Quali fahren die Autos aus der Box los, da wäre der Strich nur Unruhe.
     if (session?.mode === 'race' && c && !c.started && !s.status && session.phase === 'green' && session.goT != null && source.now() - session.goT > 500) {
       return '<div class="lc-num lc-laps lc-waiting">–</div>';
     }
