@@ -118,9 +118,16 @@
     const ids = new Set(snap.cars.map(c => c.driverId));
     snap.opts.records = (snap.opts.records || []).filter(r => ids.has(r.driverId));
     snap.opts.track = { id: snap.opts.track?.id, name: snap.opts.track?.name, minLapMs: snap.opts.track?.minLapMs, refLapMs: snap.opts.track?.refLapMs };
-    snap.cars.forEach(c => { c.pitLog = []; if (!full) c.lapTimes = c.lapTimes.slice(-1); });
+    const r = x => (x == null ? x : Math.round(x));                       // ganze ms reichen fürs Anzeigen
+    snap.cars.forEach(c => {
+      c.pitLog = []; if (!full) c.lapTimes = c.lapTimes.slice(-1);
+      c.crossings = c.crossings.map(r); c.lastCross = r(c.lastCross); c.finishT = r(c.finishT); c.pitStandMs = r(c.pitStandMs); c.penaltyMs = r(c.penaltyMs);
+      c.fuel = Math.round(c.fuel * 10) / 10;
+    });
+    ['goT', 'redAt', 'endT'].forEach(k => { snap.state[k] = r(snap.state[k]); });
     const body = { snap, redReason, lightsRunning: !!session.lightsRunning, ticker: ticker.slice(0, 4) };
-    const cmp = JSON.stringify({ ...body, snap: { ...snap, savedT: 0, state: { ...snap.state, lastT: 0 } } });
+    // Vergleich ohne laufende Uhr-Werte: in Pausen (Rote Flagge, Ampel) wird dann nichts geschrieben
+    const cmp = JSON.stringify({ ...body, snap: { ...snap, savedT: 0, state: { ...snap.state, lastT: 0 }, cars: snap.cars.map(c => ({ ...c, pitLastT: 0 })) } });
     castPending = false;
     if (cmp === castLast) return;
     castLast = cmp; castAt = Date.now(); castBusy = true;
