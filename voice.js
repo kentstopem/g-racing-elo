@@ -26,7 +26,7 @@
     ['pit_call', 'before'], ['in_pit', 'before'], ['refueled', 'before'], ['penalty_served', 'before'],
     ['last_lap'], ['red_flag'], ['race_resume'], ['race_win', 'before'],
     ['lead_change', 'before'], ['place_2', 'after'], ['place_3', 'after'], ['dnf', 'before'], ['dq', 'before'],
-    ['car_record', 'after'], ['halfway'], ['five_to_go'], ['quali_done', 'before']
+    ['car_record', 'after'], ['halfway'], ['five_to_go'], ['quali_done', 'before'], ['no_signal', 'before']
   ];
   const NAME_POS = Object.fromEntries(PHRASES.filter(p => p[1]).map(p => [p[0], p[1]]));
   const voice = key => VOICES[key] || VOICES[window.appData?.raceSettings?.voice] || VOICES.ingrid;

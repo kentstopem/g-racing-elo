@@ -479,3 +479,53 @@ test('Ansagen: Führungswechsel ab Runde 2, Halbzeit, noch 5 Runden, letzte Rund
   assert.equal(events.find(e => e[0] === 'fiveToGo')[1].lap, 7);
   assert.equal(events.filter(e => e[0] === 'finish')[1][1].position, 2);
 });
+
+test('Rennen: 20 s ohne Durchfahrt → noSignal, nicht in der Box und nicht bei Roter Flagge', () => {
+  const { s, events } = race(50);
+  const tickTo = (from, to) => { for (let t = from; t <= to; t += 200) s.tick(t); };
+  lap(s, 1, 6500); lap(s, 2, 6600);
+  tickTo(6600, 13400);
+  lap(s, 1, 13500); lap(s, 2, 13600);
+  // Regler 2 steht in der Box (Strafe/Tanken): keine Warnung
+  s.handle({ type: 'pit', ctrl: 2, inPit: true, t: 14000 });
+  tickTo(13600, 33000);
+  assert.equal(s.cars.get(1).noSignal, false);   // 19,5 s
+  tickTo(33200, 34000);
+  assert.equal(s.cars.get(1).noSignal, true);
+  assert.equal(s.cars.get(2).noSignal, false);
+  assert.equal(events.filter(e => e[0] === 'noSignal').length, 1);
+  assert.equal(s.standings().find(x => x.ctrl === 1).noSignal, true);
+  tickTo(34000, 40000);
+  assert.equal(events.filter(e => e[0] === 'noSignal').length, 1);   // nur einmal melden
+  lap(s, 1, 40000);
+  assert.equal(s.cars.get(1).noSignal, false);
+  assert.ok(events.some(e => e[0] === 'signalBack'));
+  // Rote Flagge: Zeit steht
+  s.handle({ type: 'pit', ctrl: 2, inPit: false, t: 40100 });
+  s.redFlag(41000);
+  tickTo(41000, 90000);
+  assert.equal(s.cars.get(1).noSignal, false);
+  assert.equal(s.cars.get(2).noSignal, false);
+});
+
+test('Training/Quali: keine Warnung ohne Signal; 0 s schaltet sie im Rennen ab', () => {
+  const p = new RaceEngine.Session({ mode: 'practice', entries, track });
+  p.start(0); lap(p, 1, 1000);
+  for (let t = 0; t <= 60000; t += 500) p.tick(t);
+  assert.equal(p.cars.get(1).noSignal, false);
+  const { s } = race(50, { settings: { noSignalSec: 0 } });
+  lap(s, 1, 6500);
+  for (let t = 6000; t <= 60000; t += 500) s.tick(t);
+  assert.equal(s.cars.get(1).noSignal, false);
+});
+
+test('Nach „kein Signal“ zählt die nächste Runde nicht für Bestzeiten', () => {
+  const { s } = race(50);
+  lap(s, 1, 6500);
+  for (let t = 6600; t <= 40000; t += 200) s.tick(t);
+  assert.equal(s.cars.get(1).noSignal, true);
+  lap(s, 1, 40100);
+  assert.equal(s.cars.get(1).laps, 1);
+  assert.equal(s.cars.get(1).best, null);
+  assert.equal(s.cars.get(1).lapTimes[0].interrupted, true);
+});

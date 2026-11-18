@@ -21,7 +21,7 @@ test('CU-Stufen 0–15 als Prozent', () => {
 });
 
 test('Renneinstellungen: Standardwerte und Bereinigung', () => {
-  assert.deepEqual(plain(M.raceSettings()), { fullTankLaps: 25, refuelPctPerSec: 10, falseStartPenaltySec: 5, penaltyOptionsSec: [2, 5, 7, 10], pitCallFuelPct: 20, fuelSpeedFactor: 1, emptyTankSpeed: 4, pitDriveMs: 2000, baseK: 32, voice: 'ingrid' });
+  assert.deepEqual(plain(M.raceSettings()), { fullTankLaps: 25, refuelPctPerSec: 10, falseStartPenaltySec: 5, penaltyOptionsSec: [2, 5, 7, 10], pitCallFuelPct: 20, fuelSpeedFactor: 1, emptyTankSpeed: 4, pitDriveMs: 2000, noSignalSec: 20, baseK: 32, voice: 'ingrid' });
   const s = M.raceSettings({ refuelPctPerSec: 12.5, penaltyOptionsSec: [10, 3, 3, 0], pitCallFuelPct: 150, falseStartPenaltySec: '' });
   assert.equal(s.refuelPctPerSec, 12.5);
   assert.deepEqual(plain(s.penaltyOptionsSec), [3, 10]);

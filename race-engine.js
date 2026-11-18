@@ -60,7 +60,8 @@
         fuel: 100, pitCalled: false, fuelEmpty: false,
         inPit: false, pitLastT: null, pitStandMs: 0, pitStops: 0,
         penaltyMs: 0, penaltyLog: [], status: null, pairBests: {},       // status: null | 'dnf' | 'dq'
-        finished: false, finishT: null, done: false, started: false
+        finished: false, finishT: null, done: false, started: false,
+        silentMs: 0, noSignal: false     // Rennen: Fahrzeit ohne Signal (Durchfahrt/Box) – Diode kaputt?
       };
     }
 
@@ -213,6 +214,7 @@
         return;
       }
       if (this.phase !== 'green') return;            // Rote Flagge / beendet: keine Wertung
+      this.signal(c);
       if (c.done) return;                            // Quali-Runden fertig
       if (c.lastCross == null) {                     // erste Durchfahrt: Zeitnahme beginnt
         c.lastCross = t; c.started = true; c.crossings[0] = t;
@@ -394,6 +396,7 @@
     onPit ({ ctrl, inPit, t }) {
       const c = this.cars.get(Number(ctrl));
       if (!c || c.inPit === !!inPit) return;
+      this.signal(c);
       c.inPit = !!inPit;
       if (c.inPit) {
         c.pitStops += 1;
@@ -451,10 +454,44 @@
       if (c.fuel >= 100 && before < 100) this.emit('refueled', { ctrl: c.ctrl, driverId: c.driverId });
     }
 
+    /**
+     * Ein Fahrzeug hat sich gemeldet (Durchfahrt oder Box): Warnung „kein Signal“ aufheben.
+     * Die Runde seitdem enthält vermutlich nicht gezählte Runden → zählt nicht für Bestzeiten und Rekorde.
+     */
+    signal (c) {
+      c.silentMs = 0;
+      if (!c.noSignal) return;
+      c.noSignal = false;
+      if (c.lastCross != null) c.interrupted = true;
+      this.emit('signalBack', { ctrl: c.ctrl, driverId: c.driverId });
+    }
+
     /** Regelmäßig aufrufen (z. B. alle 100 ms) mit der Uhr der Quelle */
     tick (t) {
       this.lastT = t;
       for (const c of this.cars.values()) if (c.inPit) this.updatePit(c, t);
+      this.watchSignals(t);
+    }
+
+    /**
+     * Rennen: Kommt von einem Fahrzeug etwa 20 s (noSignalSec) lang keine Durchfahrt, ist vielleicht die Diode
+     * ausgefallen → Ereignis 'noSignal'. Gezählt wird nur Fahrzeit bei grüner Strecke: nicht in der Box
+     * (Strafe, Tanken), nicht bei Roter Flagge, nicht nach Zieleinlauf, Ausfall oder DQ.
+     */
+    watchSignals (t) {
+      const prev = this.watchT;
+      this.watchT = this.phase === 'green' ? t : null;
+      const limit = this.settings.noSignalSec * 1000;
+      if (this.mode !== 'race' || prev == null || this.watchT == null || !limit) return;
+      const dt = Math.max(0, t - prev);
+      for (const c of this.cars.values()) {
+        if (c.inPit || c.finished || c.status) continue;
+        c.silentMs = (c.silentMs || 0) + dt;
+        if (!c.noSignal && c.silentMs >= limit) {
+          c.noSignal = true;
+          this.emit('noSignal', { ctrl: c.ctrl, driverId: c.driverId, carId: c.carId, sec: Math.round(c.silentMs / 1000) });
+        }
+      }
     }
 
     /** Rennzeit (ohne Unterbrechungen) und Gesamtzeit seit dem Start, in ms */
@@ -543,7 +580,7 @@
           laps: c.laps, last: c.last, best: c.best, gap, gapLaps,
           fuel: this.fuelOn ? c.fuel : null, fuelEmpty: c.fuelEmpty, inPit: c.inPit, pitStops: c.pitStops, pitStandMs: c.inPit ? c.pitStandMs : 0,
           penaltySec: c.penaltyMs / 1000, penaltyTotalSec: Math.max(0, c.penaltyLog.reduce((a, p) => a + p.sec, 0)), servingPenalty: c.inPit && c.penaltyMs > 0, status: c.status, dqReason: c.dqReason || null,
-          finished: c.finished, done: c.done, started: c.started,
+          finished: c.finished, done: c.done, started: c.started, noSignal: !!c.noSignal && !c.finished && !c.status,
           lastInterrupted: c.lapTimes.at(-1)?.interrupted || false,
           sessionBest: this.sessionBest?.ctrl === c.ctrl && c.best === this.sessionBest.ms,
           personalRecord: rec.personal, carRecord: rec.car, total: this.totalMs(c)

@@ -437,7 +437,8 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-laps.lc-watch { font-size: min(26cqh, 2.4vw); font-variant-numeric: tabular-nums; color: var(--lc-accent); }
 .lc-laps.lc-waiting { color: var(--lc-pit); animation: lc-wait-blink 1s steps(2) infinite; }
 @keyframes lc-wait-blink { 50% { opacity: .15; } }
-@media (prefers-reduced-motion: reduce) { .lc-laps.lc-waiting { animation: none; } }
+.lc-laps.lc-nosignal { color: var(--lc-pit); animation: lc-wait-blink 1s steps(2) infinite; }
+@media (prefers-reduced-motion: reduce) { .lc-laps.lc-waiting, .lc-laps.lc-nosignal { animation: none; } }
 
 /* Zuschauen */
 .lc-watch-idle { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 24px; }

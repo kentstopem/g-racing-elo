@@ -27,5 +27,6 @@
   "car_record": "Neuer Fahrzeugrekord von",
   "halfway": "Halbzeit!",
   "five_to_go": "Noch fünf Runden!",
-  "quali_done": "hat das Qualifying beendet."
+  "quali_done": "hat das Qualifying beendet.",
+  "no_signal": "keine Runde mehr gezählt! Bitte das Auto prüfen."
 }

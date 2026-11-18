@@ -713,7 +713,7 @@
   }
 
   // ---------- Meldungen der Engine → Sprache + Laufschrift ----------
-  const PRIO = { lights: 9, go: 9, redFlag: 10, resume: 9, win: 8, pole: 8, trackRecord: 7, finishPlace: 7, falseStart: 7, lastLap: 6, fiveToGo: 6, halfway: 6, status: 6, carRecord: 6, personalRecord: 5, pitCall: 5, leadChange: 5, fastestLap: 4, penaltyServed: 4, refueled: 3, qualiDone: 3, pitIn: 2 };
+  const PRIO = { lights: 9, go: 9, redFlag: 10, resume: 9, win: 8, pole: 8, trackRecord: 7, finishPlace: 7, falseStart: 7, lastLap: 6, fiveToGo: 6, halfway: 6, status: 6, carRecord: 6, personalRecord: 5, pitCall: 5, noSignal: 6, leadChange: 5, fastestLap: 4, penaltyServed: 4, refueled: 3, qualiDone: 3, pitIn: 2 };
   // So lange darf nichts Unwichtigeres dazwischenreden (ms, sonst 2,2 s) – z. B. der Glückwunsch zum Sieg / zur Pole
   const HOLD = { win: 4500, pole: 4000, trackRecord: 3500 };
   // Diese Ansagen werden nicht verworfen, sondern nachgeholt, wenn gerade Wichtigeres läuft
@@ -756,6 +756,8 @@
       case 'pitCall': say(type, 'pit_call', d.driverId); note(d.ctrl, `${name}: Tank bald leer`, 'warn'); break;
       case 'fuelEmpty': source?.limitSpeed?.(d.ctrl, d.level); note(d.ctrl, `${name}: Tank leer – gedrosselt`, 'warn'); break;
       case 'fuelRestored': source?.limitSpeed?.(d.ctrl, null); break;
+      case 'noSignal': say(type, 'no_signal', d.driverId); note(d.ctrl, `${name}: seit ${d.sec} s keine Runde gezählt – Auto prüfen`, 'warn'); break;
+      case 'signalBack': note(d.ctrl, `${name}: Runden kommen wieder an`); break;
       case 'status':
         if (d.status) { say(type, d.status === 'dq' ? 'dq' : 'dnf', d.driverId); note(d.ctrl, `${name}: ${d.status === 'dq' ? 'disqualifiziert' : 'ausgefallen'}`, 'warn'); }
         break;
@@ -793,13 +795,15 @@
     const c = session?.cars.get(s.ctrl);
     if (c && c.started && c.laps === 0 && !c.finished && !s.status && c.lastCross != null) {
       const tNow = session.phase === 'green' ? source.now() : (session.redAt ?? session.endT ?? source.now());
-      return `<div class="lc-num lc-laps lc-watch">${sec1(Math.max(0, tNow - c.lastCross - (c.pausedMs || 0)))}</div>`;
+      return `<div class="lc-num lc-laps lc-watch${s.noSignal ? ' lc-nosignal' : ''}">${sec1(Math.max(0, tNow - c.lastCross - (c.pausedMs || 0)))}</div>`;
     }
     // Nur im Rennen: nach „Los“ noch nicht über Start/Ziel (ab 0,5 s) blinkender Strich – fällt sofort auf, wenn ein Auto nicht erfasst wird.
     // Im Training/in der Quali fahren die Autos aus der Box los, da wäre der Strich nur Unruhe.
     if (session?.mode === 'race' && c && !c.started && !s.status && session.phase === 'green' && session.goT != null && source.now() - session.goT > 500) {
       return '<div class="lc-num lc-laps lc-waiting">–</div>';
     }
+    // Rennen: lange keine Durchfahrt (Diode kaputt?) → Rundenzahl blinkt
+    if (s.noSignal) return `<div class="lc-num lc-laps lc-nosignal" title="Keine Runde mehr gezählt – Auto prüfen">${s.laps}</div>`;
     return `<div class="lc-num lc-laps">${s.laps}</div>`;
   }
 
@@ -1155,7 +1159,8 @@
         </div>
         <div class="lc-sim-row">${st.map(s => `<span class="lc-sim-car" style="${ctrlStyle(s.ctrl)}"><span class="lc-swatch"></span>
           <button class="lc-btn" data-act="simPit" data-ctrl="${s.ctrl}" ${phase === 'green' ? '' : 'disabled'}>Box</button>
-          <button class="lc-btn" data-act="simFalse" data-ctrl="${s.ctrl}" ${phase === 'lights' && session.lightsRunning && race ? '' : 'disabled'}>Fehlstart</button></span>`).join('')}</div>
+          <button class="lc-btn" data-act="simFalse" data-ctrl="${s.ctrl}" ${phase === 'lights' && session.lightsRunning && race ? '' : 'disabled'}>Fehlstart</button>
+          <button class="lc-btn ${source.diodeOff?.(s.ctrl) ? 'on' : ''}" data-act="simDiode" data-ctrl="${s.ctrl}" title="Diode aus: Auto fährt, meldet aber keine Runden">Diode</button></span>`).join('')}</div>
       </div>`;
 
     const tick = ticker.map(n => `<span class="lc-tick ${n.kind}" ${n.ctrl ? `style="${ctrlStyle(n.ctrl)}"` : ''}>${n.ctrl ? '<i></i>' : ''}${esc(n.text)}</span>`).join('');
@@ -1279,6 +1284,7 @@
       case 'speed': source.setSpeed(+b.dataset.x); renderLive(); break;
       case 'short': source.short(); break;
       case 'simPit': source.pit(ctrl); break;
+      case 'simDiode': source.toggleDiode(ctrl); shellKey = ''; renderLive(); break;
       case 'simFalse': source.falseStart(ctrl); break;
       case 'menuClose': menuCtrl = null; renderLive(); break;
       case 'penalty': session.addPenalty(menuCtrl, +b.dataset.sec, 'Zeitstrafe'); menuCtrl = null; renderLive(); break;

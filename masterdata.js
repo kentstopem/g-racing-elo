@@ -7,7 +7,7 @@
 //   cars/{id}      + tuning { speed: 0–15, brake: 0–15 } (CU-Stufen; fehlt = nicht festgelegt),
 //                    imageRev (eigenes Bild hochgeladen), practiceLaps (Runden außerhalb gewerteter Rennen)
 //   tracks/{id}    + lengthOuterM, lengthInnerM, refLapMs, minLapMs (kürzere Runden werden ignoriert), imageRev
-//   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor, emptyTankSpeed, pitDriveMs }
+//   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor, emptyTankSpeed, pitDriveMs, noSignalSec }
 //   media/{key}    { data (Data-URL), type, bytes, updatedAt } – Bilder/Töne getrennt von den Stammdaten,
 //                  key: car_<id> | driver_voice_<id> | track_<id>
 (function () {
@@ -35,6 +35,7 @@
     pitCallFuelPct: 20,         // „[Fahrer] muss an die Box“ ab diesem Tankstand
     emptyTankSpeed: 4,          // CU-Tempostufe (0–15), solange der Tank leer ist
     pitDriveMs: 2000,           // Fahrzeit vom Losfahren in der Box bis zum nächsten Sensor: wird beim Rausfahren von Tanken/Strafe wieder abgezogen
+    noSignalSec: 20,            // Rennen: Warnung, wenn von einem Fahrzeug so lange keine Durchfahrt kam (0 = aus)
     fuelSpeedFactor: 1,         // 0 = Verbrauch unabhängig vom Tempo, 1 = proportional zum Tempo
     baseK: 32,                  // G!RP: maximaler K-Faktor (volles Feld, lange Distanz); gilt nur für neu gespeicherte Rennen
     voice: 'ingrid'             // Sprachausgabe: 'ingrid' | 'leni' (siehe voice.js)
@@ -64,6 +65,7 @@
       fuelSpeedFactor:      Math.max(0, Math.min(3, num(d.fuelSpeedFactor, RACE_DEFAULTS.fuelSpeedFactor))),
       emptyTankSpeed:       clampLevel(num(d.emptyTankSpeed, RACE_DEFAULTS.emptyTankSpeed)),
       pitDriveMs:           Math.max(0, Math.min(30000, Math.round(num(d.pitDriveMs, RACE_DEFAULTS.pitDriveMs)))),
+      noSignalSec:          Math.max(0, Math.min(300, Math.round(num(d.noSignalSec, RACE_DEFAULTS.noSignalSec)))),
       baseK:                Math.max(1, Math.min(200, Math.round(num(d.baseK, RACE_DEFAULTS.baseK)))),
       voice:                ['ingrid', 'leni'].includes(d.voice) ? d.voice : RACE_DEFAULTS.voice
     };

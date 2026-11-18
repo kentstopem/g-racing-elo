@@ -484,6 +484,7 @@
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
           <div class="form-group"><label for="rsFalse">Fehlstart (Sekunden)</label><input id="rsFalse" name="falseStart" inputmode="decimal" value="${fmtNum(s.falseStartPenaltySec, 1)}"></div>
           <div class="form-group"><label for="rsOpts">Zeitstrafen zur Auswahl (Sekunden)</label><input id="rsOpts" name="opts" value="${s.penaltyOptionsSec.map(v => fmtNum(v, 1)).join('; ')}" placeholder="2; 5; 7; 10"></div>
+          <div class="form-group"><label for="rsNoSignal">Warnung ohne Rundensignal (Sekunden)</label><input id="rsNoSignal" name="noSignal" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.noSignalSec}"><small class="muted">Rennen: Kommt so lange keine Durchfahrt (Diode kaputt?), blinkt die Rundenzahl und es gibt eine Ansage. Box und Rote Flagge zählen nicht mit. 0 = aus</small></div>
         </div>
         <h3 class="setup-h">G!RP-Wertung</h3>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
@@ -602,6 +603,7 @@
         pitCallFuelPct: parseNum(form.pitCall.value),
         emptyTankSpeed: parseNum(form.emptyTank.value),
         pitDriveMs: parseNum(form.pitDrive.value),
+        noSignalSec: parseNum(form.noSignal.value),
         fuelSpeedFactor: Number(form.factor.value) / 100,
         falseStartPenaltySec: parseNum(form.falseStart.value),
         penaltyOptionsSec: opts,

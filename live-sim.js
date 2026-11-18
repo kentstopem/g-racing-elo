@@ -13,7 +13,7 @@
 //   limitSpeed(c, l)  Tempo eines Reglers auf CU-Stufe l begrenzen (null = frei), z. B. bei leerem Tank
 //   close()
 // Auch für die CU: setTuning(ctrl, { speed, brake })
-// Nur im Simulator: setSpeed(x), short(), falseStart(ctrl), pit(ctrl), setPitInfo(fn), setPace(ctrl, ms)
+// Nur im Simulator: setSpeed(x), short(), falseStart(ctrl), pit(ctrl), toggleDiode(ctrl), setPitInfo(fn), setPace(ctrl, ms)
 (function () {
   const rnd = (a, b) => a + Math.random() * (b - a);
 
@@ -116,6 +116,10 @@
     /** Fahrzeug beim nächsten Vorbeikommen an die Box schicken */
     pit (ctrl) { const c = this.cars.get(ctrl); if (c) c.wantPit = true; }
 
+    /** Diode ausgefallen: das Fahrzeug fährt weiter, meldet aber keine Durchfahrten mehr (Umschalten) */
+    toggleDiode (ctrl) { const c = this.cars.get(ctrl); if (c) c.diodeOff = !c.diodeOff; return !!c?.diodeOff; }
+    diodeOff (ctrl) { return !!this.cars.get(ctrl)?.diodeOff; }
+
     step () {
       const now = this.now();
       const due = this.timers.filter(x => x.t <= now).sort((a, b) => a.t - b.t);
@@ -133,6 +137,7 @@
           continue;
         }
         if (c.next == null || now < c.next) continue;
+        if (c.diodeOff) { c.next += this.lapTime(c); continue; }   // Diode kaputt: keine Meldung, keine Box
         this.emit({ type: 'lap', ctrl: c.ctrl, t: c.next });
         const { fuel, penaltyOpen } = this.pitInfo(c.ctrl);
         const lowFuel = fuel != null && fuel < rnd(12, 22);
