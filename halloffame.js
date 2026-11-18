@@ -102,8 +102,8 @@
         <div class="hof-count"><strong>${num(h.raceCount)}</strong> Rennen<br><strong>${num(h.laps)}</strong> Runden</div>
       </div>
       ${champ ? `<div class="hof-champs">
-        <div class="hof-champ">${ic('trophy')}<div><span>Meister</span><strong>${esc(champ.name)}</strong><em>${champ.elo} G!RP</em></div></div>
-        ${champCar ? `<div class="hof-champ">${ic('car')}<div><span>Meister-Fahrzeug</span><strong>${esc(champCar.name)}</strong><em>${champCar.elo} G!RP</em></div></div>` : ''}
+        <div class="hof-champ">${ic('trophy')}<div><span>Meister</span><strong>${esc(champ.name)}</strong><em>${champ.elo} G!RP</em><small>${champ.races} Rennen · ${champ.wins} Siege</small></div></div>
+        ${champCar ? `<div class="hof-champ">${ic('car')}<div><span>Meister-Fahrzeug</span><strong>${esc(champCar.name)}</strong><em>${champCar.elo} G!RP</em><small>${champCar.races} Rennen · ${champCar.wins} Siege</small></div></div>` : ''}
         ${h.lap ? `<div class="hof-champ hof-champ-wide">${ic('timer')}<div><span>Streckenrekord · ${sec(h.lap.time)}</span><strong>${esc(h.lap.who)}</strong><em class="hof-champ-car">${esc(h.lap.car)} · ${esc(h.lap.date)}</em></div></div>` : ''}
       </div>` : ''}
       <div class="sub-nav hof-tabs" data-season="${esc(h.season.id)}">

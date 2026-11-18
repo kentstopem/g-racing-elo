@@ -698,6 +698,7 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .hof-champ strong { font-size: 18px; line-height: 1.2; overflow-wrap: anywhere; }
 .hof-champ em { font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--iu-accent); }
 .hof-champ-wide { grid-column: 1 / -1; }
+.hof-champ small { font-size: 13px; opacity: .85; font-variant-numeric: tabular-nums; }
 .hof-champ em.hof-champ-car { color: var(--iu-white); font-weight: 400; opacity: .85; }
 .hof-tabs { margin-bottom: 16px; }
 .hof-podium { margin-bottom: 12px; }
