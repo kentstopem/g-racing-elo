@@ -232,7 +232,10 @@ function renderDetails(){
         }
     }
     // Bestzeit ermitteln – Daten kommen jetzt aus lapRecords
-    let bestLine = 'Bestzeit: <strong>-</strong>';
+    // Bestzeiten gelten je Strecke: die Strecke der gewählten Saison (bei „Alle Saisons“ die aktuelle)
+    const bestTrack = window.Seasons.track(window.Seasons.viewTrackId())?.name;
+    const bestLbl = `Bestzeit${bestTrack ? ` (${escapeHtml(bestTrack)})` : ''}`;
+    let bestLine = `${bestLbl}: <strong>-</strong>`;
     const recs = recordsInView();
     if (recs.length) {
         if (currentEntityType === 'driver') {
@@ -240,14 +243,14 @@ function renderDetails(){
                             .sort((a, b) => a.time - b.time)[0];
             if (rec) {
                 const car = appData.cars.find(c => c.id === rec.carId)?.name || '?';
-                bestLine = `Bestzeit: <strong>${Number(rec.time).toFixed(3)} Sek.</strong> – ${car}`;
+                bestLine = `${bestLbl}: <strong>${Number(rec.time).toFixed(3)} Sek.</strong> – ${car}`;
             }
         } else { // car
             const rec = recs.filter(r => r.carId == currentEntityId)
                             .sort((a, b) => a.time - b.time)[0];
             if (rec) {
                 const drv = appData.drivers.find(d => d.id === rec.driverId)?.name || '?';
-                bestLine = `Bestzeit: <strong>${Number(rec.time).toFixed(3)} Sek.</strong> – ${drv}`;
+                bestLine = `${bestLbl}: <strong>${Number(rec.time).toFixed(3)} Sek.</strong> – ${drv}`;
             }
         }
     }
