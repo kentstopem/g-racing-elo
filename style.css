@@ -673,6 +673,11 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .list-filter label { margin: 0; font-size: 13px; color: var(--text-muted); }
 .list-filter select { width: auto; padding: 6px 10px; font-size: 14px; }
 .list-filter .btn-add { margin: 0 auto 0 0; }
+.list-filter { flex-wrap: wrap; }
+.list-filter .list-search { flex: 1 1 200px; width: auto; margin: 0; padding: 8px 12px; font-size: 15px; }
+.list-filter:has(.list-search) { justify-content: flex-start; }
+.list-filter:has(.list-search) .btn-add { margin: 0; }
+.list-filter .list-show { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
 /* Livecenter-Einstieg im Live-Bereich */
 .live-lc { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }

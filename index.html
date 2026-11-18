@@ -96,12 +96,15 @@
                 </div>
             </div>
             <div class="list-filter">
+                <input type="search" id="driverSearch" class="list-search" placeholder="Fahrer suchen …" aria-label="Fahrer suchen" autocomplete="off" enterkeyhint="search">
                 <button class="btn btn-add hidden" id="newDriverBtn" title="Neuer Fahrer" aria-label="Neuer Fahrer"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Neuer Fahrer</button>
+                <span class="list-show">
                 <label for="driverFilter">Anzeigen</label>
                 <select id="driverFilter">
                     <option value="active">Nur aktive</option>
                     <option value="all">Alle</option>
                 </select>
+                </span>
             </div>
             <div id="driversList"></div>
         </div>

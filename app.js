@@ -550,8 +550,18 @@ function updateDriversList() {
         filter.addEventListener('change', () => { try { localStorage.setItem('grp.driverFilter', filter.value); } catch (e) {} updateDriversList(); });
         filter._bound = true;
     }
+    // Freitextsuche (Name oder gesprochener Name); beim Suchen werden alle Fahrer durchsucht, auch inaktive
+    const search = document.getElementById('driverSearch');
+    if (search && !search._bound) { search.addEventListener('input', () => updateDriversList()); search._bound = true; }
+    const norm = s => String(s || '').toLocaleLowerCase('de').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const q = norm(search?.value.trim());
     const onlyActive = (filter?.value || 'active') === 'active';
-    const shown = onlyActive ? appData.drivers.filter(d => !d.archived && !d.hideFromRanking) : appData.drivers;
+    const shown = q ? appData.drivers.filter(d => norm(d.name).includes(q) || norm(d.voiceText).includes(q) || norm(d.voiceTextLeni).includes(q))
+      : onlyActive ? appData.drivers.filter(d => !d.archived && !d.hideFromRanking) : appData.drivers;
+    if (shown.length === 0 && q) {
+        list.innerHTML = '<p style="text-align: center; color:var(--text-muted);">Kein Fahrer gefunden.</p>';
+        return;
+    }
     if (shown.length === 0) {
         list.innerHTML = '<p style="text-align: center; color:var(--text-muted);">Keine aktiven Fahrer – Filter auf „Alle“ stellen.</p>';
         return;
