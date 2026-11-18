@@ -329,7 +329,7 @@
           </section>
           <section class="lc-card">
             <div class="lc-card-head">
-              <h3>Regler</h3>
+              <h3>Zuweisung</h3>
               ${canEdit() ? `<div class="lc-card-btns">
                 <button class="lc-btn" data-act="rotateCars" ${entries.length >= 2 ? '' : 'disabled'} title="Jeder Fahrer behält seinen Regler, die Autos rücken einen Regler weiter">Autos rotieren</button>
                 <span class="lc-draw-btns" role="group" aria-label="Fahrer wählen und Autos auslosen">${DRAW_METHODS.map(([m, ic, l]) =>
