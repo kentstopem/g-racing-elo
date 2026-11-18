@@ -540,7 +540,7 @@
     }
 
     /** Sitzung aus snapshot() wiederherstellen; was lief, steht danach auf Rot (Rennen: „Weiter geht's“ + Startampel) */
-    static restore (snap, t) {
+    static restore (snap, t, { live = false } = {}) {
       const s = new Session({ ...snap.opts, entries: snap.cars });
       Object.assign(s, snap.state);
       const d = t - snap.savedT;
@@ -551,6 +551,7 @@
         Object.assign(c, { lastCross: sh(c.lastCross), finishT: sh(c.finishT), pitLastT: sh(c.pitLastT), crossings: (c.crossings || []).map(sh) });
         s.cars.set(Number(c.ctrl), c);
       }
+      if (live) return s;                                                    // Zuschauer-Spiegel: Stand unverändert übernehmen
       s.lights = 0;
       if (s.phase === 'green') { s.phase = 'red'; s.redAt = t; }
       else if (s.phase === 'lights' && s.goT != null) s.phase = 'red';       // Neustart-Ampel lief gerade: wieder Rot

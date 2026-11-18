@@ -59,7 +59,7 @@
   function loadCfg () {
     let c = {};
     try { c = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) {}
-    return { source: c.source === 'sim' ? 'sim' : 'cu', mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen, fullDistance: !!c.fullDistance };
+    return { source: c.source === 'sim' ? 'sim' : 'cu', mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen, fullDistance: !!c.fullDistance, broadcast: !!c.broadcast };
   }
   function saveCfg () { try { localStorage.setItem(STORE, JSON.stringify(cfg)); } catch (e) {} }
   function readVoice () { try { return localStorage.getItem(VOICE_KEY) !== 'off'; } catch (e) { return true; } }
@@ -76,7 +76,7 @@
   const ctrlStyle = n => { const c = MD.controller(n); return `--cc:${c.color};--ct:${c.text}`; };
   const who = id => esc(driverName(id));
   // Alle Eingaben während eines Events nur für den eingeloggten Admin (Tristan 2026-11-17)
-  const canEdit = () => !!window.isAdmin;
+  const canEdit = () => !!window.isAdmin && source?.kind !== 'view';   // Zuschauen: auch der Admin nur lesend
 
   // ---------- Öffnen / Schließen ----------
   function open () {
@@ -100,7 +100,74 @@
     root.hidden = false;
     shellKey = '';
     watchCu();
-    if (!session) { view = 'setup'; renderSetup(); } else renderLive();
+    if (!session) { if (canEdit()) { view = 'setup'; renderSetup(); } else startWatch(); } else renderLive();
+  }
+
+  // ---------- Live-Übertragung: Rennstand für Zuschauer (ein kleines Dokument live/current) ----------
+  // Nur wenn „Live übertragen“ an ist. Höchstens alle 2,5 s (wichtige Ereignisse nach 0,8 s), nur bei Änderungen.
+  const liveDoc = () => (window.db ? window.db.collection('live').doc('current') : null);
+  let castAt = 0, castBusy = false, castPending = false, castLast = '', castFull = false;
+  function broadcast (force = false) {
+    if (!cfg.broadcast || !canEdit() || !session || !source || source.kind === 'view' || !liveDoc()) return;
+    castPending = castPending || force;
+    const since = Date.now() - castAt;
+    if (castBusy || since < (castPending ? 800 : 2500)) return;
+    const full = session.phase === 'finished';
+    if (full && castFull) return;
+    const snap = session.snapshot(source.now());
+    const ids = new Set(snap.cars.map(c => c.driverId));
+    snap.opts.records = (snap.opts.records || []).filter(r => ids.has(r.driverId));
+    snap.opts.track = { id: snap.opts.track?.id, name: snap.opts.track?.name, minLapMs: snap.opts.track?.minLapMs, refLapMs: snap.opts.track?.refLapMs };
+    snap.cars.forEach(c => { c.pitLog = []; if (!full) c.lapTimes = c.lapTimes.slice(-1); });
+    const body = { snap, redReason, lightsRunning: !!session.lightsRunning, ticker: ticker.slice(0, 4) };
+    const cmp = JSON.stringify({ ...body, snap: { ...snap, savedT: 0, state: { ...snap.state, lastT: 0 } } });
+    castPending = false;
+    if (cmp === castLast) return;
+    castLast = cmp; castAt = Date.now(); castBusy = true;
+    liveDoc().set({ active: true, at: castAt, data: JSON.stringify(body) })
+      .then(() => { if (full) castFull = true; })
+      .catch(e => console.warn('Live-Übertragung', e))
+      .finally(() => { castBusy = false; });
+  }
+  function endBroadcast () {
+    castLast = ''; castFull = false;
+    if (canEdit() && liveDoc()) liveDoc().set({ active: false, at: Date.now() }).catch(() => {});
+  }
+  function toggleBroadcast () {
+    cfg.broadcast = !cfg.broadcast; saveCfg();
+    if (cfg.broadcast) { castLast = ''; castFull = false; broadcast(true); } else endBroadcast();
+  }
+
+  // Zuschauer: Stand aus live/current anzeigen, nur lesen, ohne Ansagen
+  let watchUnsub = null, watchAt = 0;
+  function startWatch () {
+    stopSession();
+    view = 'live'; shellKey = '';
+    source = { kind: 'view', now: () => performance.now(), close () { watchUnsub?.(); watchUnsub = null; } };
+    renderWatchIdle('Verbinde …');
+    if (!liveDoc()) { renderWatchIdle('Keine Verbindung zur Datenbank.'); return; }
+    watchUnsub = liveDoc().onSnapshot(doc => applyWatch(doc.data()), err => renderWatchIdle(`Keine Verbindung: ${err.message}`));
+    loop = setInterval(() => { if (session && source?.kind === 'view') { session.tick(source.now()); renderLive(); } }, 250);
+  }
+  function applyWatch (d) {
+    if (!source || source.kind !== 'view') return;
+    if (!d?.active || !d.data) { session = null; shellKey = ''; renderWatchIdle('Gerade wird nichts live übertragen.'); return; }
+    let x; try { x = JSON.parse(d.data); } catch (e) { return; }
+    const age = Math.max(0, Date.now() - (d.at || Date.now()));
+    watchAt = d.at || Date.now();
+    session = window.RaceEngine.Session.restore(x.snap, source.now() - age, { live: true });
+    session.lightsRunning = !!x.lightsRunning;
+    redReason = x.redReason || ''; ticker = x.ticker || [];
+    if (session.phase !== 'finished') resultOrder = null;
+    renderLive();
+  }
+  function renderWatchIdle (msg) {
+    if (!root || source?.kind !== 'view' || session) return;
+    root.innerHTML = `<div class="lc-setup">
+        <header class="lc-top"><div class="lc-brand">Livecenter</div><div class="lc-track">Zuschauen</div>
+          <button class="lc-btn lc-ghost" data-act="close">Schließen</button></header>
+        <div class="lc-watch-idle"><h2>${esc(msg)}</h2><p class="lc-note">Sobald am iPad „Live übertragen“ an ist, erscheint das Rennen hier automatisch.</p></div>
+      </div>`;
   }
 
   function close () {
@@ -137,9 +204,11 @@
   }
 
   function stopSession ({ keepSnap = false } = {}) {
-    try { countLaps(); } catch (e) { console.error(e); }
+    const watching = source?.kind === 'view';
+    if (!watching) { try { countLaps(); } catch (e) { console.error(e); } }
     clearInterval(loop); loop = null;
-    if (session && !keepSnap) clearSnap();
+    if (session && !keepSnap && !watching) clearSnap();
+    if (session && !watching && cfg.broadcast) endBroadcast();
     source?.close(); source = null;
     session = null;
     wakeLock?.release?.(); wakeLock = null;
@@ -238,6 +307,12 @@
               <button data-act="src" data-src="sim" class="${cfg.source === 'sim' ? 'on' : ''}">Simulator</button>
             </div>
             ${cfg.source === 'cu' ? cuBox() : '<p class="lc-note">Der Simulator fährt mit den echten Fahrern, Fahrzeugen und Rekorden.</p>'}
+            <h3>Zuschauer</h3>
+            <div class="lc-cast-row">
+              <button class="lc-btn ${cfg.broadcast ? 'on' : ''}" data-act="cast" aria-pressed="${cfg.broadcast}">Live übertragen: ${cfg.broadcast ? 'an' : 'aus'}</button>
+              <button class="lc-btn lc-ghost" data-act="watch">Selbst zuschauen</button>
+            </div>
+            <p class="lc-note">Wenn an, sehen alle in der App unter „Live“ das laufende Rennen mit (nur lesen).</p>
           </section>
           <section class="lc-card">
             <div class="lc-card-head">
@@ -353,6 +428,7 @@
   const SNAP = 'lcSession';
   let snapAt = 0;
   function saveSnap (force = false) {
+    broadcast(force);
     if (!session || !source || (!force && Date.now() - snapAt < 1000)) return;
     snapAt = Date.now();
     try {
@@ -799,7 +875,7 @@
       };
       const recs = recordCandidates();
       const canSave = !!(window.RecordsUI?.persistRecord && window.isAdmin);
-      const recHtml = !recs.length ? '' : `<section class="lc-res-box">
+      const recHtml = !recs.length || source.kind === 'view' ? '' : `<section class="lc-res-box">
           <h3>Neue Rekorde</h3>
           ${recs.map(r => `<label class="lc-rec-row" style="${ctrlStyle(r.ctrl)}"><input type="checkbox" data-rec="${r.key}" ${recPick.has(r.key) ? 'checked' : ''} ${recState === 'done' || !canEdit() ? 'disabled' : ''}>
             <i></i><b>${who(r.driverId)}</b>${carImg(r.carId) ? `<img src="${carImg(r.carId)}" alt="${esc(carName(r.carId))}">` : `<small>${esc(carName(r.carId))}</small>`}<span class="lc-num">${fmt(r.ms)}</span>
@@ -820,7 +896,7 @@
           ${session.mode === 'quali' && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="raceFromQuali">Rennen mit ${cfg.raceLaps} Runden starten</button>
             <span class="lc-laps-adj"><button class="lc-btn" data-act="raceLaps" data-d="-1" aria-label="eine Runde weniger">−</button><button class="lc-btn" data-act="raceLaps" data-d="1" aria-label="eine Runde mehr">+</button></span>` : ''}
           ${session.mode !== 'practice' && canEdit() ? `<button class="lc-btn" data-act="restartNow">${restartLabel()}</button>` : ''}
-          <button class="lc-btn" data-act="again">Zurück zur Vorbereitung</button>
+          ${source.kind === 'view' ? '' : '<button class="lc-btn" data-act="again">Zurück zur Vorbereitung</button>'}
           <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
         </div>`;
       if (resTab !== 'result') {
@@ -896,13 +972,14 @@
     const cuWarn = source.kind === 'cu' && cuHub()?.state !== 'connected' ? '<span class="lc-tick red">CU nicht verbunden – Bluetooth prüfen</span>' : '';
     const dg = source.diag;
     const cuDiag = dg ? `<span class="lc-tick muted">CU: ${dg.msgs} Meldungen · ${dg.timers} Durchfahrten (${dg.used} gewertet)${dg.last ? ` · zuletzt ${esc(MD.controller(dg.last.addr)?.name || 'Regler ' + dg.last.addr)} Sensor ${dg.last.sector}` : ''} · Ampel ${cuHub()?.lastStatus?.start ?? '–'} · Phase ${phase}${(() => { const c = dg.last && session.cars.get(dg.last.addr); return c ? ` · Wertung: ${c.laps} Rd., Start ${c.lastCross != null ? 'ja' : 'nein'}${c.rejectedMs != null ? `, verworfen ${Math.round(c.rejectedMs)} ms` : ''}, Mindestzeit ${MD.trackSetup(session.track).minLapMs ?? '–'}` : (dg.last ? ' · Regler nicht im Livecenter' : ''); })()}</span>` : '';
-    const tickHtml = cuWarn + cuDiag + tick || `<span class="lc-tick muted">${!canEdit() ? 'Eingaben nur mit Admin-Anmeldung.' : race ? 'Fahrer antippen für Strafe, Ausfall oder Disqualifikation.' : 'Fahrer antippen für Fahrzeug und Tuning.'}</span>`;
+    const stale = source.kind === 'view' && session.phase !== 'finished' && Date.now() - watchAt > 15000 ? `<span class="lc-tick warn">Letzte Übertragung vor ${Math.round((Date.now() - watchAt) / 1000)} s</span>` : '';
+    const tickHtml = stale + cuWarn + cuDiag + tick || `<span class="lc-tick muted">${!canEdit() ? 'Eingaben nur mit Admin-Anmeldung.' : race ? 'Fahrer antippen für Strafe, Ausfall oder Disqualifikation.' : 'Fahrer antippen für Fahrzeug und Tuning.'}</span>`;
 
     // Nur neu aufbauen, wenn sich Knöpfe/Overlays ändern – sonst gehen Fingertipps während des Neuzeichnens verloren
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
     const menuCar = menuCtrl != null ? session.cars.get(menuCtrl) : null;
     const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
-      session.lights, session.lightsRunning, endArmed, restartArmed, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, resTab,
+      session.lights, session.lightsRunning, endArmed, restartArmed, cfg.broadcast, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, resTab,
       phase === 'red' ? st.map(s => s.ctrl + s.status + s.penaltySec + s.inPit + Math.round(s.pitStandMs / 100)).join() : ''].join('|');
     if (key === shellKey && root.querySelector('.lc-live')) {
       root.querySelector('.lc-board').innerHTML = rows;
@@ -925,11 +1002,12 @@
           <div class="lc-clocks">${clockHtml}</div>
           <div class="lc-trackrec">${trHtml}</div>
           <div class="lc-actions">
-            <button class="lc-btn ${voiceOn ? 'on' : ''}" data-act="voice" aria-pressed="${voiceOn}">Ton ${voiceOn ? 'an' : 'aus'}</button>
+            ${source.kind === 'view' ? '<span class="lc-btn lc-viewing">Zuschauen</span>' : `<button class="lc-btn ${voiceOn ? 'on' : ''}" data-act="voice" aria-pressed="${voiceOn}">Ton ${voiceOn ? 'an' : 'aus'}</button>`}
+            ${canEdit() && source.kind !== 'view' ? `<button class="lc-btn ${cfg.broadcast ? 'on' : ''}" data-act="cast" aria-pressed="${cfg.broadcast}">Live ${cfg.broadcast ? 'an' : 'aus'}</button>` : ''}
             ${canEdit() && source.kind === 'sim' ? `<button class="lc-btn ${simOpen ? 'on' : ''}" data-act="sim">Sim</button>` : ''}
             ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) ? '<button class="lc-btn lc-yellow" data-act="reset">Zurücksetzen</button>' : ''}
             ${canEdit() && (phase === 'green' || (phase === 'lights' && session.lightsRunning)) ? '<button class="lc-btn lc-danger" data-act="red">Rote Flagge</button>' : ''}
-            ${phase === 'finished' ? '' : '<button class="lc-btn lc-ghost" data-act="end">Beenden</button>'}
+            ${source.kind === 'view' ? '<button class="lc-btn lc-ghost" data-act="close">Schließen</button>' : phase === 'finished' ? '' : '<button class="lc-btn lc-ghost" data-act="end">Beenden</button>'}
           </div>
         </header>
         <div class="lc-head-row">${head}</div>
@@ -955,6 +1033,8 @@
       case 'cuOn': cuHub()?.connect(); renderSetup(); break;
       case 'cuOff': cuHub()?.disconnect(); break;
       case 'start': startSession(); break;
+      case 'cast': toggleBroadcast(); if (session) { shellKey = ''; renderLive(); } else renderSetup(); break;
+      case 'watch': startWatch(); break;
       case 'resumeSaved': discardArmed = false; restoreSession(); break;
       case 'discardSaved': if (discardArmed) { clearSnap(); discardArmed = false; } else discardArmed = true; renderSetup(); break;
       case 'lights': lightsGo(); break;
