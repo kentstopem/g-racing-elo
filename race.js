@@ -407,20 +407,24 @@
   const cancelBtn2=document.getElementById('setupCancelBtn2');
   const wheelBtn=document.getElementById('setupLuckyWheelBtn');
   const slotBtn=document.getElementById('setupSlotBtn');
+  const memoryBtn=document.getElementById('setupMemoryBtn');
   let selectedDrivers=[];let selectedCars=[];
   let prevSelectedDrivers=[];
   let setupDone=null;   // Livecenter: fertige Paarungen an einen Callback statt ins Formular
+  let autoMethod=null;  // Livecenter: 'wheel' | 'slot' | 'memory' startet nach „Weiter“ direkt die Auslosung
 
   /** Auto-Setup für das Livecenter: Fahrer (vorausgewählt) → Fahrzeuge → onDone([{driverId, carId}]) */
-  function openAutoSetup({ drivers, onDone }={}){
-    if(Array.isArray(drivers)&&drivers.length) prevSelectedDrivers=drivers.map(Number);
+  function openAutoSetup({ drivers, onDone, method }={}){
+    // vorausgewählt sind genau die Fahrer, die schon auf einem Regler sitzen (keiner → keiner)
+    if(Array.isArray(drivers)) prevSelectedDrivers=drivers.map(Number);
     openSetupModal();
     setupDone=typeof onDone==='function'?onDone:null;
+    autoMethod=['wheel','slot','memory'].includes(method)?method:null;
   }
 
   function openSetupModal(){
     if(!setupModal)return;
-    setupDone=null;
+    setupDone=null;autoMethod=null;
     selectedCars=[];
     // zuletzt gewählte (noch vorhandene) Fahrer sind vorausgewählt
     selectedDrivers=prevSelectedDrivers.filter(id=>window.appData.drivers.some(d=>d.id===id&&window.Elo.isActive(d)));
@@ -468,6 +472,9 @@
     updateCarCount();
     step1.classList.add('hidden');
     step2.classList.remove('hidden');
+    // aus dem Livecenter mit gewählter Methode: gleich auslosen (Abbrechen → normale Fahrzeugwahl)
+    const m=autoMethod; autoMethod=null;
+    if(m) ({wheel:wheelBtn,slot:slotBtn,memory:memoryBtn})[m]?.click();
   });
 
   carListDiv?.addEventListener('change',()=>{
@@ -509,6 +516,21 @@
      const need=selectedDrivers.length;
      if(need===0){showToast('Bitte erst Fahrer wählen');return;}
      Slot.open(available,need,(list)=>{
+        carListDiv.querySelectorAll('input').forEach(i=>{i.checked=false;});
+        list.forEach(id=>{
+           const box=carListDiv.querySelector(`input[value="${id}"]`);
+           if(box) box.checked=true;
+        });
+        carListDiv.dispatchEvent(new Event('change'));
+        finishIfComplete();
+     });
+  });
+
+  memoryBtn?.addEventListener('click',()=>{
+     const available=[...carListDiv.querySelectorAll('input:not(:checked)')].map(i=>parseInt(i.value));
+     const need=selectedDrivers.length;
+     if(need===0){showToast('Bitte erst Fahrer wählen');return;}
+     window.Memory?.open(available,need,(list)=>{
         carListDiv.querySelectorAll('input').forEach(i=>{i.checked=false;});
         list.forEach(id=>{
            const box=carListDiv.querySelector(`input[value="${id}"]`);
@@ -597,7 +619,7 @@
     persistRaceDraft();
   });
 
-  function closeSetup(){setupModal.classList.add('hidden');setupDone=null;}
+  function closeSetup(){setupModal.classList.add('hidden');setupDone=null;autoMethod=null;}
   cancelBtn1?.addEventListener('click',closeSetup);
   cancelBtn2?.addEventListener('click',closeSetup);
 

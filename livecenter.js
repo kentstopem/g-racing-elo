@@ -249,7 +249,7 @@
         <span class="lc-swatch" title="${c.name}"></span>
         <span class="lc-slot-name">${c.name}</span>
         <select data-ctrl="${c.n}" data-kind="driverId" aria-label="Fahrer ${c.name}">
-          <option value="">– frei –</option>
+          <option value="">– Fahrer –</option>
           ${dOpts.map(d => `<option value="${d.id}" ${d.id === a.driverId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
         </select>
         <select data-ctrl="${c.n}" data-kind="carId" aria-label="Fahrzeug ${c.name}">
@@ -332,7 +332,8 @@
               <h3>Regler</h3>
               ${canEdit() ? `<div class="lc-card-btns">
                 <button class="lc-btn" data-act="rotateCars" ${entries.length >= 2 ? '' : 'disabled'} title="Jeder Fahrer behält seinen Regler, die Autos rücken einen Regler weiter">Autos rotieren</button>
-                <button class="lc-btn lc-primary" data-act="autoSetup" title="Fahrer wählen, Autos auslosen, Regler nach Wunsch der Fahrer">Auto-Setup</button>
+                <span class="lc-draw-btns" role="group" aria-label="Fahrer wählen und Autos auslosen">${DRAW_METHODS.map(([m, ic, l]) =>
+                  `<button class="lc-btn lc-primary lc-draw-btn" data-act="autoSetup" data-method="${m}" title="Fahrer wählen, Autos per ${l} auslosen" aria-label="Auslosen per ${l}">${window.Helpers.icon(ic)}</button>`).join('')}</span>
               </div>` : ''}
             </div>
             <div class="lc-slots">${rows}</div>
@@ -392,9 +393,10 @@
   }
 
   /** Auto-Setup (Fahrer → Fahrzeuge) öffnen; vorausgewählt sind die Fahrer auf den Reglern */
-  function openAutoSetup (driverIds = entriesFromCfg().map(e => e.driverId)) {
+  const DRAW_METHODS = [['wheel', 'wheel', 'Glücksrad'], ['slot', 'slot', 'Slotmachine'], ['memory', 'cards', 'Memorykarten']];
+  function openAutoSetup (driverIds = entriesFromCfg().map(e => e.driverId), method = null) {
     if (!window.RaceUI?.openAutoSetup) { window.Helpers.showToast?.('Auto-Setup nicht geladen'); return; }
-    window.RaceUI.openAutoSetup({ drivers: driverIds, onDone: applyPairs });
+    window.RaceUI.openAutoSetup({ drivers: driverIds, onDone: applyPairs, method });
   }
 
   /** Fahrer bleiben auf ihrem Regler, die Autos rücken einen belegten Regler weiter */
@@ -1224,7 +1226,7 @@
       case 'close': close(); break;
       case 'mode': cfg.mode = b.dataset.mode; saveCfg(); renderSetup(); break;
       case 'clear': delete cfg.assign[ctrl]; saveCfg(); renderSetup(); break;
-      case 'autoSetup': openAutoSetup(); break;
+      case 'autoSetup': openAutoSetup(undefined, b.dataset.method || null); break;
       case 'rotateCars': rotateCars(); break;
       case 'next': nextRace(b.dataset.how); break;
       case 'src': cfg.source = b.dataset.src; saveCfg(); renderSetup(); break;

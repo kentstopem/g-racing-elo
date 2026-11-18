@@ -482,6 +482,33 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 #slotReels { position: relative; }
 #slotSelectLine { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 3px; background: var(--iu-accent); box-shadow: 0 0 0 1px var(--iu-black); z-index: 20; pointer-events: none; }
 
+.spoken-name { white-space: nowrap; }
+.spoken-name .ic { width: 15px; height: 15px; vertical-align: -0.2em; margin-right: 3px; }
+label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; margin-right: 5px; }
+
+/* ---------- Memorykarten ---------- */
+.mem-status { display: block; text-align: center; margin: 0 0 12px; }
+.mem-grid { display: grid; grid-template-columns: repeat(var(--mem-cols, 4), minmax(0, 1fr)); gap: 10px; }
+.mem-card { aspect-ratio: 3 / 4; padding: 0; border: 0; background: none; cursor: pointer; perspective: 800px; font: inherit; }
+.mem-inner { position: relative; display: block; width: 100%; height: 100%; transition: transform .55s cubic-bezier(.3,.7,.3,1.2); transform-style: preserve-3d; }
+.mem-card.flipped .mem-inner { transform: rotateY(180deg); }
+.mem-face { position: absolute; inset: 0; border-radius: var(--radius-btn); backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 6px; overflow: hidden; }
+.mem-back { background: var(--iu-black); border: 2px solid var(--iu-black);
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.07) 0 6px, transparent 6px 12px); }
+.mem-card:not(.flipped):hover .mem-back, .mem-card:not(.flipped):focus-visible .mem-back { box-shadow: 0 0 0 3px var(--iu-accent); }
+.mem-logo { color: var(--iu-accent); font-weight: 800; font-size: 18px; letter-spacing: .02em; border: 2px solid var(--iu-accent); border-radius: 6px; padding: 4px 8px; }
+.mem-front { transform: rotateY(180deg); background: var(--iu-white); border: 2px solid var(--iu-black); }
+.mem-front img { max-width: 100%; max-height: 58%; object-fit: contain; }
+.mem-name { font-size: 12px; font-weight: 600; line-height: 1.2; color: var(--iu-black); overflow-wrap: anywhere; }
+.mem-card.picked .mem-front { background: var(--iu-accent-light); box-shadow: 0 0 0 3px var(--iu-accent); }
+.mem-card.rest { cursor: default; }
+.mem-card.rest .mem-front { opacity: .45; }
+@media (max-width: 520px) {
+  .mem-grid { grid-template-columns: repeat(min(var(--mem-cols, 4), 4), minmax(0, 1fr)); gap: 8px; }
+  .mem-logo { font-size: 14px; padding: 3px 6px; }
+  .mem-name { font-size: 11px; }
+}
+
 /* ---------- Toasts ---------- */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -617,7 +644,7 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
 .setup-actions { display: flex; gap: 8px; margin-left: auto; }
 .setup-actions .btn { margin: 0; }
 .setup-foot > .btn { margin: 0; }
-.setup-draw { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.setup-draw { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
 .setup-draw .btn { margin: 0; }
 
 /* ---------- Stammdaten & Setup (Feature Flag "live") ---------- */

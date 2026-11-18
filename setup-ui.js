@@ -122,7 +122,7 @@
           <p class="muted edit-note" id="ctrlNote"></p>
         </div>
         <div class="form-group">
-          <label for="drvPron">Gesprochener Name</label>
+          <label for="drvPron"><svg class="ic" aria-hidden="true"><use href="#i-speech"/></svg>Gesprochener Name</label>
           <div class="media-row">
             <input id="drvPron" name="pron" value="${esc(d.pronunciation || '')}" placeholder="${esc(d.name || 'wie der Name')}" style="flex:1;min-width:0;">
             <button type="button" class="btn btn-small" id="voicePlay" style="align-self:stretch;">Anhören</button>

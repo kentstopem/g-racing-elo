@@ -39,6 +39,8 @@
       <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
       <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
       <symbol id="i-wheel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7"/><path d="M12 14v7"/><path d="M3 12h7"/><path d="M14 12h7"/><path d="m5.6 5.6 5 5"/><path d="m13.4 13.4 5 5"/><path d="m18.4 5.6-5 5"/><path d="m10.6 13.4-5 5"/></symbol>
+      <symbol id="i-cards" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" fill="currentColor"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></symbol>
+      <symbol id="i-speech" viewBox="0 0 24 24"><path d="M8.8 20v-4.1l1.9.2a2.3 2.3 0 0 0 2.164-2.1V8.3A5.37 5.37 0 0 0 2 8.25c0 2.8.656 3.054 1 4.55a5.77 5.77 0 0 1 .029 2.758L2 20"/><path d="M19.8 17.8a7.5 7.5 0 0 0 .003-10.603"/><path d="M17 15a3.5 3.5 0 0 0-.025-4.975"/></symbol>
       <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M2 14h4"/><path d="M10 8h4"/><path d="M18 16h4"/></symbol>
       <symbol id="i-slot" viewBox="0 0 24 24"><rect x="2" y="5" width="16" height="15" rx="2"/><path d="M2 10h16"/><path d="M2 15h16"/><path d="M7.33 10v5"/><path d="M12.67 10v5"/><path d="M21 9v5h-3"/><circle cx="21" cy="6.5" r="1.5"/></symbol>
     </svg>
@@ -341,7 +343,8 @@
           <div class="setup-draw">
             <button class="btn btn-modal" id="setupLuckyWheelBtn"><svg class="ic" aria-hidden="true"><use href="#i-wheel"/></svg>Glücksrad</button>
             <button class="btn btn-modal" id="setupSlotBtn"><svg class="ic" aria-hidden="true"><use href="#i-slot"/></svg>Slotmachine</button>
-            <button class="btn btn-modal" id="setupRandomBtn">Zufall</button>
+            <button class="btn btn-modal" id="setupMemoryBtn"><svg class="ic" aria-hidden="true"><use href="#i-cards"/></svg>Memorykarten</button>
+            <button class="btn btn-modal" id="setupRandomBtn"><svg class="ic" aria-hidden="true"><use href="#i-shuffle"/></svg>Zufall</button>
           </div>
           <div class="setup-foot">
             <button class="btn btn-modal" id="setupBackBtn">Zurück</button>
@@ -378,6 +381,19 @@
             <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
                 <button class="btn btn-primary" id="slotConfirmBtn" disabled>Fertig</button>
                 <button class="btn" id="slotCloseBtn">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memorykarten Modal -->
+    <div id="memoryModal" class="modal hidden">
+        <div class="modal-content" style="text-align:center;max-width:520px;">
+            <h3 style="margin-top:0;"><svg class="ic" aria-hidden="true"><use href="#i-cards"/></svg>Fahrzeug-Memorykarten</h3>
+            <p id="memoryStatus" class="pick-count mem-status"></p>
+            <div id="memoryGrid" class="mem-grid"></div>
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;">
+                <button class="btn btn-primary" id="memoryConfirmBtn" disabled>Fertig</button>
+                <button class="btn" id="memoryCloseBtn">Abbrechen</button>
             </div>
         </div>
     </div>
@@ -420,6 +436,7 @@
     <script src="halloffame.js" defer></script>
     <script src="wheel.js" defer></script>
     <script src="slot.js"  defer></script>
+    <script src="memory.js" defer></script>
     <script src="seasons-ui.js" defer></script>
     <script src="voice.js" defer></script>
     <script src="setup-ui.js" defer></script>

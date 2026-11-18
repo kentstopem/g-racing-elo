@@ -43,6 +43,13 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-big { min-height: 60px; font-size: 20px; padding: 0 28px; border-radius: 10px; }
 .lc-icon-btn { min-width: 44px; padding: 0; font-size: 22px; background: transparent; border: 0; color: var(--lc-muted); min-height: 44px; cursor: pointer; }
 .lc-icon-btn:disabled { opacity: .2; }
+/* Auslosen: Glücksrad · Slotmachine · Memorykarten als Icon-Gruppe */
+.lc-draw-btns { display: inline-flex; gap: 0; }
+.lc-draw-btn { min-width: 52px; padding: 0 12px; border-radius: 0; display: inline-flex; align-items: center; justify-content: center; }
+.lc-draw-btn + .lc-draw-btn { border-left: 1px solid rgba(0,26,27,.35); }
+.lc-draw-btn:first-child { border-radius: 8px 0 0 8px; }
+.lc-draw-btn:last-child { border-radius: 0 8px 8px 0; }
+.lc-draw-btn .ic { width: 24px; height: 24px; margin: 0; stroke-width: 1.9; }
 
 /* Regler-Farbe: --cc (Farbe), --ct (Text darauf) */
 .lc-swatch { display: inline-block; width: 28px; height: 28px; border-radius: 6px; background: var(--cc); box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); flex: none; }

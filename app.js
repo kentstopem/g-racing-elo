@@ -600,7 +600,7 @@ function updateDriversList() {
             <div>
                 <strong>${escapeHtml(driver.name)}</strong>${driver.archived?' <span class="status-inactive">archiviert</span>':''}${setup?' '+window.SetupUI.controllerChip(driver.preferredController,{small:true}):''}
                 <div style="font-size: 0.9em; color:var(--text-muted);">
-                    ${driver.races||0} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Rd.${driver.practiceLaps?` <span class="muted">+ ${driver.practiceLaps} Rd. Training/Quali</span>`:''}${setup&&window.Voice?.listText(driver)?` · „${escapeHtml(window.Voice.listText(driver))}“`:''}
+                    ${driver.races||0} Rennen · ${driver.wins||0} Siege · ${driver.totalRounds||0} Rd.${driver.practiceLaps?` <span class="muted">+ ${driver.practiceLaps} Rd. Training/Quali</span>`:''}${setup&&window.Voice?.listText(driver)?` · <span class="spoken-name" title="Gesprochener Name">${window.Helpers.icon('speech')}${escapeHtml(window.Voice.listText(driver))}</span>`:''}
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap:8px;">
