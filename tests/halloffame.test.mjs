@@ -40,3 +40,16 @@ test('Ruhmeshalle: leer, solange nur eine Saison existiert', () => {
   const W = setup([SEASONS[0]]);
   assert.equal(W.HallOfFame.compute({ ...sampleData(), lapRecords: [] }).length, 0);
 });
+
+test('Ruhmeshalle: Höhepunkte getrennt für Fahrer und Fahrzeuge', () => {
+  const W = setup();
+  const h = W.HallOfFame.compute({ ...sampleData(), lapRecords: [] })[0];
+  const carNames = new Set(h.cars.map(c => c.name));
+  const driverNames = new Set(h.drivers.map(d => d.name));
+  assert.ok(h.highlights.car.length > 0);
+  for (const t of h.highlights.car) assert.ok(carNames.has(t.who), `${t.title}: ${t.who} ist kein Fahrzeug`);
+  for (const t of h.highlights.driver) assert.ok(driverNames.has(t.who), `${t.title}: ${t.who} ist kein Fahrer`);
+  const wins = h.highlights.car.find(t => t.title === 'Meiste Siege');
+  const top = [...h.cars].sort((a, b) => (b.wins - a.wins) || (a.races - b.races))[0];
+  assert.equal(wins.who, top.name);
+});

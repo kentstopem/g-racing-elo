@@ -9,6 +9,38 @@
   const sec = t => `${t.toFixed(3).replace('.', ',')} s`;
   const deIso = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${+m[3]}.${+m[2]}.${m[1]}` : ''; };
 
+  /** Höhepunkt-Kacheln einer Saison aus Sicht der Fahrer oder der Fahrzeuge. */
+  function highlightsFor (races, ranked, k) {
+    let jump = null, peak = null;
+    const streak = new Map(), duo = new Map();
+    for (const r of races) {
+      for (const res of r.results || []) {
+        const id = res[k.id];
+        if (res[k.change] != null && (!jump || res[k.change] > jump.v)) jump = { v: res[k.change], who: k.name(id), other: k.otherName(res[k.other]), date: r.date };
+        if (res[k.value] != null && (!peak || res[k.value] > peak.v)) peak = { v: res[k.value], who: k.name(id), date: r.date };
+        const s = streak.get(id) || { cur: 0, max: 0 };
+        s.cur = res.position === 1 ? s.cur + 1 : 0; s.max = Math.max(s.max, s.cur);
+        streak.set(id, s);
+        const key = `${id}|${res[k.other]}`;
+        const p = duo.get(key) || { a: id, b: res[k.other], n: 0, w: 0 };
+        p.n++; if (res.position === 1) p.w++;
+        duo.set(key, p);
+      }
+    }
+    const bestStreak = [...streak.entries()].sort((a, b) => b[1].max - a[1].max)[0];
+    const bestDuo = [...duo.values()].sort((a, b) => (b.w - a.w) || (a.n - b.n))[0];
+    const byWins = [...ranked].sort((a, b) => (b.wins - a.wins) || (a.races - b.races))[0];
+    const byRaces = [...ranked].sort((a, b) => (b.races - a.races) || (b.totalRounds - a.totalRounds))[0];
+    return [
+      byWins && { icon: 'trophy', title: 'Meiste Siege', value: num(byWins.wins), who: byWins.name, sub: `in ${byWins.races} Rennen` },
+      bestStreak && bestStreak[1].max > 1 && { icon: 'flag', title: 'Längste Siegesserie', value: `${bestStreak[1].max} in Folge`, who: k.name(bestStreak[0]) },
+      peak && { icon: 'chart', title: 'Höchster G!RP-Wert', value: num(peak.v), who: peak.who, sub: peak.date },
+      jump && { icon: 'refresh', title: 'Größter Sprung', value: `+${jump.v} G!RP`, who: jump.who, sub: `${k.id === 'carId' ? 'mit ' : ''}${jump.other} · ${jump.date}` },
+      bestDuo && bestDuo.w > 0 && { icon: k.id === 'carId' ? 'driver' : 'car', title: 'Erfolgreichstes Duo', value: `${bestDuo.w} Siege`, who: k.name(bestDuo.a), sub: `mit ${k.otherName(bestDuo.b)} · ${bestDuo.n} Rennen` },
+      byRaces && { icon: k.icon, title: 'Dauerbrenner', value: `${byRaces.races} Rennen`, who: byRaces.name, sub: `${num(byRaces.totalRounds)} Runden` }
+    ].filter(Boolean);
+  }
+
   /** Saisonbilanz für alle abgeschlossenen Saisons, neueste zuerst. */
   function compute (raw) {
     const S = window.Seasons, E = window.Elo;
@@ -25,38 +57,14 @@
       const rank = list => list.filter(x => x.races > 0).sort((a, b) => (b.elo - a.elo) || (b.wins - a.wins) || (b.races - a.races));
       const drivers = rank(st.drivers), cars = rank(st.cars);
 
-      // Höhepunkte aus den einzelnen Ergebnissen
-      let jump = null, peak = null;
-      const streak = new Map(), duo = new Map();
-      for (const r of races) {
-        for (const res of r.results || []) {
-          if (res.driverEloChange != null && (!jump || res.driverEloChange > jump.v)) jump = { v: res.driverEloChange, who: dName(res.driverId), car: cName(res.carId), date: r.date };
-          if (res.newDriverElo != null && (!peak || res.newDriverElo > peak.v)) peak = { v: res.newDriverElo, who: dName(res.driverId), date: r.date };
-          const s = streak.get(res.driverId) || { cur: 0, max: 0 };
-          s.cur = res.position === 1 ? s.cur + 1 : 0; s.max = Math.max(s.max, s.cur);
-          streak.set(res.driverId, s);
-          const k = `${res.driverId}|${res.carId}`;
-          const p = duo.get(k) || { d: res.driverId, c: res.carId, n: 0, w: 0 };
-          p.n++; if (res.position === 1) p.w++;
-          duo.set(k, p);
-        }
-      }
-      const bestStreak = [...streak.entries()].sort((a, b) => b[1].max - a[1].max)[0];
-      const bestDuo = [...duo.values()].sort((a, b) => (b.w - a.w) || (a.n - b.n))[0];
-      const byWins = [...drivers].sort((a, b) => (b.wins - a.wins) || (a.races - b.races))[0];
-      const byRaces = [...drivers].sort((a, b) => (b.races - a.races) || (b.totalRounds - a.totalRounds))[0];
+      // Höhepunkte aus den einzelnen Ergebnissen – getrennt für Fahrer und Fahrzeuge
       const lap = (raw.lapRecords || [])
         .filter(rec => S.trackOfRecord(rec) === season.trackId && S.seasonAt(new Date(`${rec.date}T12:00:00`).getTime()).id === season.id)
         .sort((a, b) => a.time - b.time)[0];
-
-      const highlights = [
-        byWins && { icon: 'trophy', title: 'Meiste Siege', value: num(byWins.wins), who: byWins.name, sub: `in ${byWins.races} Rennen` },
-        bestStreak && bestStreak[1].max > 1 && { icon: 'flag', title: 'Längste Siegesserie', value: `${bestStreak[1].max} in Folge`, who: dName(bestStreak[0]) },
-        peak && { icon: 'chart', title: 'Höchster G!RP-Wert', value: num(peak.v), who: peak.who, sub: peak.date },
-        jump && { icon: 'refresh', title: 'Größter Sprung', value: `+${jump.v} G!RP`, who: jump.who, sub: `${jump.car} · ${jump.date}` },
-        bestDuo && bestDuo.w > 0 && { icon: 'car', title: 'Erfolgreichstes Duo', value: `${bestDuo.w} Siege`, who: dName(bestDuo.d), sub: `mit ${cName(bestDuo.c)} · ${bestDuo.n} Rennen` },
-        byRaces && { icon: 'driver', title: 'Dauerbrenner', value: `${byRaces.races} Rennen`, who: byRaces.name, sub: `${num(byRaces.totalRounds)} Runden` }
-      ].filter(Boolean);
+      const highlights = {
+        driver: highlightsFor(races, drivers, { id: 'driverId', other: 'carId', change: 'driverEloChange', value: 'newDriverElo', name: dName, otherName: cName, icon: 'driver' }),
+        car: highlightsFor(races, cars, { id: 'carId', other: 'driverId', change: 'carEloChange', value: 'newCarElo', name: cName, otherName: dName, icon: 'car' })
+      };
 
       return {
         season, track: S.track(season.trackId),
@@ -112,7 +120,7 @@
       </div>
       ${tab === 'driver' ? podium(h.drivers, 'driver') + table(h.drivers, 'driver') : podium(h.cars, 'car') + table(h.cars, 'car')}
       <h4 class="hof-sub">Höhepunkte</h4>
-      <div class="hof-grid">${h.highlights.map(x => `<div class="hof-tile">
+      <div class="hof-grid">${(h.highlights[tab] || []).map(x => `<div class="hof-tile">
         <div class="hof-tile-title">${ic(x.icon)}${esc(x.title)}</div>
         <div class="hof-tile-value">${esc(x.value)}</div>
         <div class="hof-tile-who">${esc(x.who)}</div>
