@@ -343,7 +343,7 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
   font-size: 18px; font-weight: 700; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.podium-item.first .podium-position { background: var(--iu-accent); width: 42px; height: 42px; font-size: 21px; }
+.podium-item.first .podium-position { background: var(--iu-accent); color: var(--iu-black); width: 42px; height: 42px; font-size: 21px; }
 .podium-name { font-weight: 600; word-wrap: break-word; }
 .podium-elo { font-weight: 700; font-variant-numeric: tabular-nums; }
 
