@@ -1,4 +1,6 @@
 (function(){
+  // gespeichert als JJJJ-MM-TT, angezeigt als TT.MM.JJJJ
+  const deDate=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||'');return m?`${m[3]}.${m[2]}.${m[1]}`:(d||'');};
   const db=firebase.firestore();
   const RECORD_COLL='lapRecords';
   let currentMode='drivers'; // 'drivers' | 'cars'
@@ -83,8 +85,8 @@
       const car = window.appData.cars.find(c=>c.id===rec.carId)?.name||'?';
       const drv = window.appData.drivers.find(d=>d.id===rec.driverId)?.name||'?';
       return currentMode==='drivers'
-        ?`<tr><td>${idx+1}</td><td>${drv}</td><td>${rec.time.toFixed(3)} s</td><td>${rec.date}</td><td>${car}</td></tr>`
-        :`<tr><td>${idx+1}</td><td>${car}</td><td>${rec.time.toFixed(3)} s</td><td>${rec.date}</td><td>${drv}</td></tr>`;
+        ?`<tr><td>${idx+1}</td><td>${drv}</td><td>${rec.time.toFixed(3)} s</td><td>${deDate(rec.date)}</td><td>${car}</td></tr>`
+        :`<tr><td>${idx+1}</td><td>${car}</td><td>${rec.time.toFixed(3)} s</td><td>${deDate(rec.date)}</td><td>${drv}</td></tr>`;
     });
     tbody.innerHTML=rows.join('');
   }
