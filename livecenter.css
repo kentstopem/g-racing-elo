@@ -335,9 +335,9 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 /* Vorbereitung: Tuning aller Fahrer unter der Reglertabelle */
 .lc-tune-card:empty { display: none; }
 .lc-tune-card { grid-column: 1 / -1; }
-.lc-tune-head, .lc-tune-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px 28px; }
-.lc-tune-head { color: var(--lc-muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; padding: 0 8px 4px; }
-.lc-tune-head span:nth-child(2), .lc-tune-head span:nth-child(3) { width: 184px; text-align: center; }
+.lc-tune-head, .lc-tune-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 184px 184px 86px; align-items: center; gap: 10px 28px; }
+.lc-tune-head { color: var(--lc-muted); font-size: 13px; text-transform: uppercase; letter-spacing: .06em; padding: 0 9px 4px; }
+.lc-tune-head span:nth-child(2), .lc-tune-head span:nth-child(3) { text-align: center; }
 .lc-tune-head span:first-child { grid-column: 1 / 3; }
 .lc-tune-list { display: flex; flex-direction: column; gap: 8px; }
 .lc-tune-row { padding: 6px 8px; border-radius: 10px; background: var(--lc-bg); border: 1px solid var(--cc); box-shadow: inset 4px 0 0 var(--cc); }

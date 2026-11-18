@@ -65,13 +65,24 @@
     send (cmd) { if (this.state === 'connected') this.conn.command(cmd); },
 
     /** Gas/Bremse (Stufe 0–15) ins Auto auf diesem Regler programmieren */
+    // Bei Rot (Ampel 1) nimmt die CU kein Tuning an (Tristan 18.11.2026): vorher mit ESC freigeben.
+    // Nur in der Vorbereitung (ohne laufende Sitzung) aufrufen, dort wird nichts gewertet.
     program (ctrl, { speed, brake } = {}) {
       if (this.state !== 'connected') return false;
       const C = window.CU.Commands;
       this.programmedAt = this.pending[ctrl] = performance.now();
-      this.send(C.speed(ctrl, speed ?? 15));
-      this.send(C.brake(ctrl, brake ?? 15));
       this.progSubs.forEach(fn => { try { fn(ctrl); } catch (e) {} });
+      const go = () => { this.send(C.speed(ctrl, speed ?? 15)); this.send(C.brake(ctrl, brake ?? 15)); };
+      const free = () => [0, undefined, null].includes(this.lastStatus?.start);
+      if (free()) { go(); return true; }
+      const t0 = performance.now(), esc = () => { this.send(C.press(window.CU.BUTTON.ESC)); lastEsc = performance.now(); };
+      let lastEsc = 0;
+      const wait = () => {
+        if (free() || performance.now() - t0 > 3000) { go(); return; }
+        if (performance.now() - lastEsc > 900) esc();                       // Befehle gehen per Bluetooth auch mal verloren
+        setTimeout(wait, 150);
+      };
+      esc(); setTimeout(wait, 150);
       return true;
     },
     onProgram (fn) { this.progSubs.add(fn); return () => this.progSubs.delete(fn); }

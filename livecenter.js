@@ -1178,7 +1178,7 @@
         </header>
         <div class="lc-head-row">${head}</div>
         <div class="lc-board">${rows}</div>
-        ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) && MD.CONTROLLERS.some(x => !session.cars.has(x.n)) ? '<div class="lc-addbar"><button class="lc-btn" data-act="addOpen">+ Fahrer dazunehmen</button></div>' : ''}
+        ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) && MD.CONTROLLERS.some(x => !session.cars.has(x.n)) ? '<div class="lc-addbar"><button class="lc-btn" data-act="addOpen">+ Fahrer</button></div>' : ''}
         <footer class="lc-ticker">${tickHtml}</footer>
         ${simHtml}${menuHtml}${addHtml}${lightsHtml}${redHtml}${resultHtml}${endHtml}
       </div>`;
