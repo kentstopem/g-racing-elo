@@ -98,7 +98,7 @@
     const valSpan=document.getElementById('minRacesVal');
     if(!modal||!btn) return;
 
-    const label=()=>{ btn.innerHTML=window.Helpers.icon('filter')+(filterMin?`ab ${filterMin} Rennen`:'Filter'); btn.classList.toggle('filter-active',!!filterMin); };
+    const label=()=>{ btn.innerHTML=window.Helpers.icon('filter')+`ab ${filterMin||DEFAULT_MIN} Rennen`; btn.classList.toggle('filter-active',!!filterMin&&filterMin!==DEFAULT_MIN); };
     label();
 
     btn.addEventListener('click',()=>{
