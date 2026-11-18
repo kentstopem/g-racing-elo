@@ -435,7 +435,8 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-res-who { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 3px; min-width: 0; }
 .lc-girp { font-size: 14px; font-weight: 700; color: var(--ct); }
 .lc-girp em { font-style: normal; font-variant-numeric: tabular-nums; background: rgba(0,0,0,.6); color: #fff; padding: 1px 7px; border-radius: 6px; }
-.lc-girp em.up { color: #7CFFA8; }
-.lc-girp em.down { color: #FF9C9C; }
+.lc-girp em .up { color: #7CFFA8; }
+.lc-girp em .down { color: #FF9C9C; }
 .lc-girp-note { margin: -1.5vh 0 1.5vh; }
 .lc-res-who .lc-girp { color: var(--ct); opacity: 1; }
+.lc-res-who .lc-girp { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; font-size: 13px; max-width: 100%; }

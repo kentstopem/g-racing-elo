@@ -881,8 +881,9 @@
 
     // G!RP-Änderung je Zeile: Admin = Vorschau (bzw. gespeichert), Zuschauer = was das iPad mitschickt
     let girpData = null;   // wird im Ergebnis berechnet, sobald die Reihenfolge feststeht
-    const chip = v => (v == null ? '' : `<em class="${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${v > 0 ? '+' : ''}${v}</em>`);
-    const girpLine = ctrl => { const g = girpData?.[ctrl]; return g ? `<small class="lc-girp ${girpDone || source.kind === 'view' ? 'saved' : ''}">G!RP ${chip(g.d)} · Auto ${chip(g.c)}</small>` : ''; };
+    // Kästchen: neuer Gesamtwert + Änderung, z. B. „1100 +6“
+    const chip = (v, total) => (v == null ? '' : `<em>${total ?? ''} <span class="${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${v > 0 ? '+' : v < 0 ? '−' : '±'}${Math.abs(v)}</span></em>`);
+    const girpLine = ctrl => { const g = girpData?.[ctrl]; return g ? `<small class="lc-girp ${girpDone || source.kind === 'view' ? 'saved' : ''}">G!RP ${chip(g.d, g.dNew)} · Auto ${chip(g.c, g.cNew)}</small>` : ''; };
 
     // ---------- Ergebnis: Reihenfolge korrigierbar, Rekorde übernehmen, G!RP auswerten ----------
     const resultHtml = phase !== 'finished' ? '' : (() => {
