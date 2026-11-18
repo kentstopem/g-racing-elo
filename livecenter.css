@@ -235,8 +235,8 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 /* ---------- Ergebnis ---------- */
 .lc-result { position: absolute; inset: 76px 0 0 0; background: var(--lc-bg); z-index: 7; padding: 20px 40px; display: flex; flex-direction: column; align-items: center; overflow: auto; }
 .lc-result h2 { font-size: clamp(28px, 4.5vh, 56px); margin: 1vh 0 2.5vh; }
-.lc-res-grid { width: min(1300px, 100%); display: flex; flex-direction: column; gap: 1vh; --res-cols: clamp(56px, 9vh, 100px) clamp(90px, 14vh, 160px) minmax(0, 1fr) clamp(70px, 9vh, 110px) clamp(110px, 16vh, 190px) clamp(110px, 16vh, 190px) clamp(64px, 10vh, 120px); }
-.lc-res-grid.can-move { --res-cols: clamp(56px, 9vh, 100px) clamp(90px, 14vh, 160px) minmax(0, 1fr) clamp(70px, 9vh, 110px) clamp(110px, 16vh, 190px) clamp(110px, 16vh, 190px) clamp(64px, 10vh, 120px) 120px; }
+.lc-res-grid { width: min(1300px, 100%); display: flex; flex-direction: column; gap: 1vh; --res-cols: clamp(56px, 9vh, 100px) clamp(90px, 14vh, 160px) minmax(0, 1fr) clamp(64px, 8vh, 110px) clamp(110px, 16vh, 190px) clamp(110px, 16vh, 190px) clamp(64px, 10vh, 120px); }
+.lc-res-grid.can-move { --res-cols: clamp(56px, 9vh, 100px) clamp(90px, 14vh, 160px) minmax(0, 1fr) clamp(64px, 8vh, 110px) clamp(110px, 16vh, 190px) clamp(110px, 16vh, 190px) clamp(64px, 10vh, 120px) 112px; }
 .lc-res-head, .lc-res-row { display: grid; grid-template-columns: var(--res-cols); gap: 14px; align-items: center; }
 .lc-res-head { font-size: 13px; color: var(--lc-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; padding: 0 2px; }
 .lc-res-head span:nth-child(2) { text-align: center; }
@@ -258,7 +258,7 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-res-row small { color: var(--lc-muted); font-size: clamp(14px, 2vh, 24px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .lc-res-row .lc-badge { font-size: clamp(14px, 2vh, 24px); padding: 4px 8px; justify-self: start; }
 .lc-move { display: flex; gap: 6px; justify-content: center; }
-.lc-move .lc-btn { min-width: 48px; padding: 0; font-size: 18px; }
+.lc-move .lc-btn { min-width: 44px; padding: 0; font-size: 18px; }
 .lc-res-box { width: min(1300px, 100%); margin-top: 16px; background: var(--lc-panel); border: 1px solid var(--lc-line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .lc-res-box h3 { margin: 0; }
 .lc-rec-row { display: flex; align-items: center; gap: 12px; font-size: 20px; min-height: 44px; cursor: pointer; }
@@ -439,7 +439,7 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-girp em .down { color: #FF9C9C; }
 .lc-girp-note { margin: -1.5vh 0 1.5vh; }
 .lc-res-who .lc-girp { color: var(--ct); opacity: 1; }
-.lc-res-who .lc-girp { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; font-size: 13px; max-width: 100%; }
+.lc-res-who .lc-girp { display: flex; flex-wrap: nowrap; white-space: nowrap; align-items: center; gap: 3px 5px; font-size: 13px; max-width: 100%; }
 
 /* Auto-Setup, Glücksrad und Slotmachine über dem Livecenter */
 html.lc-open .modal { z-index: 6000; }

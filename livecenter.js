@@ -325,7 +325,7 @@
             <div class="lc-card-head">
               <h3>Regler</h3>
               ${canEdit() ? `<div class="lc-card-btns">
-                <button class="lc-btn" data-act="rotateCars" ${entries.length >= 2 ? '' : 'disabled'} title="Jeder Fahrer behält seinen Regler, die Autos rücken einen Regler weiter">Autos tauschen</button>
+                <button class="lc-btn" data-act="rotateCars" ${entries.length >= 2 ? '' : 'disabled'} title="Jeder Fahrer behält seinen Regler, die Autos rücken einen Regler weiter">Autos rotieren</button>
                 <button class="lc-btn lc-primary" data-act="autoSetup" title="Fahrer wählen, Autos auslosen, Regler nach Wunsch der Fahrer">Auto-Setup</button>
               </div>` : ''}
             </div>
@@ -389,7 +389,7 @@
     const used = entriesFromCfg();
     if (used.length < 2) return;
     used.forEach((e, i) => { cfg.assign[e.ctrl] = { driverId: e.driverId, carId: used[(i + used.length - 1) % used.length].carId }; });
-    cfg.hint = 'Autos getauscht: jeder Fahrer fährt auf seinem Regler das Auto des Vorgängers.';
+    cfg.hint = 'Autos rotiert: jeder Fahrer bleibt auf seinem Regler und fährt das Auto vom Regler davor.';
     saveCfg(); renderSetup();
   }
 
@@ -950,11 +950,11 @@
           ${race && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="girp" ${girpDone || girpSaving ? 'disabled' : ''}>${girpDone ? 'In G!RP gespeichert ✓' : girpSaving ? 'Speichere …' : `Ergebnis speichern${recPick.size && !recState ? ' (mit Rekorden)' : ''}`}</button>` : ''}
           ${session.mode === 'quali' && canEdit() ? `<button class="lc-btn lc-primary lc-big" data-act="raceFromQuali">Rennen mit ${cfg.raceLaps} Runden starten</button>
             <span class="lc-laps-adj"><button class="lc-btn" data-act="raceLaps" data-d="-1" aria-label="eine Runde weniger">−</button><button class="lc-btn" data-act="raceLaps" data-d="1" aria-label="eine Runde mehr">+</button></span>` : ''}
-          ${session.mode !== 'practice' && canEdit() ? `<button class="lc-btn" data-act="restartNow">${restartLabel()}</button>` : ''}
-          ${source.kind === 'view' ? '' : '<button class="lc-btn" data-act="again">Zurück zur Vorbereitung</button>'}
+          ${session.mode !== 'practice' && canEdit() && !girpDone ? `<button class="lc-btn" data-act="restartNow">${restartLabel()}</button>` : ''}
+          ${source.kind === 'view' || (race && girpDone && canEdit()) ? '' : '<button class="lc-btn" data-act="again">Zurück zur Vorbereitung</button>'}
           ${race && girpDone && canEdit() ? `<div class="lc-next"><span>Nächstes Rennen</span>
             <button class="lc-btn" data-act="next" data-how="same">Gleiche Paarungen</button>
-            <button class="lc-btn" data-act="next" data-how="swap">Autos tauschen</button>
+            <button class="lc-btn" data-act="next" data-how="swap">Autos rotieren</button>
             <button class="lc-btn lc-primary" data-act="next" data-how="new">Neue Zuteilung</button></div>` : ''}
           ${race && canEdit() && !girpDone ? `<button class="lc-link-btn" data-act="noScore">${noScoreArmed ? 'Wirklich verwerfen?' : 'Nicht werten'}</button>` : ''}
           <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
@@ -966,8 +966,8 @@
       }
       return `<div class="lc-result">
         ${head}
-        <div class="lc-res-grid ${race ? 'is-race' : ''} ${race && canEdit() ? 'can-move' : ''}">
-          <div class="lc-res-head"><span>Pos</span><span>Auto</span><span>Fahrer</span><span>${race ? 'Runden' : ''}</span><span>${race ? 'Gesamtzeit' : 'Beste Runde'}</span><span>${race ? 'Schnellste Runde' : 'Abstand'}</span><span></span>${race && canEdit() ? '<span>Reihenfolge</span>' : ''}</div>
+        <div class="lc-res-grid ${race ? 'is-race' : ''} ${race && canEdit() && !girpDone ? 'can-move' : ''}">
+          <div class="lc-res-head"><span>Pos</span><span>Auto</span><span>Fahrer</span><span>${race ? 'Runden' : ''}</span><span>${race ? 'Gesamtzeit' : 'Beste Runde'}</span><span>${race ? 'Schnellste Runde' : 'Abstand'}</span><span></span>${race && canEdit() && !girpDone ? '<span>Reihenfolge</span>' : ''}</div>
           ${ordered.map((s, i) => {
             const out = s.status === 'dq' ? `DQ${s.dqReason ? ` · ${s.dqReason}` : ''}` : s.status === 'dnf' ? 'DNF' : '';
             return `<div class="lc-res-row ${out ? 'out' : ''} ${i === 0 ? 'first' : ''}" style="${ctrlStyle(s.ctrl)}">
@@ -978,11 +978,11 @@
               ${race ? `<span class="lc-num">${timeCell(s)}</span>` : flCell(s)}
               ${race ? flCell(s) : `<span class="lc-num">${fmtGap(s)}</span>`}
               ${out ? `<span class="lc-badge out">${esc(out)}</span>` : s.penaltySec ? `<span class="lc-badge pen">+${sec1(s.penaltySec * 1000)} s</span>` : '<span></span>'}
-              ${race && canEdit() ? `<span class="lc-move"><button class="lc-btn" data-act="move" data-ctrl="${s.ctrl}" data-d="-1" ${i === 0 || girpDone ? 'disabled' : ''} aria-label="nach oben">▲</button><button class="lc-btn" data-act="move" data-ctrl="${s.ctrl}" data-d="1" ${i === ordered.length - 1 || girpDone ? 'disabled' : ''} aria-label="nach unten">▼</button></span>` : ''}
+              ${race && canEdit() && !girpDone ? `<span class="lc-move"><button class="lc-btn" data-act="move" data-ctrl="${s.ctrl}" data-d="-1" ${i === 0 || girpDone ? 'disabled' : ''} aria-label="nach oben">▲</button><button class="lc-btn" data-act="move" data-ctrl="${s.ctrl}" data-d="1" ${i === ordered.length - 1 || girpDone ? 'disabled' : ''} aria-label="nach unten">▼</button></span>` : ''}
             </div>`;
           }).join('')}
         </div>
-        ${race && canEdit() ? `<p class="lc-note">${edited ? 'Reihenfolge von Hand geändert. ' : ''}Mit ▲ ▼ korrigierst du die Zielreihenfolge, bevor sie in die G!RP-Wertung geht.</p>` : ''}
+        ${race && canEdit() && !girpDone ? `<p class="lc-note">${edited ? 'Reihenfolge von Hand geändert. ' : ''}Mit ▲ ▼ korrigierst du die Zielreihenfolge, bevor sie in die G!RP-Wertung geht.</p>` : ''}
         ${recHtml}
         ${actions}
       </div>`;
