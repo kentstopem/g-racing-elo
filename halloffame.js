@@ -16,8 +16,8 @@
     for (const r of races) {
       for (const res of r.results || []) {
         const id = res[k.id];
-        if (res[k.change] != null && (!jump || res[k.change] > jump.v)) jump = { v: res[k.change], who: k.name(id), other: k.otherName(res[k.other]), date: r.date };
-        if (res[k.value] != null && (!peak || res[k.value] > peak.v)) peak = { v: res[k.value], who: k.name(id), date: r.date };
+        if (res[k.change] != null && (!jump || res[k.change] > jump.v)) jump = { v: res[k.change], id, who: k.name(id), other: k.otherName(res[k.other]), date: r.date };
+        if (res[k.value] != null && (!peak || res[k.value] > peak.v)) peak = { v: res[k.value], id, who: k.name(id), date: r.date };
         const s = streak.get(id) || { cur: 0, max: 0 };
         s.cur = res.position === 1 ? s.cur + 1 : 0; s.max = Math.max(s.max, s.cur);
         streak.set(id, s);
@@ -32,12 +32,12 @@
     const byWins = [...ranked].sort((a, b) => (b.wins - a.wins) || (a.races - b.races))[0];
     const byRaces = [...ranked].sort((a, b) => (b.races - a.races) || (b.totalRounds - a.totalRounds))[0];
     return [
-      byWins && { icon: 'trophy', title: 'Meiste Siege', value: num(byWins.wins), who: byWins.name, sub: `in ${byWins.races} Rennen` },
-      bestStreak && bestStreak[1].max > 1 && { icon: 'flag', title: 'Längste Siegesserie', value: `${bestStreak[1].max} in Folge`, who: k.name(bestStreak[0]) },
-      peak && { icon: 'chart', title: 'Höchster G!RP-Wert', value: num(peak.v), who: peak.who, sub: peak.date },
-      jump && { icon: 'refresh', title: 'Größter Sprung', value: `+${jump.v} G!RP`, who: jump.who, sub: `${k.id === 'carId' ? 'mit ' : ''}${jump.other} · ${jump.date}` },
-      bestDuo && bestDuo.w > 0 && { icon: k.id === 'carId' ? 'driver' : 'car', title: 'Erfolg\u00ADreichstes Duo', value: `${bestDuo.w} Siege`, who: k.name(bestDuo.a), sub: `mit ${k.otherName(bestDuo.b)} · ${bestDuo.n} Rennen` },
-      byRaces && { icon: k.icon, title: 'Dauerbrenner', value: `${byRaces.races} Rennen`, who: byRaces.name, sub: `${num(byRaces.totalRounds)} Runden` }
+      byWins && { id: byWins.id, icon: 'trophy', title: 'Meiste Siege', value: num(byWins.wins), who: byWins.name, sub: `in ${byWins.races} Rennen` },
+      bestStreak && bestStreak[1].max > 1 && { id: bestStreak[0], icon: 'flag', title: 'Längste Siegesserie', value: `${bestStreak[1].max} in Folge`, who: k.name(bestStreak[0]) },
+      peak && { id: peak.id, icon: 'chart', title: 'Höchster G!RP-Wert', value: num(peak.v), who: peak.who, sub: peak.date },
+      jump && { id: jump.id, icon: 'refresh', title: 'Größter Sprung', value: `+${jump.v} G!RP`, who: jump.who, sub: `${k.id === 'carId' ? 'mit ' : ''}${jump.other} · ${jump.date}` },
+      bestDuo && bestDuo.w > 0 && { id: bestDuo.a, icon: k.id === 'carId' ? 'driver' : 'car', title: 'Erfolg\u00ADreichstes Duo', value: `${bestDuo.w} Siege`, who: k.name(bestDuo.a), sub: `mit ${k.otherName(bestDuo.b)} · ${bestDuo.n} Rennen` },
+      byRaces && { id: byRaces.id, icon: k.icon, title: 'Dauerbrenner', value: `${byRaces.races} Rennen`, who: byRaces.name, sub: `${num(byRaces.totalRounds)} Runden` }
     ].filter(Boolean);
   }
 
@@ -78,12 +78,15 @@
 
   // ---------- Darstellung ----------
   const places = { first: 1, second: 2, third: 3 };
+  // Fahrzeugbilder wie in der G!RP-Rangliste (ranking.js lädt eigene Bilder nach)
+  const carImg = (id, cls) => window.RankingUI?.carImg ? window.RankingUI.carImg({ id }, cls) : '';
   function podium (list, kind) {
     if (list.length < 3) return '';
     return `<div class="podium hof-podium">${[[1, 'second'], [0, 'first'], [2, 'third']].map(([i, cls]) => {
       const x = list[i];
       return `<div class="podium-item ${cls}" onclick="openEloModal('${kind}',${x.id})">
         <div class="podium-position">${places[cls]}</div>
+        ${kind === 'car' ? carImg(x.id, 'podium-car-img') : ''}
         <div class="podium-name">${esc(x.name)}</div>
         <div class="podium-elo">${x.elo} G!RP</div>
         <div class="hof-podium-meta">${x.races} R · ${x.wins} S</div>
@@ -111,7 +114,7 @@
       </div>
       ${champ ? `<div class="hof-champs">
         <div class="hof-champ">${ic('trophy')}<div><span>Meister</span><strong>${esc(champ.name)}</strong><em>${champ.elo} G!RP</em><small>${champ.races} Rennen · ${champ.wins} Siege</small></div></div>
-        ${champCar ? `<div class="hof-champ">${ic('car')}<div><span>Meister-Fahrzeug</span><strong>${esc(champCar.name)}</strong><em>${champCar.elo} G!RP</em><small>${champCar.races} Rennen · ${champCar.wins} Siege</small></div></div>` : ''}
+        ${champCar ? `<div class="hof-champ"><span class="hof-champ-img">${carImg(champCar.id, '')}</span><div><span>Meister-Fahrzeug</span><strong>${esc(champCar.name)}</strong><em>${champCar.elo} G!RP</em><small>${champCar.races} Rennen · ${champCar.wins} Siege</small></div></div>` : ''}
         ${h.lap ? `<div class="hof-champ hof-champ-wide">${ic('timer')}<div><span>Streckenrekord · ${sec(h.lap.time)}</span><strong>${esc(h.lap.who)}</strong><em class="hof-champ-car">${esc(h.lap.car)} · ${esc(h.lap.date)}</em></div></div>` : ''}
       </div>` : ''}
       <div class="sub-nav hof-tabs" data-season="${esc(h.season.id)}">
@@ -122,6 +125,7 @@
       <h4 class="hof-sub">Höhepunkte</h4>
       <div class="hof-grid">${(h.highlights[tab] || []).map(x => `<div class="hof-tile">
         <div class="hof-tile-title">${ic(x.icon)}<span>${esc(x.title)}</span></div>
+        ${tab === 'car' && x.id != null ? carImg(x.id, 'hof-tile-img') : ''}
         <div class="hof-tile-value">${esc(x.value)}</div>
         <div class="hof-tile-who">${esc(x.who)}</div>
         ${x.sub ? `<div class="hof-tile-sub">${esc(x.sub)}</div>` : ''}
@@ -140,6 +144,7 @@
       tabs[b.parentElement.dataset.season] = b.dataset.hof;
       render(el, raw);
     });
+    window.RankingUI?.fillCarImgs?.(el);
   }
 
   window.HallOfFame = { compute, render };

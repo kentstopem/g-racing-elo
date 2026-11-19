@@ -81,10 +81,12 @@
         return;
       }
       let rank=showPodium?4:1;
-      list.innerHTML=sorted.slice(showPodium?3:0).map(x=>`<div class="list-item${isDriver?'':' rank-car'}" ${idAttr}="${x.id}" onclick="${open(x)}">
+      // Platz steht links außerhalb des Panels; bei Fahrzeugen beginnt das Panel mit dem Bild
+      list.innerHTML=sorted.slice(showPodium?3:0).map(x=>`<div class="rank-row"><span class="rank-pos">#${rank++}</span>
+          <div class="list-item${isDriver?'':' rank-car'}" ${idAttr}="${x.id}" onclick="${open(x)}">
           ${isDriver?'':`<span class="rank-car-thumb">${carImg(x,'rank-car-img')}</span>`}
-          <div class="rank-car-txt"><strong>#${rank++} ${esc(x.name)}</strong><div>${x.races} Rennen · ${x.wins||0} Siege · ${x.totalRounds||0} Runden</div></div>
-          <span class="elo-score">${score(x)}</span></div>`).join('');
+          <div class="rank-car-txt"><strong>${esc(x.name)}</strong><div>${x.races} Rennen · ${x.wins||0} Siege · ${x.totalRounds||0} Runden</div></div>
+          <span class="elo-score">${score(x)}</span></div></div>`).join('');
       if(!isDriver) fillCarImgs(list);
     }
   }
@@ -147,6 +149,6 @@
     }
   }
 
-  window.RankingUI={ update, init };
+  window.RankingUI={ update, init, carImg, fillCarImgs };
   document.addEventListener('DOMContentLoaded', init);
 })(); 
