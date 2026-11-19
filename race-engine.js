@@ -367,6 +367,10 @@
       if (this.mode !== 'practice' || this.phase === 'finished') return false;
       for (const c of this.cars.values()) {
         Object.assign(c, { laps: 0, last: null, best: null, lastCross: null, crossings: [], lapTimes: [], pausedMs: 0, interrupted: false, started: false, pitStops: 0, pitStandMs: 0 });
+        if (this.fuelOn) {                            // Tanken im Training: Zurücksetzen füllt alle Tanks wieder auf
+          if (c.fuelEmpty) this.emit('fuelRestored', { ctrl: c.ctrl, driverId: c.driverId });
+          Object.assign(c, { fuel: 100, pitCalled: false, fuelEmpty: false });
+        }
       }
       this.goT = t ?? this.goT;
       this.redTotalMs = 0;

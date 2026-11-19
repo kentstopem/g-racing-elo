@@ -69,8 +69,9 @@
   function loadCfg () {
     let c = {};
     try { c = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) {}
-    return { source: SIM_OK && c.source === 'sim' ? 'sim' : 'cu', mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen, fullDistance: !!c.fullDistance, broadcast: !!c.broadcast };
+    return { source: SIM_OK && c.source === 'sim' ? 'sim' : 'cu', mode: c.mode || 'practice', raceLaps: c.raceLaps || 60, qualiLaps: c.qualiLaps || 3, assign: c.assign || {}, lastCar: c.lastCar || {}, finishCount: c.finishCount || 0, dqOpen: !!c.dqOpen, fullDistance: !!c.fullDistance, fuelPractice: !!c.fuelPractice, fuelQuali: !!c.fuelQuali, broadcast: !!c.broadcast };
   }
+  const fuelOnFor = mode => mode === 'race' || (mode === 'practice' ? !!cfg.fuelPractice : mode === 'quali' ? !!cfg.fuelQuali : false);
   function saveCfg () { try { localStorage.setItem(STORE, JSON.stringify(cfg)); } catch (e) {} }
   function readVoice () { try { return localStorage.getItem(VOICE_KEY) !== 'off'; } catch (e) { return true; } }
 
@@ -291,10 +292,13 @@
       </select></label></div>
       <label class="lc-check"><input type="checkbox" data-cfg="dqOpen" ${cfg.dqOpen ? 'checked' : ''}> Offene Strafen bei Rennende: disqualifizieren<small>Sonst wird die offene Zeit auf die Gesamtzeit addiert.</small></label>
       <label class="lc-check"><input type="checkbox" data-cfg="fullDistance" ${cfg.fullDistance ? 'checked' : ''}> Alle fahren volle Distanz<small>Überrundete fahren nach dem Sieg weiter, bis sie alle Runden haben.</small></label>` : '';
-    const fuelNote = cfg.mode === 'race' ? (() => {
-      const plan = MD.raceFuelPlan(cfg.raceLaps, MD.trackSetup(t).refLapMs, t, settings());
+    // Tanken im Training/Quali per Checkbox (Tristan 2026-11-19), im Rennen immer an
+    const fuelKey = cfg.mode === 'practice' ? 'fuelPractice' : cfg.mode === 'quali' ? 'fuelQuali' : null;
+    const fuelCheck = fuelKey ? `<label class="lc-check"><input type="checkbox" data-cfg="${fuelKey}" ${cfg[fuelKey] ? 'checked' : ''}> Mit Tanken<small>Spritverbrauch und Tanken in der Box wie im Rennen.</small></label>` : '';
+    const fuelNote = fuelOnFor(cfg.mode) ? (() => {
       const ref = MD.trackSetup(t).refLapMs;
-      return `<p class="lc-note">Voller Tank reicht ca. ${Math.round(plan.lapsPerTank)} Runden bei ${ref} ms Rundenzeit${plan.stops ? ` · ${plan.stops} Boxenstopp${plan.stops > 1 ? 's' : ''} nötig` : ''}</p>`;
+      const plan = MD.raceFuelPlan(cfg.mode === 'race' ? cfg.raceLaps : cfg.mode === 'quali' ? cfg.qualiLaps : 0, ref, t, settings());
+      return `<p class="lc-note">Voller Tank reicht ca. ${Math.round(plan.lapsPerTank)} Runden bei ${ref} ms Rundenzeit${cfg.mode !== 'practice' && plan.stops ? ` · ${plan.stops} Boxenstopp${plan.stops > 1 ? 's' : ''} nötig` : ''}</p>`;
     })() : '';
 
     const saved = readSnap();
@@ -326,6 +330,7 @@
               ${Object.entries(MODE_LABEL).map(([k, l]) => `<button role="tab" data-act="mode" data-mode="${k}" class="${cfg.mode === k ? 'on' : ''}">${l}</button>`).join('')}
             </div>
             ${cfg.mode === 'race' ? `<div class="lc-field-row">${lapsField}${raceOpts}` : lapsField}
+            ${fuelCheck}
             ${fuelNote}
             <h3>Verbindung</h3>
             ${SIM_OK ? `<div class="lc-seg">
@@ -444,7 +449,7 @@
     session = new window.RaceEngine.Session({
       mode,
       laps: mode === 'race' ? cfg.raceLaps : mode === 'quali' ? cfg.qualiLaps : 0,
-      entries, track: t, settings: settings(), records,
+      entries, track: t, settings: settings(), records, fuel: fuelOnFor(mode),
       finishCount: cfg.finishCount || 0, dqOpenPenalties: !!cfg.dqOpen, fullDistance: !!cfg.fullDistance,
       lapFalseStart: !(cfg.source === 'cu' && window.LiveCU)   // CU: Fehlstart kommt als Ampel 8/9, Durchfahrten vor dem Start sind Fehlmeldungen
     });
@@ -950,12 +955,12 @@
         <div class="lc-num lc-last ${s.lastInterrupted ? 'int' : ''}">${fmt(s.last)}</div>
         <div class="lc-num lc-best ${bestCls}">${fmt(s.best)}</div>
         <div class="lc-num lc-gap">${out ? '' : fmtGap(s)}</div>`;
+      const fuel = `<div class="lc-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''} ${s.inPit && !s.servingPenalty ? 'filling' : ''}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></div>`;
       if (!race) {
         const status = s.done ? '<span class="lc-badge chk">Fertig</span>' : s.inPit ? '<span class="lc-badge pit">Box</span>' : '';
         return `<div class="${cls}" style="${ctrlStyle(s.ctrl)}" data-ctrl="${s.ctrl}">${common}
-          <div class="lc-num lc-rec">${fmt(s.personalRecord)}</div><div class="lc-status">${status}</div></div>`;
+          ${session.fuelOn ? `<div class="lc-fuelcell">${fuel}</div>` : ''}<div class="lc-num lc-rec">${fmt(s.personalRecord)}</div><div class="lc-status">${status}</div></div>`;
       }
-      const fuel = `<div class="lc-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''} ${s.inPit && !s.servingPenalty ? 'filling' : ''}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></div>`;
       const box = s.inPit
         ? `<div class="lc-box on"><b>BOX</b><span>${sec1(s.pitStandMs)} s</span></div>`
         : `<div class="lc-box"><b>${s.pitStops}</b><span>Stopp${s.pitStops === 1 ? '' : 's'}</span></div>`;
@@ -1256,9 +1261,9 @@
     shellKey = key;
     const head = race
       ? '<span>Pos</span><span>Auto</span><span>Fahrer</span><span>Rd.</span><span>Letzte</span><span>Beste</span><span>Abstand</span><span>Tank</span><span>Box</span><span>Strafe</span>'
-      : '<span>Pos</span><span>Auto</span><span>Fahrer</span><span>Rd.</span><span>Letzte</span><span>Beste</span><span>Abstand</span><span>Rekord</span><span></span>';
+      : `<span>Pos</span><span>Auto</span><span>Fahrer</span><span>Rd.</span><span>Letzte</span><span>Beste</span><span>Abstand</span>${session.fuelOn ? '<span>Tank</span>' : ''}<span>Rekord</span><span></span>`;
     root.innerHTML = `
-      <div class="lc-live ${race ? 'is-race' : 'is-free'} phase-${phase} rows-${st.length}">
+      <div class="lc-live ${race ? 'is-race' : 'is-free'}${!race && session.fuelOn ? ' has-fuel' : ''} phase-${phase} rows-${st.length}">
         <header class="lc-top">
           <div class="lc-brand">${MODE_LABEL[session.mode]}</div>
           <div class="lc-progress">${progress}</div>
@@ -1488,6 +1493,7 @@
       const k = inp.dataset.cfg;
       if (k === 'dqOpen') cfg.dqOpen = inp.checked;
       else if (k === 'fullDistance') cfg.fullDistance = inp.checked;
+      else if (k === 'fuelPractice' || k === 'fuelQuali') cfg[k] = inp.checked;
       else if (k === 'finishCount') cfg.finishCount = +inp.value || 0;
       else cfg[k] = Math.max(1, Math.min(999, Math.round(+inp.value || 0)));
       saveCfg(); renderSetup();

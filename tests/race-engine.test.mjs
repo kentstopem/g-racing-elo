@@ -775,3 +775,24 @@ test('Rote Flagge: „+1 Rd.“ nur, wenn die laufende Runde länger als die min
   assert.equal(s2.canAddManualLap(1), true);
   assert.equal(s2.canAddManualLap(2), false);
 });
+
+test('Training mit Tanken: Verbrauch, Tanken in der Box, Zurücksetzen füllt auf', () => {
+  const s = new RaceEngine.Session({ mode: 'practice', entries, track, settings: {}, fuel: true });
+  s.start(0);
+  lap(s, 1, 1000); lap(s, 1, 8000); lap(s, 1, 15000);
+  const f = s.standings().find(x => x.ctrl === 1).fuel;
+  assert.ok(f > 0 && f < 100);
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: 16000 });
+  s.tick?.(20000);
+  assert.ok(s.cars.get(1).fuel > f);
+  s.reset(21000);
+  assert.equal(s.cars.get(1).fuel, 100);
+  assert.equal(s.cars.get(2).fuel, 100);
+});
+
+test('Quali mit Tanken: Option bleibt im Snapshot erhalten', () => {
+  const s = new RaceEngine.Session({ mode: 'quali', laps: 3, entries, track, settings: {}, fuel: true });
+  s.start(0);
+  assert.equal(s.fuelOn, true);
+  assert.equal(s.snapshot().opts.fuel, true);
+});

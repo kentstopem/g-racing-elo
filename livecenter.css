@@ -120,6 +120,8 @@ html.lc-open, html.lc-open body { overflow: hidden; }
   align-items: center;
 }
 .is-race .lc-head-row, .is-race .lc-row { grid-template-columns: 6% 10% minmax(0, 1fr) 5% 10% 10% 9% 10% 8% 7%; }
+/* Training/Quali mit Tanken: zusätzliche Spalte „Tank“ vor „Rekord“ */
+.has-fuel .lc-head-row, .has-fuel .lc-row { grid-template-columns: 6% 10% minmax(0, 1fr) 5% 11% 10% 10% 12% 10% 8%; }
 .lc-head-row { padding: 6px 20px; font-size: 13px; color: var(--lc-muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
 .lc-head-row span:nth-child(2) { text-align: center; }
 .lc-head-row span:nth-child(n+4) { text-align: right; padding-right: 14px; }
@@ -314,6 +316,7 @@ html.lc-open, html.lc-open body { overflow: hidden; }
   .lc-clocks .lc-clock:last-child { display: none; }
   .lc-pen-row { flex-wrap: wrap; }
   .lc-head-row span:nth-child(6), .lc-row .lc-best { display: none; }
+  .has-fuel .lc-head-row, .has-fuel .lc-row { grid-template-columns: 7% 11% minmax(0, 1fr) 8% 14% 11% 15% 11% 8%; }
   .lc-trackrec, .lc-brand { display: none; }
   .lc-sim { max-width: calc(100% - 40px); bottom: 64px; }
   .lc-menu { left: 20px; right: 20px; width: auto; bottom: 64px; }
@@ -556,3 +559,13 @@ html.lc-open .modal { z-index: 6000; }
   .is-race .lc-row .lc-fuelcell { grid-row: 2; grid-column: 4 / -1; padding: 0 10px 10px; }
 }
 @media (max-width: 560px) { .is-race .lc-row .lc-fuelcell .lc-fuel { height: 24px; } }
+
+/* iPhone hochkant, Training/Quali mit Tanken: Tank als zweite Zeile wie im Rennen */
+@media (max-width: 560px) {
+  .has-fuel .lc-row { grid-template-columns: 8% 12% minmax(0, 1fr) 9% 16% 13% 12% 8%; grid-template-rows: minmax(0, 1fr) auto; }
+  .has-fuel .lc-head-row { grid-template-columns: 8% 12% minmax(0, 1fr) 9% 16% 13% 12% 8%; }
+  .has-fuel .lc-head-row span:nth-child(8) { display: none; }
+  .has-fuel .lc-row .lc-pos, .has-fuel .lc-row .lc-car, .has-fuel .lc-row .lc-who { grid-row: span 2; }
+  .has-fuel .lc-row .lc-fuelcell { grid-row: 2; grid-column: 4 / -1; padding: 0 10px 10px; }
+  .has-fuel .lc-row .lc-fuelcell .lc-fuel { height: 24px; }
+}
