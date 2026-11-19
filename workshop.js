@@ -6,11 +6,17 @@
   const D = () => window.Damage;
   const FILTER_KEY = 'workshopFilter';
 
-  let filter = 'all';          // all | light | motor | sensor | other
+  const filters = new Set();   // gewählte Kategorien (light | motor | sensor | other), leer = Alle, ODER-verknüpft
   let showAll = false;         // auch Fahrzeuge ohne offene Schäden
   const opened = new Set();    // aufgeklappte Fahrzeuge (bleiben beim Neuzeichnen offen)
-  try { const f = JSON.parse(localStorage.getItem(FILTER_KEY) || '{}'); filter = f.filter || 'all'; showAll = !!f.showAll; } catch (e) {}
-  const remember = () => { try { localStorage.setItem(FILTER_KEY, JSON.stringify({ filter, showAll })); } catch (e) {} };
+  try {
+    const f = JSON.parse(localStorage.getItem(FILTER_KEY) || '{}');
+    const list = Array.isArray(f.filters) ? f.filters : (f.filter && f.filter !== 'all' ? [f.filter] : []);   // alte Form { filter }
+    list.forEach(k => filters.add(k));
+    showAll = !!f.showAll;
+  } catch (e) {}
+  const remember = () => { try { localStorage.setItem(FILTER_KEY, JSON.stringify({ filters: [...filters], showAll })); } catch (e) {} };
+  const isActive = k => (k === 'all' ? !filters.size : filters.has(k));
 
   const cars = () => (window.appData?.cars || []);
   const fmtDate = iso => { const d = new Date(iso); return isNaN(d) ? '–' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
@@ -43,7 +49,7 @@
     const withOpen = all.filter(c => Dm.openDamages(c).length);
     const count = k => (k === 'all' ? withOpen : withOpen.filter(c => Dm.hasOpenCategory(c, k))).length;
     const base = showAll ? all.filter(c => !c.archived || Dm.list(c).length) : withOpen;
-    const shown = base.filter(c => filter === 'all' || Dm.hasOpenCategory(c, filter))
+    const shown = base.filter(c => !filters.size || [...filters].some(k => Dm.hasOpenCategory(c, k)))
       .sort((a, b) => (Dm.isLocked(b) - Dm.isLocked(a)) || (Dm.openDamages(b).length - Dm.openDamages(a).length)
         || a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
     const locked = withOpen.filter(Dm.isLocked).length;
@@ -53,7 +59,7 @@
         <div class="dmg-filter" role="group" aria-label="Schäden filtern">
           ${[['all', 'Alle'], ...Object.values(Dm.CATEGORIES).map(c => [c.key, c.label])].map(([k, l]) => {
             const n = count(k), crit = k !== 'all' && withOpen.some(c => Dm.openDamages(c).some(d => d.category === k && d.critical));
-            return `<button type="button" class="dmg-chip${k === 'all' ? '' : ' cat-' + k}${k === filter ? ' active' : ''}${crit ? ' crit' : ''}" data-wsfilter="${k}" aria-pressed="${k === filter}">${esc(l)}${n ? ` <span class="dmg-chip-n">${n}</span>` : ''}</button>`;
+            return `<button type="button" class="dmg-chip${k === 'all' ? '' : ' cat-' + k}${isActive(k) ? ' active' : ''}${crit ? ' crit' : ''}" data-wsfilter="${k}" aria-pressed="${isActive(k)}">${esc(l)}${n ? ` <span class="dmg-chip-n">${n}</span>` : ''}</button>`;
           }).join('')}
         </div>
         <label class="ws-showall"><input type="checkbox" data-wsall ${showAll ? 'checked' : ''}> auch fahrbereite Fahrzeuge</label>
@@ -69,7 +75,7 @@
             <span class="ws-chev" aria-hidden="true"></span>
           </summary>
           <div class="ws-body"></div>
-        </details>`).join('') || `<p class="dmg-empty" style="text-align:center;">${filter === 'all' ? 'Keine offenen Schäden.' : `Keine Fahrzeuge mit offenem Schaden (${esc(Dm.categoryLabel(filter))}).`}</p>`}
+        </details>`).join('') || `<p class="dmg-empty" style="text-align:center;">${!filters.size ? 'Keine offenen Schäden.' : `Keine Fahrzeuge mit offenem Schaden (${esc([...filters].map(Dm.categoryLabel).join(' / '))}).`}</p>`}
       </div>`;
 
     // aufgeklappte Fahrzeuge: Schäden + Tagebuch (Admin: reparieren / eintragen, sonst nur lesen)
@@ -87,7 +93,12 @@
       root._bound = true;
       root.addEventListener('click', e => {
         const b = e.target.closest('[data-wsfilter]');
-        if (b) { filter = b.dataset.wsfilter; remember(); render(); }
+        if (!b) return;
+        const k = b.dataset.wsfilter;
+        if (k === 'all') filters.clear();
+        else if (filters.has(k)) filters.delete(k);
+        else filters.add(k);
+        remember(); render();
       });
       root.addEventListener('change', e => {
         if (e.target.matches('[data-wsall]')) { showAll = e.target.checked; remember(); render(); }

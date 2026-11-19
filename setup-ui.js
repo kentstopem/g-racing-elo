@@ -584,12 +584,17 @@
     el.querySelector('#newTrackBtn').onclick = () => editTrack(null);
   }
 
+  const RS_OPEN_KEY = 'raceSettingsOpen';
+  let rsOpen = new Set();
+  try { rsOpen = new Set(JSON.parse(localStorage.getItem(RS_OPEN_KEY) || '[]')); } catch (e) {}
+
   function renderRace (el) {
     const s = window.appData.raceSettings || M.raceSettings();
     const fPct = Math.round(Math.min(2, s.fuelSpeedFactor) * 10) * 10;   // 0–200 % in 10er-Schritten
     el.innerHTML = `
       <form id="raceSettingsForm">
-        <h3 class="setup-h">Box &amp; Tank</h3>
+        <details class="bal-details rs-sec" data-rssec="tank">
+        <summary class="setup-h">Box &amp; Tank</summary>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
           <div class="form-group"><label for="rsTank">Voller Tank reicht (Runden)</label><input id="rsTank" name="tank" type="number" min="1" max="500" value="${s.fullTankLaps}"></div>
           <div class="form-group"><label for="rsRefuel">Tanken (% pro Sekunde)</label><input id="rsRefuel" name="refuel" inputmode="decimal" value="${fmtNum(s.refuelPctPerSec, 1)}"></div>
@@ -606,19 +611,24 @@
           <div class="tick-labels"><span>0 % · Tempo egal</span><span>100 % · proportional</span><span>200 %</span></div>
           <p class="muted edit-note" id="rsFactorNote"></p>
         </div>
-        <h3 class="setup-h">Strafen</h3>
+        </details>
+        <details class="bal-details rs-sec" data-rssec="penalty">
+        <summary class="setup-h">Strafen</summary>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
           <div class="form-group"><label for="rsFalse">Fehlstart (Sekunden)</label><input id="rsFalse" name="falseStart" inputmode="decimal" value="${fmtNum(s.falseStartPenaltySec, 1)}"></div>
           <div class="form-group"><label for="rsOpts">Zeitstrafen zur Auswahl (Sekunden)</label><input id="rsOpts" name="opts" value="${s.penaltyOptionsSec.map(v => fmtNum(v, 1)).join('; ')}" placeholder="2; 5; 7; 10"></div>
           <div class="form-group"><label for="rsNoSignal">Warnung ohne Rundensignal (Sekunden)</label><input id="rsNoSignal" name="noSignal" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.noSignalSec}"><small class="muted">Rennen: Kommt so lange keine Durchfahrt (Diode kaputt?), blinkt die Rundenzahl und es gibt eine Ansage. Box und Rote Flagge zählen nicht mit. 0 = aus</small></div>
         </div>
-        <h3 class="setup-h">G!RP-Wertung</h3>
+        </details>
+        <details class="bal-details rs-sec" data-rssec="grp">
+        <summary class="setup-h">G!RP-Wertung</summary>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
           <div class="form-group"><label for="rsBaseK">K-Faktor (maximal)</label><input id="rsBaseK" name="baseK" type="number" min="1" max="200" step="1" inputmode="numeric" value="${s.baseK}"><small class="muted">So viel kann ein Rennen mit 6 Fahrern über 75 Runden oder mehr höchstens bewegen. Weniger Fahrer oder Runden verringern ihn, im Extremfall auf ein Viertel. Gilt nur für neue Rennen, gewertete Rennen behalten ihren Wert.</small></div>
         </div>
-        <div class="edit-foot"><button type="button" class="btn" id="rsReset">Standardwerte</button><span style="flex:1"></span><button type="submit" class="btn btn-primary">Speichern</button></div>
+        </details>
+        <div class="edit-foot rs-foot"><button type="button" class="btn" id="rsReset">Standardwerte</button><span style="flex:1"></span><button type="submit" class="btn btn-primary">Speichern</button></div>
       </form>
-      <details class="bal-details" id="balDetails">
+      <details class="bal-details" id="balDetails" data-rssec="balance">
         <summary class="setup-h">Balancing prüfen</summary>
         <p class="muted edit-note" style="margin:-4px 0 12px;">Rechnet mit den Werten oben (auch ungespeichert) und der Referenzzeit der aktuellen Strecke. Nur zum Ausprobieren, wird nicht gespeichert.</p>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
@@ -628,7 +638,7 @@
         <div class="live-table-wrap"><table class="live-table bal-table" id="balTable"></table></div>
         <p class="muted edit-note" id="balNote"></p>
       </details>
-      <details class="bal-details" id="voiceDetails">
+      <details class="bal-details" id="voiceDetails" data-rssec="voice">
         <summary class="setup-h">Sprachausgabe</summary>
         <div class="form-group"><label for="voiceSel">Stimme (gilt für alle Geräte)</label>
           <select id="voiceSel">${Object.values(window.Voice?.VOICES || {}).map(v => `<option value="${v.key}" ${s.voice === v.key ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
@@ -643,6 +653,16 @@
         <div id="phraseList" class="muted">Wird geladen …</div>
       </details>`;
     const form = el.querySelector('#raceSettingsForm');
+    // Abschnitte einklappbar: offen/zu bleibt beim Neuzeichnen (Sync) und auf diesem Gerät gemerkt
+    el.querySelectorAll('details[data-rssec]').forEach(d => {
+      if (rsOpen.has(d.dataset.rssec)) d.open = true;
+      d.addEventListener('toggle', () => {
+        rsOpen[d.open ? 'add' : 'delete'](d.dataset.rssec);
+        try { localStorage.setItem(RS_OPEN_KEY, JSON.stringify([...rsOpen])); } catch (e) {}
+      });
+    });
+    // Ungültiger Wert in einem zugeklappten Abschnitt: aufklappen, damit der Hinweis sichtbar wird
+    form.addEventListener('invalid', e => { const d = e.target.closest('details'); if (d) d.open = true; }, true);
     const note = () => {
       const f = Number(form.factor.value) / 100;
       const box = form.factor.closest('.tick-range');

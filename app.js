@@ -714,7 +714,7 @@ function toggleArchiveCar(id) {
     RaceUI.updateForm();
 }
 
-let carDamageFilter = 'all';   // Setup → Fahrzeuge: Schadens-Filter
+const carDamageFilter = new Set();   // Setup → Fahrzeuge: Schadens-Filter (mehrere Kategorien, leer = Alle, ODER-verknüpft)
 function updateCarsList() {
     const list = document.getElementById('carsList');
     if (!list) return;
@@ -735,20 +735,26 @@ function updateCarsList() {
         </div>`);
         tools.querySelector('.dmg-filter').addEventListener('click', e => {
             const b = e.target.closest('[data-dmgcat]'); if (!b) return;
-            carDamageFilter = b.dataset.dmgcat; updateCarsList();
+            const k = b.dataset.dmgcat;
+            if (k === 'all') carDamageFilter.clear();
+            else if (carDamageFilter.has(k)) carDamageFilter.delete(k);
+            else carDamageFilter.add(k);
+            updateCarsList();
         });
     }
     tools?.querySelectorAll('[data-dmgcat]').forEach(b => {
         const k = b.dataset.dmgcat;
         const n = k === 'all' ? 0 : appData.cars.filter(c => D.openDamages(c).some(d => d.category === k)).length;
-        b.classList.toggle('active', k === carDamageFilter);
+        const on = k === 'all' ? !carDamageFilter.size : carDamageFilter.has(k);
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-pressed', String(on));
         b.classList.toggle('crit', k !== 'all' && appData.cars.some(c => D.openDamages(c).some(d => d.category === k && d.critical)));
         b.innerHTML = `${escapeHtml(k === 'all' ? 'Alle' : D.categoryLabel(k))}${n ? ` <span class="dmg-chip-n">${n}</span>` : ''}`;
     });
-    const filt = setup && D ? carDamageFilter : 'all';
-    const shownCars = filt === 'all' ? appData.cars : appData.cars.filter(c => D.hasOpenCategory(c, filt));
+    const filt = setup && D ? [...carDamageFilter] : [];
+    const shownCars = !filt.length ? appData.cars : appData.cars.filter(c => filt.some(k => D.hasOpenCategory(c, k)));
     if (!shownCars.length) {
-        list.innerHTML = `<p style="text-align: center; color:var(--text-muted);">Keine Fahrzeuge mit offenem Schaden (${escapeHtml(D.categoryLabel(filt))}).</p>`;
+        list.innerHTML = `<p style="text-align: center; color:var(--text-muted);">Keine Fahrzeuge mit offenem Schaden (${escapeHtml(filt.map(D.categoryLabel).join(' / '))}).</p>`;
         return;
     }
     // Badges: offene Schäden je Kategorie (kritisch rot, Licht gelb), „gesperrt“ bei offenem Motor-/Sensorschaden
