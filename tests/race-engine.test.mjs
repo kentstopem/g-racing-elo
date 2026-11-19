@@ -759,3 +759,19 @@ test('„+1 Rd.“ ins Ziel mit offener Strafe: gleiche Regel wie bei echter Üb
   assert.equal(s.cars.get(1).dqReason, 'offene Strafe');
   assert.equal(s.standings()[0].ctrl, 2);
 });
+
+test('Rote Flagge: „+1 Rd.“ nur, wenn die laufende Runde länger als die minimale Rundenzeit ist', () => {
+  const { s } = race(10);
+  lap(s, 1, 6500); lap(s, 2, 6700);
+  lap(s, 1, 13500); lap(s, 2, 13700);
+  s.redFlag(16500, 'buzzer');                                   // Regler 1: 3,0 s, Regler 2: 2,8 s (min. 4,0 s)
+  assert.equal(s.canAddManualLap(1), false);
+  assert.equal(s.addManualLap(1), false, 'kann noch nicht über der Linie gewesen sein');
+  assert.equal(s.cars.get(1).laps, 1);
+  const { s: s2 } = race(10);
+  lap(s2, 1, 6500); lap(s2, 2, 6700);
+  lap(s2, 1, 13500); lap(s2, 2, 13700);
+  s2.redFlag(17600, 'buzzer');                                  // Regler 1: 4,1 s, Regler 2: 3,9 s
+  assert.equal(s2.canAddManualLap(1), true);
+  assert.equal(s2.canAddManualLap(2), false);
+});

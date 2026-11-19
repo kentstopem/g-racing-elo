@@ -996,9 +996,11 @@
             ${(() => {
               // Laufende Rundenzeit beim Abbruch: 0,xxx → Durchfahrt wurde gezählt, 6,xxx → noch nicht über der Linie
               const lapMs = session.redLapMs(s.ctrl), car = session.cars.get(s.ctrl), manual = !!car?.manualUndo;
+              // „+1 Rd.“ nur, wenn die laufende Runde länger als die minimale Rundenzeit ist – sonst kann sie nicht schon über der Linie gewesen sein
+              const canPlus = session.canAddManualLap(s.ctrl);
               const btn = canEdit() ? (manual
                 ? `<button class="lc-btn lc-pen-plus on" data-act="lapUndo" data-ctrl="${s.ctrl}" title="Nachgezählte Runde zurücknehmen">−1 Rd.</button>`
-                : `<button class="lc-btn lc-pen-plus" data-act="lapAdd" data-ctrl="${s.ctrl}" title="Runde nachzählen: war schon über Start/Ziel, die CU hat es nicht mehr erfasst" ${out || lapMs == null || car?.finished ? 'disabled' : ''}>+1 Rd.</button>`) : '';
+                : `<button class="lc-btn lc-pen-plus" data-act="lapAdd" data-ctrl="${s.ctrl}" title="Runde nachzählen: war schon über Start/Ziel, die CU hat es nicht mehr erfasst" ${canPlus ? '' : 'style="visibility:hidden" disabled'}>+1 Rd.</button>`) : '';
               return `<span class="lc-pen-lap ${manual ? 'manual' : ''}" title="Laufende Rundenzeit beim Abbruch">${lapMs == null ? '–' : fmt(lapMs)}</span>${btn}`;
             })()}
             <span class="lc-pen-gap">${gap}</span>

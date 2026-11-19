@@ -571,6 +571,14 @@
       return Math.max(0, this.redAt - c.lastCross - (c.pausedMs || 0));
     }
 
+    /** Ist „+1 Rd.“ für diesen Fahrer überhaupt möglich? Laufende Runde muss länger als die minimale Rundenzeit der Strecke sein. */
+    canAddManualLap (ctrl) {
+      const c = this.cars.get(Number(ctrl));
+      if (!c || this.phase !== 'red' || this.redAt == null || c.lastCross == null || c.manualUndo || c.status || c.finished || c.done) return false;
+      const raw = this.redLapMs(ctrl);
+      return raw != null && raw > (MD().trackSetup(this.track).minLapMs || 0);
+    }
+
     /**
      * Rote Flagge genau an Start/Ziel, die CU hat die Durchfahrt nicht mehr gezählt: Runde von Hand dazuzählen.
      * Die Überquerung gilt als echt: Zeitpunkt = Rote Flagge − Startversatz (settings.manualLapStartMs, Standard 250 ms),
@@ -581,7 +589,7 @@
      */
     addManualLap (ctrl) {
       const c = this.cars.get(Number(ctrl));
-      if (!c || this.phase !== 'red' || this.redAt == null || c.lastCross == null || c.manualUndo || c.status || c.finished || c.done) return false;
+      if (!this.canAddManualLap(ctrl)) return false;
       const raw = this.redLapMs(ctrl);
       const keep = ['leaderFinished', 'leadCtrl', 'phase', 'endT'];
       c.manualUndo = { car: structuredClone({ ...c, manualUndo: null }), session: Object.fromEntries(keep.map(k => [k, this[k]])) };
