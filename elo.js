@@ -76,7 +76,13 @@
         c.wins = (c.wins || 0) + 1;
       }
       d.totalRounds = (d.totalRounds || 0) + (race.rounds || 0);
-      c.totalRounds = (c.totalRounds || 0) + (race.rounds || 0);
+      // Fahrzeug-Runden: nach Autotausch je Fahrzeug (res.carLaps), sonst die Renndistanz für das gewertete Auto
+      if (Array.isArray(res.carLaps) && res.carLaps.length) {
+        for (const sg of res.carLaps) {
+          const x = cars.find(cc => String(cc.id) === String(sg.carId));
+          if (x) x.totalRounds = (x.totalRounds || 0) + (sg.laps || 0);
+        }
+      } else c.totalRounds = (c.totalRounds || 0) + (race.rounds || 0);
 
       res.oldDriverElo    = driverElo;
       res.oldCarElo       = carElo;

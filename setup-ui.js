@@ -253,8 +253,10 @@
           ${slider('speed', 'Gas (Höchstgeschwindigkeit)', t.speed)}
           ${slider('brake', 'Bremse', t.brake)}
         </div>
+        ${isNew || !window.Damage ? '' : '<div id="dmgBox"></div>'}
         ${footer()}
       </form>`);
+    if (!isNew && window.Damage) damageSection(body.querySelector('#dmgBox'), id);
 
     const form = body.querySelector('#carForm');
     const showImg = async car => {
@@ -324,6 +326,129 @@
       persist(window.Storage.updateCarFields(id, { tuning }), 'Fahrzeug gespeichert');
       closeModal();
     };
+  }
+
+  // ---------- Schäden / Werkstatttagebuch (im Fahrzeug-Dialog, auch für inaktive Fahrzeuge) ----------
+  // Änderungen werden sofort gespeichert (wie das Bild), unabhängig von „Speichern“ unten.
+
+  const pad2 = n => String(n).padStart(2, '0');
+  const localInput = (d = new Date()) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const fromInput = v => { const d = v ? new Date(v) : new Date(); return isNaN(d) ? new Date() : d; };
+  const fmtWhen = iso => { const d = new Date(iso); return isNaN(d) ? '–' : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+  const fmtDec = v => (v == null ? '–' : String(+v.toFixed(1)).replace('.', ','));
+
+  /** Kennzahlen eines Fahrzeugs aus Werkstatttagebuch + Rennen (auch für die Detailansicht) */
+  function carDamageStats (car) {
+    const races = window.appData.allRaces || window.appData.races || [];
+    const tot = M.carTotals(car.id, races, car);
+    return window.Damage.stats(car, { totalLaps: tot.laps, races, tsForRace: window.Helpers.tsForRace });
+  }
+
+  /**
+   * Schäden + Werkstatttagebuch eines Fahrzeugs in box zeichnen.
+   * readOnly: nur lesen (Werkstatt-Reiter ohne Login) · noDelete: ohne Löschen (Werkstatt-Reiter als Admin)
+   */
+  function damageSection (box, id, { readOnly = false, noDelete = false } = {}) {
+    const D = window.Damage;
+    let damages = D.list(window.appData.cars.find(x => x.id === id));
+    let fixing = null;   // id des Schadens, der gerade als repariert markiert wird
+    const car = () => ({ ...(window.appData.cars.find(x => x.id === id) || { id }), damages });
+    const save = (next, ok) => {
+      if (readOnly || !window.isAdmin) return;
+      damages = next;
+      const c = window.appData.cars.find(x => x.id === id); if (c) c.damages = next;
+      persist(window.Storage.updateCarFields(id, { damages: next }), ok).catch(() => {});
+      render();
+      window.updateCarsList?.();
+      box.dispatchEvent(new CustomEvent('damages-changed', { bubbles: true, detail: { id } }));
+    };
+    // Bei „Sonstige“ ist die Notiz die Beschreibung und steht schon im Namen
+    const ctx = d => [d.context, d.note && !D.type(d.type)?.custom ? `„${esc(d.note)}“` : ''].filter(Boolean).join(' · ');
+    function render () {
+      const cur = car();
+      const open = D.openDamages(cur);
+      const st = carDamageStats(cur);
+      const openKeys = open.map(d => d.type);
+      box.innerHTML = `
+        <div class="dmg-section">
+          <h4>${icon('alert')}Schäden${D.isLocked(cur) ? ' <span class="dmg-badge crit locked">gesperrt</span>' : open.length ? ' <span class="dmg-badge warn">fahrbereit</span>' : ''}</h4>
+          ${open.length ? open.map(d => `<div class="dmg-open-item">
+              <span class="dmg-badge ${d.critical ? 'crit' : 'warn'}">${esc(D.categoryLabel(d.category))}</span>
+              <span class="dmg-what"><strong>${esc(D.entryLabel(d))}</strong> <span class="muted">seit ${fmtWhen(d.at)}${ctx(d) ? ' · ' + ctx(d) : ''}</span></span>
+              ${fixing === d.id || readOnly ? '' : `<button type="button" class="btn btn-small btn-primary" data-dmgfix="${d.id}">Repariert</button>`}
+              ${fixing === d.id ? `<div class="dmg-fix-form">
+                <input type="datetime-local" data-fixat value="${localInput()}" aria-label="Repariert am">
+                <input type="text" data-fixnote placeholder="Notiz zur Reparatur (optional)" maxlength="200">
+                <button type="button" class="btn btn-small btn-primary" data-dmgfixok="${d.id}">Als repariert speichern</button>
+                <button type="button" class="btn btn-small" data-dmgfixno>Abbrechen</button>
+              </div>` : ''}
+            </div>`).join('') : '<p class="dmg-empty">Keine offenen Schäden.</p>'}
+          ${readOnly ? '' : `<div class="form-group" style="margin:10px 0 0;">
+            <label>Schaden eintragen</label>
+            <div class="dmg-types">${D.TYPES.filter(t => !t.custom).map(t => `<label class="dmg-type ${t.critical ? 'crit' : ''} ${openKeys.includes(t.key) ? 'is-open' : ''}">
+              <input type="checkbox" data-dmgtype="${t.key}" ${openKeys.includes(t.key) ? 'checked disabled' : ''}>
+              <span>${esc(t.label)}${t.critical ? ' <span class="muted">· kritisch</span>' : ''}${openKeys.includes(t.key) ? ' <span class="muted">· offen</span>' : ''}</span></label>`).join('')}
+              <div class="dmg-type dmg-type-other">
+                <label class="dmg-crit-check"><input type="checkbox" data-dmgtype="other"> Sonstige</label>
+                <input type="text" data-dmgother placeholder="Beschreibung (Pflicht bei Sonstige)" maxlength="200">
+                <label class="dmg-crit-check"><input type="checkbox" data-dmgothercrit> kritisch (sperrt das Auto)</label>
+              </div></div>
+            <div class="dmg-add-row">
+              <input type="datetime-local" data-dmgat value="${localInput()}" aria-label="Datum des Schadens">
+              <input type="text" data-dmgnote placeholder="Notiz (optional)" maxlength="200">
+              <button type="button" class="btn btn-small" data-dmgadd>Eintragen</button>
+            </div>
+            <p class="muted edit-note">Motor, Sensor und „Sonstige“ mit Haken „kritisch“ sperren das Fahrzeug, bis der Schaden repariert ist.</p>
+          </div>`}
+        </div>
+        <div class="dmg-section">
+          <h4>${icon('list')}Werkstatttagebuch</h4>
+          <div class="dmg-stats"><span>Schäden: <strong>${st.damages}</strong></span><span>Reparaturen: <strong>${st.repairs}</strong></span>
+            <span>Runden seit letzter Reparatur: <strong>${st.lapsSinceRepair ?? '–'}</strong></span><span>Schäden pro 100 Runden: <strong>${fmtDec(st.per100Laps)}</strong></span></div>
+          <div class="dmg-log">${D.journal(cur).map(d => `<div class="dmg-log-item ${d.fixedAt ? 'fixed' : ''}">
+              <span class="dmg-badge ${d.fixedAt ? 'done' : d.critical ? 'crit' : 'warn'}">${esc(D.categoryLabel(d.category))}</span>
+              <span class="dmg-what"><strong>${esc(D.entryLabel(d))}</strong> · ${fmtWhen(d.at)}${ctx(d) ? ' · ' + ctx(d) : ''}
+                <br><span class="muted">${d.fixedAt ? `repariert am ${fmtWhen(d.fixedAt)}${d.fixNote ? ` · „${esc(d.fixNote)}“` : ''}` : 'offen'}</span></span>
+              ${readOnly || noDelete ? '' : `<button type="button" class="btn btn-small btn-danger" data-dmgdel="${d.id}" aria-label="Eintrag löschen" title="Eintrag löschen">${icon('trash')}</button>`}
+            </div>`).join('') || '<p class="dmg-empty">Noch keine Einträge.</p>'}</div>
+        </div>`;
+    }
+    box.addEventListener('click', e => {
+      if (readOnly || !window.isAdmin) return;
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.dmgfix) { fixing = b.dataset.dmgfix; render(); box.querySelector('[data-fixnote]')?.focus(); return; }
+      if ('dmgfixno' in b.dataset) { fixing = null; render(); return; }
+      if (b.dataset.dmgfixok) {
+        const c = car();
+        const lapsAtFix = M.carTotals(id, window.appData.allRaces || window.appData.races || [], c).laps;
+        const next = D.fixDamage(c, b.dataset.dmgfixok, { at: fromInput(box.querySelector('[data-fixat]')?.value), note: box.querySelector('[data-fixnote]')?.value, lapsAtFix });
+        fixing = null;
+        save(next, 'Als repariert gespeichert');
+        return;
+      }
+      if (b.dataset.dmgdel) {
+        if (!confirm('Diesen Eintrag aus dem Werkstatttagebuch löschen?')) return;
+        save(D.removeDamage(car(), b.dataset.dmgdel), 'Eintrag gelöscht');
+        return;
+      }
+      if ('dmgadd' in b.dataset) {
+        const keys = [...box.querySelectorAll('[data-dmgtype]:checked:not(:disabled)')].map(i => i.dataset.dmgtype);
+        if (!keys.length) { showToast('Bitte mindestens eine Schadensart ankreuzen'); return; }
+        const at = fromInput(box.querySelector('[data-dmgat]')?.value), note = box.querySelector('[data-dmgnote]')?.value || '';
+        const lapsAtDamage = M.carTotals(id, window.appData.allRaces || window.appData.races || [], car()).laps;
+        const otherTxt = (box.querySelector('[data-dmgother]')?.value || '').trim();
+        if (keys.includes('other') && !otherTxt) { showToast('Bitte den Schaden unter „Sonstige“ beschreiben'); box.querySelector('[data-dmgother]')?.focus(); return; }
+        const otherCrit = !!box.querySelector('[data-dmgothercrit]')?.checked;
+        let next = damages;
+        for (const k of keys) {
+          next = D.addDamage({ damages: next }, k === 'other'
+            ? { type: k, at, note: otherTxt, critical: otherCrit, context: 'Werkstatt', lapsAtDamage }
+            : { type: k, at, note, context: 'Werkstatt', lapsAtDamage }).damages;
+        }
+        save(next, keys.length === 1 ? 'Schaden eingetragen' : `${keys.length} Schäden eingetragen`);
+      }
+    });
+    render();
   }
 
   // ---------- Strecken ----------
@@ -470,6 +595,7 @@
           <div class="form-group"><label for="rsRefuel">Tanken (% pro Sekunde)</label><input id="rsRefuel" name="refuel" inputmode="decimal" value="${fmtNum(s.refuelPctPerSec, 1)}"></div>
           <div class="form-group"><label for="rsPitCall">„Muss an die Box“ ab Tank (%)</label><input id="rsPitCall" name="pitCall" type="number" min="0" max="100" value="${s.pitCallFuelPct}"></div>
           <div class="form-group"><label for="rsEmpty">Tempo bei leerem Tank (Stufe 0–15)</label><input id="rsEmpty" name="emptyTank" type="number" min="0" max="15" value="${s.emptyTankSpeed}"><small class="muted">${M.levelToPct(s.emptyTankSpeed)} % · bis wieder getankt ist</small></div>
+          <div class="form-group"><label for="rsManualLap">Startzeit nach „+1 Rd.“ (ms)</label><input id="rsManualLap" name="manualLap" type="number" min="0" max="10000" step="1" inputmode="numeric" value="${s.manualLapStartMs}"><small class="muted">Rote Flagge genau an Start/Ziel und die CU hat die Runde nicht mehr gezählt: Mit „+1 Rd.“ zählt sie nachträglich. Die neue Runde beginnt nach „Weiter geht's“ dann bei dieser Zeit statt bei 0 (das Auto stand schon hinter der Linie).</small></div>
           <div class="form-group"><label for="rsPitDrive">Boxendurchfahrt (ms)</label><input id="rsPitDrive" name="pitDrive" type="number" min="0" max="30000" step="1" inputmode="numeric" value="${s.pitDriveMs}"><small class="muted">Fahrzeit vom Losfahren in der Box bis zum nächsten Sensor (Weiche nach der Ausfahrt). Zählt live mit und wird beim Rausfahren von Tanken und Strafe wieder abgezogen</small></div>
         </div>
         <div class="form-group"><label for="rsFactor">Einfluss des Tempos auf den Verbrauch <strong id="rsFactorVal">${fPct} %</strong></label>
@@ -604,6 +730,7 @@
         emptyTankSpeed: parseNum(form.emptyTank.value),
         pitDriveMs: parseNum(form.pitDrive.value),
         noSignalSec: parseNum(form.noSignal.value),
+        manualLapStartMs: parseNum(form.manualLap.value),
         fuelSpeedFactor: Number(form.factor.value) / 100,
         falseStartPenaltySec: parseNum(form.falseStart.value),
         penaltyOptionsSec: opts,
@@ -628,6 +755,6 @@
 
   window.SetupUI = {
     enabled, render, setTab, editDriver, editCar, editTrack, closeModal,
-    controllerChip, tuningLabel, carImageSrc, carAssetSrc, trackImageSrc, driverVoiceSrc
+    controllerChip, tuningLabel, carDamageStats, damageSection, carImageSrc, carAssetSrc, trackImageSrc, driverVoiceSrc
   };
 })();

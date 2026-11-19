@@ -1,0 +1,115 @@
+// workshop.js – Hauptmenü-Reiter „Werkstatt“: alle Fahrzeuge mit offenen Schäden, Filter nach Kategorie,
+// Werkstatttagebuch je Fahrzeug aufklappbar. Für alle lesbar (Firestore ist öffentlich lesbar);
+// nur der Admin markiert als repariert und trägt Schäden ein (Löschen nur im Fahrzeug-Dialog unter Setup).
+(function () {
+  const { escapeHtml: esc, icon } = window.Helpers;
+  const D = () => window.Damage;
+  const FILTER_KEY = 'workshopFilter';
+
+  let filter = 'all';          // all | light | motor | sensor | other
+  let showAll = false;         // auch Fahrzeuge ohne offene Schäden
+  const opened = new Set();    // aufgeklappte Fahrzeuge (bleiben beim Neuzeichnen offen)
+  try { const f = JSON.parse(localStorage.getItem(FILTER_KEY) || '{}'); filter = f.filter || 'all'; showAll = !!f.showAll; } catch (e) {}
+  const remember = () => { try { localStorage.setItem(FILTER_KEY, JSON.stringify({ filter, showAll })); } catch (e) {} };
+
+  const cars = () => (window.appData?.cars || []);
+  const fmtDate = iso => { const d = new Date(iso); return isNaN(d) ? '–' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
+
+  function badges (car) {
+    const Dm = D(), open = Dm.openDamages(car);
+    const byCat = {};
+    open.forEach(d => { (byCat[d.category] = byCat[d.category] || []).push(d); });
+    return Object.entries(byCat).map(([cat, list]) => {
+      const crit = list.some(d => d.critical);
+      return `<span class="dmg-badge ${crit ? 'crit' : 'warn'}" title="${esc(list.map(Dm.entryLabel).join(', '))}">${icon(cat === 'light' ? 'light-off' : 'alert')}${esc(Dm.categoryLabel(cat))}${list.length > 1 ? ' ×' + list.length : ''}</span>`;
+    }).join(' ') + (Dm.isLocked(car) ? ' <span class="dmg-badge crit locked">gesperrt</span>' : '');
+  }
+
+  function subline (car) {
+    const Dm = D(), open = Dm.openDamages(car), all = Dm.list(car);
+    if (open.length) {
+      const oldest = open.map(d => d.at).sort()[0];
+      return `${open.length} offen${open.length === 1 ? 'er Schaden' : 'e Schäden'} · seit ${fmtDate(oldest)}`;
+    }
+    const fixed = all.filter(d => d.fixedAt).map(d => d.fixedAt).sort();
+    return fixed.length ? `fahrbereit · zuletzt repariert ${fmtDate(fixed[fixed.length - 1])}` : 'fahrbereit · keine Einträge';
+  }
+
+  function render () {
+    const root = document.getElementById('workshopRoot');
+    if (!root || !D()) return;
+    const Dm = D(), admin = !!window.isAdmin;
+    const all = cars();
+    const withOpen = all.filter(c => Dm.openDamages(c).length);
+    const count = k => (k === 'all' ? withOpen : withOpen.filter(c => Dm.hasOpenCategory(c, k))).length;
+    const base = showAll ? all.filter(c => !c.archived || Dm.list(c).length) : withOpen;
+    const shown = base.filter(c => filter === 'all' || Dm.hasOpenCategory(c, filter))
+      .sort((a, b) => (Dm.isLocked(b) - Dm.isLocked(a)) || (Dm.openDamages(b).length - Dm.openDamages(a).length)
+        || a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+    const locked = withOpen.filter(Dm.isLocked).length;
+
+    root.innerHTML = `
+      <div class="ws-tools">
+        <div class="dmg-filter" role="group" aria-label="Schäden filtern">
+          ${[['all', 'Alle'], ...Object.values(Dm.CATEGORIES).map(c => [c.key, c.label])].map(([k, l]) => {
+            const n = count(k), crit = k !== 'all' && withOpen.some(c => Dm.openDamages(c).some(d => d.category === k && d.critical));
+            return `<button type="button" class="dmg-chip${k === 'all' ? '' : ' cat-' + k}${k === filter ? ' active' : ''}${crit ? ' crit' : ''}" data-wsfilter="${k}" aria-pressed="${k === filter}">${esc(l)}${n ? ` <span class="dmg-chip-n">${n}</span>` : ''}</button>`;
+          }).join('')}
+        </div>
+        <label class="ws-showall"><input type="checkbox" data-wsall ${showAll ? 'checked' : ''}> auch fahrbereite Fahrzeuge</label>
+      </div>
+      <p class="ws-summary">${withOpen.length ? `<strong>${withOpen.length}</strong> Fahrzeug${withOpen.length === 1 ? '' : 'e'} mit offenen Schäden${locked ? ` · <strong class="ws-locked">${locked}</strong> gesperrt` : ''}` : 'Alle Fahrzeuge sind fahrbereit.'}
+        ${admin ? '' : '<span class="muted"> · Nur lesen – Reparaturen trägt der Admin ein.</span>'}</p>
+      <div class="ws-list">${shown.map(c => `
+        <details class="ws-car${Dm.isLocked(c) ? ' is-locked' : ''}" data-id="${esc(String(c.id))}" ${opened.has(String(c.id)) ? 'open' : ''}>
+          <summary>
+            <span class="ws-img"><img alt="" data-wsimg="${esc(String(c.id))}" hidden></span>
+            <span class="ws-head"><strong>${esc(c.name)}</strong>${c.archived ? ' <span class="status-inactive">archiviert</span>' : ''} ${badges(c)}
+              <small class="muted">${subline(c)}</small></span>
+            <span class="ws-chev" aria-hidden="true"></span>
+          </summary>
+          <div class="ws-body"></div>
+        </details>`).join('') || `<p class="dmg-empty" style="text-align:center;">${filter === 'all' ? 'Keine offenen Schäden.' : `Keine Fahrzeuge mit offenem Schaden (${esc(Dm.categoryLabel(filter))}).`}</p>`}
+      </div>`;
+
+    // aufgeklappte Fahrzeuge: Schäden + Tagebuch (Admin: reparieren / eintragen, sonst nur lesen)
+    root.querySelectorAll('details.ws-car[open]').forEach(fill);
+    // Bilder (eigenes Bild oder Standardbild zur Startnummer)
+    root.querySelectorAll('img[data-wsimg]').forEach(img => {
+      const car = all.find(c => String(c.id) === img.dataset.wsimg);
+      const fallback = window.SetupUI?.carAssetSrc?.(car);
+      const show = src => { if (src) { img.src = src; img.hidden = false; img.onerror = () => { img.hidden = true; }; } };
+      if (car?.imageRev && window.SetupUI?.carImageSrc) window.SetupUI.carImageSrc(car).then(show).catch(() => show(fallback));
+      else show(fallback);
+    });
+
+    if (!root._bound) {
+      root._bound = true;
+      root.addEventListener('click', e => {
+        const b = e.target.closest('[data-wsfilter]');
+        if (b) { filter = b.dataset.wsfilter; remember(); render(); }
+      });
+      root.addEventListener('change', e => {
+        if (e.target.matches('[data-wsall]')) { showAll = e.target.checked; remember(); render(); }
+      });
+      root.addEventListener('toggle', e => {
+        const d = e.target.closest?.('details.ws-car');
+        if (!d) return;
+        if (d.open) { opened.add(d.dataset.id); fill(d); } else opened.delete(d.dataset.id);
+      }, true);
+      // Admin hat repariert/eingetragen: Kopfzeile + Zähler aktualisieren, Tagebuch bleibt offen
+      root.addEventListener('damages-changed', () => setTimeout(render));
+    }
+  }
+
+  function fill (det) {
+    const body = det.querySelector('.ws-body');
+    if (!body || body.dataset.filled) return;
+    const car = cars().find(c => String(c.id) === det.dataset.id);
+    if (!car || !window.SetupUI?.damageSection) return;
+    body.dataset.filled = '1';
+    window.SetupUI.damageSection(body, car.id, { readOnly: !window.isAdmin, noDelete: true });
+  }
+
+  window.WorkshopUI = { render };
+})();

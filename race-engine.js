@@ -17,6 +17,8 @@
 //   lap, fastestLap, personalRecord, carRecord, trackRecord, pitCall, fuelEmpty, pitIn, pitOut, refueled,
 //   penalty, penaltyServed, falseStart, lights, go, redFlag, resume, lastLap, finish, win, qualiDone, pole, end
 (function () {
+  // Ansagen, die bei „+1 Rd.“ (Rote Flagge) bis „Weiter geht's“ zurückgehalten werden
+  const DEFERRED = ['win', 'finish', 'lastLap', 'fiveToGo', 'halfway', 'qualiDone', 'end'];
   const MODES = { practice: 'Freies Training', quali: 'Qualifying', race: 'Rennen' };
   const MD = () => window.MasterData;
 
@@ -56,6 +58,9 @@
       return {
         ctrl: Number(e.ctrl), driverId: e.driverId, carId: e.carId, grid,
         laps: 0, last: null, best: null, lastCross: null, crossings: [], lapTimes: [],
+        // Runden je Fahrzeug in dieser Sitzung (Autotausch!): [{ carId, laps, best }] in Fahrreihenfolge.
+        // Zählt jede gefahrene Runde, auch nach „Zurücksetzen“ im Training (für Rundenzähler/Werkstatt der Fahrzeuge).
+        carLaps: [],
         pausedMs: 0, interrupted: false,
         fuel: 100, pitCalled: false, fuelEmpty: false,
         inPit: false, pitLastT: null, pitStandMs: 0, pitStops: 0,
@@ -94,7 +99,11 @@
     }
 
     on (fn) { this.listeners.push(fn); return () => { this.listeners = this.listeners.filter(f => f !== fn); }; }
-    emit (type, data = {}) { for (const fn of this.listeners) { try { fn(type, data); } catch (e) { console.error(e); } } }
+    emit (type, data = {}) {
+      // „+1 Rd.“ bei Roter Flagge: Ansagen (Sieg, Ziel, Rundenstand) erst nach „Weiter geht's“, siehe addManualLap/onGo
+      if (this.deferCtrl != null && DEFERRED.includes(type)) { (this.deferred ??= []).push({ ctrl: this.deferCtrl, type, data }); return; }
+      for (const fn of this.listeners) { try { fn(type, data); } catch (e) { console.error(e); } }
+    }
 
     get needsLights () { return this.mode === 'race'; }
 
@@ -134,7 +143,14 @@
         // Unterbrechung aus der laufenden Runde herausrechnen, die Runde zählt aber nicht für Bestzeiten
         const pause = t - this.redAt;
         this.redTotalMs += pause;
+        (this.pauses ??= []).push([this.redAt, t]);   // für Abstände in Rennzeit (ohne Unterbrechungen)
+        // Führung hat sich per „+1 Rd.“ geändert: jetzt ansagen
+        const lead = this.leadCtrl != null && this.leadAtRed != null && this.leadCtrl !== this.leadAtRed ? this.cars.get(this.leadCtrl) : null;
+        if (lead && [...this.cars.values()].some(c => c.manualUndo)) this.emit('leadChange', { ctrl: lead.ctrl, driverId: lead.driverId, previous: this.leadAtRed });
+        this.leadAtRed = null;
+        this.flushDeferred();
         for (const c of this.cars.values()) {
+          c.manualUndo = null;   // „+1 Rd.“ ist ab jetzt fest
           if (c.lastCross != null) { c.pausedMs += pause; c.interrupted = true; }
           if (c.inPit) c.pitLastT = t;
         }
@@ -225,17 +241,22 @@
       const raw = t - c.lastCross - c.pausedMs;
       const minLap = MD().trackSetup(this.track).minLapMs || 0;
       if (!c.interrupted && raw < minLap) { c.rejectedMs = raw; return; }   // zu kurz (Doppelmeldung / Fehlimpuls)
-      const interrupted = c.interrupted;
+      this.countLap(c, t, raw, c.interrupted);
+    }
+
+    /** Runde zählen (Durchfahrt oder „+1 Rd.“ bei Roter Flagge): Zähler, Tank, Bestzeit, Rennfortschritt */
+    countLap (c, t, raw, interrupted, { manual = false } = {}) {
       c.lastCross = t; c.pausedMs = 0; c.interrupted = false;
       c.laps += 1;
+      this.segment(c).laps += 1;
       c.crossings[c.laps] = t;
       c.last = raw;
-      c.lapTimes.push({ ms: raw, interrupted, pit: c.pitThisLap || false });
+      c.lapTimes.push({ ms: raw, interrupted, pit: c.pitThisLap || false, ...(manual ? { manual: true } : {}) });
       c.pitThisLap = c.inPit;
 
       if (this.fuelOn && !c.inPit) this.burnFuel(c, interrupted ? null : raw);
 
-      const info = { ctrl: c.ctrl, driverId: c.driverId, carId: c.carId, lap: c.laps, ms: raw, interrupted };
+      const info = { ctrl: c.ctrl, driverId: c.driverId, carId: c.carId, lap: c.laps, ms: raw, interrupted, manual };
       this.emit('lap', info);
       if (!interrupted) this.checkBest(c, raw);
 
@@ -263,6 +284,8 @@
       const personalBefore = c.best;
       if (c.best == null || ms < c.best) c.best = ms;
       if (c.pairBests[c.carId] == null || ms < c.pairBests[c.carId]) c.pairBests[c.carId] = ms;
+      const seg = this.segment(c);
+      if (seg.best == null || ms < seg.best) seg.best = ms;
       const rec = this.recordInfo(c);
       let kind = null;
       if (rec.track == null || ms < rec.track.ms) kind = 'trackRecord';
@@ -291,6 +314,33 @@
       const personal = min(this.records.filter(r => r.driverId === c.driverId));
       const pair = min(this.records.filter(r => r.carId === c.carId && r.driverId === c.driverId));
       return { track, car: car?.ms ?? null, personal: personal?.ms ?? null, pair: pair?.ms ?? null };
+    }
+
+    /** Aktuelles Runden-Segment des Reglers (neues, sobald ein anderes Fahrzeug fährt) */
+    segment (c) {
+      const list = (c.carLaps ??= []);
+      let seg = list[list.length - 1];
+      if (!seg || seg.carId !== c.carId) { seg = { carId: c.carId, laps: 0, best: null }; list.push(seg); }
+      return seg;
+    }
+
+    /** Runden je Fahrzeug eines Reglers, zusammengefasst: [{ carId, laps, best }] (nur Fahrzeuge mit Runden) */
+    static carLapsOf (c) {
+      const out = [];
+      for (const s of c?.carLaps || []) {
+        if (!(s.laps > 0)) continue;
+        const o = out.find(x => x.carId === s.carId);
+        if (o) { o.laps += s.laps; if (s.best != null && (o.best == null || s.best < o.best)) o.best = s.best; }
+        else out.push({ carId: s.carId, laps: s.laps, best: s.best ?? null });
+      }
+      return out;
+    }
+
+    /** Gefahrene Runden je Fahrzeug über alle Regler der Sitzung (auch herausgenommene): { carId: laps } */
+    carLapTotals () {
+      const out = {};
+      for (const c of this.allCars()) for (const s of Session.carLapsOf(c)) out[s.carId] = (out[s.carId] || 0) + s.laps;
+      return out;
     }
 
     /**
@@ -364,7 +414,8 @@
       // Führungswechsel (ab Runde 2, vorher sortiert sich das Feld erst)
       const lead = this.standings().find(s => !s.status);
       if (lead && lead.ctrl !== this.leadCtrl) {
-        if (this.leadCtrl != null && lead.ctrl === c.ctrl && c.laps >= 2) this.emit('leadChange', { ctrl: c.ctrl, driverId: c.driverId, previous: this.leadCtrl });
+        // „+1 Rd.“ bei Roter Flagge: Ansage erst nach „Weiter geht's“ (kann noch zurückgenommen werden)
+        if (this.leadCtrl != null && lead.ctrl === c.ctrl && c.laps >= 2 && this.phase !== 'red') this.emit('leadChange', { ctrl: c.ctrl, driverId: c.driverId, previous: this.leadCtrl });
         this.leadCtrl = lead.ctrl;
       }
       // Rundenstand-Ansagen, wenn der Führende die Runde beginnt (jede nur einmal)
@@ -505,12 +556,62 @@
     redFlag (t, reason = 'manual') {
       if (!['green', 'lights'].includes(this.phase)) return;
       if (this.phase === 'lights' && this.goT == null && reason !== 'falseStart') { this.phase = 'ready'; this.lights = 0; this.emit('redFlag', { reason, beforeStart: true }); return; }
-      if (this.phase === 'green') this.redAt = t;
+      if (this.phase === 'green') { this.redAt = t; this.leadAtRed = this.leadCtrl; }
       for (const c of this.cars.values()) if (c.inPit) this.updatePit(c, t);
       this.phase = 'red';
       this.lights = 0;
       this.emit('redFlag', { reason });
       this.emit('change');
+    }
+
+    /** Laufende Rundenzeit eines Reglers im Moment der Roten Flagge (null: noch keine Zeitnahme) */
+    redLapMs (ctrl) {
+      const c = this.cars.get(Number(ctrl));
+      if (!c || this.phase !== 'red' || this.redAt == null || c.lastCross == null) return null;
+      return Math.max(0, this.redAt - c.lastCross - (c.pausedMs || 0));
+    }
+
+    /**
+     * Rote Flagge genau an Start/Ziel, die CU hat die Durchfahrt nicht mehr gezählt: Runde von Hand dazuzählen.
+     * Die Überquerung gilt als echt: Zeitpunkt = Rote Flagge − Startversatz (settings.manualLapStartMs, Standard 250 ms),
+     * das Auto steht also schon so weit hinter der Linie und die neue Runde läuft ab diesem Wert. Abstände werden an
+     * dieser Linie ganz normal gemessen (in Rennzeit). Die Runde gilt als unterbrochen (keine Bestzeit/Rekorde),
+     * der Tank wird normal abgezogen.
+     * Rückgängig mit undoManualLap, solange die Rote Flagge noch steht.
+     */
+    addManualLap (ctrl) {
+      const c = this.cars.get(Number(ctrl));
+      if (!c || this.phase !== 'red' || this.redAt == null || c.lastCross == null || c.manualUndo || c.status || c.finished || c.done) return false;
+      const raw = this.redLapMs(ctrl);
+      const keep = ['leaderFinished', 'leadCtrl', 'phase', 'endT'];
+      c.manualUndo = { car: structuredClone({ ...c, manualUndo: null }), session: Object.fromEntries(keep.map(k => [k, this[k]])) };
+      const off = Math.min(raw, Math.round(this.settings.manualLapStartMs ?? 250));
+      const t0 = this.redAt - off;                    // Linie überquert; im Moment der Roten Flagge schon „off“ dahinter
+      this.deferCtrl = c.ctrl;
+      try { this.countLap(c, t0, raw - off, true, { manual: true }); } finally { this.deferCtrl = null; }
+      c.interrupted = true;                           // beim Weiterfahren kommt die Pause in pausedMs dazu
+      if (this.phase === 'finished') this.flushDeferred();   // Rennen ist damit komplett vorbei: nichts mehr zurückzunehmen
+      this.emit('change');
+      return true;
+    }
+
+    undoManualLap (ctrl) {
+      const c = this.cars.get(Number(ctrl));
+      if (!c?.manualUndo || this.phase === 'green') return false;
+      const { car, session } = c.manualUndo;
+      for (const k of Object.keys(c)) delete c[k];
+      Object.assign(c, car, { manualUndo: null });
+      Object.assign(this, session);
+      this.deferred = (this.deferred || []).filter(e => e.ctrl !== c.ctrl);   // Ansagen dieser Runde verwerfen
+      this.emit('change');
+      return true;
+    }
+
+    /** Zurückgehaltene Ansagen aus „+1 Rd.“ jetzt ausgeben */
+    flushDeferred () {
+      const list = this.deferred || [];
+      this.deferred = [];
+      for (const e of list) this.emit(e.type, e.data);
     }
 
     /** Nach Roter Flagge: „Weiter geht's!“, danach volle Startampel (Quelle schickt lights/go); Training sofort */
@@ -592,6 +693,14 @@
      * Abstand zum Führenden wie bei der Zeitnahme üblich: an der letzten gemeinsamen Linie gemessen.
      * Rundenrückstand erst, wenn der Führende das Fahrzeug wirklich überrundet hat.
      */
+    /** Rennzeit eines Zeitpunkts: ohne die Unterbrechungen durch Rote Flaggen (auch die laufende) */
+    raceTime (t) {
+      let off = 0;
+      for (const [from, to] of this.pauses || []) if (from < t) off += Math.min(t, to) - from;
+      if (this.phase === 'red' && this.redAt != null && t > this.redAt) off += t - this.redAt;
+      return t - off;
+    }
+
     raceGap (c, lead) {
       if (c.status) return { gap: null, gapLaps: 0 };
       if (c.finished && lead.finished && c.laps === lead.laps) return { gap: this.totalMs(c) - this.totalMs(lead), gapLaps: 0 };
@@ -602,8 +711,13 @@
       const gapLaps = diff - (diff > 0 && lead.crossings[c.laps + 1] > mine ? 1 : 0);
       if (gapLaps) return { gap: null, gapLaps };
       const ref = lead.crossings[c.laps];
-      // Negativ nur, wenn der Führende an dieser Linie noch hinten lag (z. B. Überholen nach Boxenstopp) → 0
-      return { gap: ref == null ? null : Math.max(0, mine - ref), gapLaps: 0 };
+      // „+1 Rd.“: Der Führende hat die nächste Linie nachgezählt (echte Überquerung, Rote Flagge − Startversatz),
+      // ich noch nicht: kein Zeitrechnen, nur Rundendifferenz („+1 Rd.“, wer schon zurück lag eine mehr),
+      // bis ich selbst über die Linie komme – dann wieder echter Abstand an der Linie.
+      if (lead.crossings[c.laps + 1] != null && lead.lapTimes[c.laps]?.manual) return { gap: null, gapLaps: lead.laps - c.laps };
+      // in Rennzeit (eine Rote Flagge zwischen den Durchfahrten zählt nicht mit);
+      // negativ nur, wenn der Führende an dieser Linie noch hinten lag (z. B. Überholen nach Boxenstopp) → 0
+      return { gap: ref == null ? null : Math.max(0, this.raceTime(mine) - this.raceTime(ref)), gapLaps: 0 };
     }
 
     /**
@@ -611,7 +725,7 @@
      * Nach einem Neuladen beginnt die Uhr bei 0 – restore() verschiebt deshalb alle Zeitpunkte.
      */
     snapshot (t) {
-      const keep = ['phase', 'lights', 'goT', 'redAt', 'endT', 'lastT', 'restarts', 'redTotalMs', 'sessionBest', 'leaderFinished', 'lapsCounted', 'leadCtrl', 'calls'];
+      const keep = ['phase', 'lights', 'goT', 'redAt', 'endT', 'lastT', 'restarts', 'redTotalMs', 'pauses', 'leadAtRed', 'deferred', 'sessionBest', 'leaderFinished', 'lapsCounted', 'leadCtrl', 'calls'];
       return JSON.parse(JSON.stringify({
         v: 1, savedT: t ?? this.lastT ?? 0,
         opts: { mode: this.mode, laps: this.laps, track: this.track, settings: this.settings, records: this.records, fuel: this.fuelOn, finishCount: this.finishCount, dqOpenPenalties: this.dqOpenPenalties, fullDistance: this.fullDistance, lapFalseStart: this.lapFalseStart },
@@ -628,12 +742,14 @@
       const d = t - snap.savedT;
       const sh = x => (x == null ? x : x + d);
       s.goT = sh(s.goT); s.redAt = sh(s.redAt); s.endT = sh(s.endT); s.lastT = t;
+      s.pauses = (s.pauses || []).map(([a, b]) => [sh(a), sh(b)]);
       if (s.endT == null) delete s.endT;
       for (const c of snap.cars) {
+        if (!Array.isArray(c.carLaps)) c.carLaps = c.laps > 0 ? [{ carId: c.carId, laps: c.laps, best: c.best ?? null }] : [];   // ältere Sicherung
         Object.assign(c, { lastCross: sh(c.lastCross), finishT: sh(c.finishT), pitLastT: sh(c.pitLastT), crossings: (c.crossings || []).map(sh) });
         s.cars.set(Number(c.ctrl), c);
       }
-      s.retired = snap.retired || [];
+      s.retired = (snap.retired || []).map(c => (Array.isArray(c.carLaps) ? c : { ...c, carLaps: c.laps > 0 ? [{ carId: c.carId, laps: c.laps, best: c.best ?? null }] : [] }));
       if (live) return s;                                                    // Zuschauer-Spiegel: Stand unverändert übernehmen
       s.lights = 0;
       if (s.phase === 'green') { s.phase = 'red'; s.redAt = t; }
@@ -644,7 +760,7 @@
 
     /** Für das Ergebnis: Reihenfolge + Paarungen, so wie sie später bestätigt und gespeichert werden */
     result () {
-      return this.standings().map(s => ({ position: s.pos, driverId: s.driverId, carId: s.carId, laps: s.laps, best: s.best, total: s.total, penaltySec: s.penaltySec }));
+      return this.standings().map(s => ({ position: s.pos, driverId: s.driverId, carId: s.carId, laps: s.laps, best: s.best, total: s.total, penaltySec: s.penaltySec, carLaps: Session.carLapsOf(this.cars.get(s.ctrl)) }));
     }
   }
 

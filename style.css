@@ -766,3 +766,80 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
   .hof-tile { padding: 12px; }
   .hof-tile-title { font-size: 11px; letter-spacing: .02em; }
 }
+
+/* ---------- Schäden / Werkstatttagebuch ---------- */
+.dmg-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.dmg-chip { border: 1px solid var(--iu-grey); background: var(--iu-white); color: var(--iu-black); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; cursor: pointer; min-height: 34px; }
+.dmg-chip.active { background: var(--iu-black); color: var(--iu-white); border-color: var(--iu-black); }
+.dmg-chip-n { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; font-size: 12px; font-weight: 700; background: var(--status-warning-bg); color: var(--status-warning); }
+.dmg-chip.crit .dmg-chip-n, .dmg-chip.cat-motor .dmg-chip-n, .dmg-chip.cat-sensor .dmg-chip-n { background: var(--status-error-bg); color: var(--status-error); }
+.dmg-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; vertical-align: middle; white-space: nowrap; }
+.dmg-badge .ic { width: 13px; height: 13px; }
+.dmg-badge.warn { background: var(--status-warning-bg); color: var(--status-warning); }
+.dmg-badge.crit { background: var(--status-error-bg); color: var(--status-error); }
+.dmg-badge.locked { background: var(--status-error); color: #fff; }
+.dmg-section { margin-top: 16px; border-top: 1px solid var(--iu-grey); padding-top: 12px; }
+.dmg-section h4 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.dmg-types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+.dmg-type { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--iu-grey); border-radius: 8px; font-size: 14px; cursor: pointer; margin: 0; }
+.dmg-type input { width: auto; margin: 0; }
+.dmg-type.crit { border-color: #E8B4B0; }
+.dmg-type.is-open { opacity: .55; cursor: default; }
+.dmg-add-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dmg-add-row input[type="datetime-local"] { flex: 0 1 220px; width: auto; margin: 0; }
+.dmg-add-row input[type="text"] { flex: 1 1 180px; width: auto; margin: 0; }
+.dmg-open-item, .dmg-log-item { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 0; border-bottom: 1px solid var(--iu-light-grey); font-size: 14px; }
+.dmg-open-item .dmg-what, .dmg-log-item .dmg-what { flex: 1 1 200px; }
+.dmg-fix-form { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.dmg-fix-form input { flex: 1 1 160px; width: auto; margin: 0; }
+.dmg-fix-form input[type="datetime-local"] { flex: 0 1 220px; }
+.dmg-log-item.fixed .dmg-what { color: var(--text-muted); }
+.dmg-stats { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; margin: 4px 0 8px; }
+.dmg-empty { color: var(--text-muted); font-size: 14px; margin: 4px 0; }
+.dmg-log { max-height: 260px; overflow: auto; }
+@media (max-width: 520px) { .dmg-types { grid-template-columns: 1fr; } .dmg-filter { margin-left: 0; } }
+.dmg-badge.done { background: var(--iu-light-grey); color: var(--text-muted); }
+.dmg-type-other { grid-column: 1 / -1; flex-wrap: wrap; }
+.dmg-type-other input[type="text"] { flex: 1 1 180px; width: auto; margin: 0; padding: 6px 10px; font-size: 14px; }
+.dmg-type-other .dmg-crit-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.dmg-lock-hint { font-size: 12px; font-weight: 600; color: var(--status-error); white-space: nowrap; }
+
+/* ---------- Werkstatt (Hauptmenü) ---------- */
+.ws-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 10px; }
+.ws-tools .dmg-filter { margin-left: 0; }
+.ws-showall { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; margin: 0; cursor: pointer; }
+.ws-showall input { width: auto; margin: 0; }
+.ws-summary { font-size: 14px; margin: 0 0 10px; }
+.ws-locked { color: var(--status-error); }
+.ws-list { display: flex; flex-direction: column; gap: 8px; }
+.ws-car { border: 1px solid var(--iu-grey); border-radius: 10px; background: var(--iu-white); }
+.ws-car.is-locked { border-color: #E8B4B0; }
+.ws-car > summary { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.ws-car > summary::-webkit-details-marker { display: none; }
+.ws-img { flex: none; width: 72px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.ws-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.ws-head { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.ws-head small { flex-basis: 100%; font-size: 13px; }
+.ws-chev { flex: none; width: 10px; height: 10px; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); transform: rotate(45deg); margin: 0 6px 4px 0; transition: transform .15s; }
+.ws-car[open] .ws-chev { transform: rotate(-135deg); margin-bottom: -4px; }
+.ws-body { padding: 0 12px 12px; }
+.ws-body .dmg-section:first-child { margin-top: 0; }
+.ws-body .dmg-log { max-height: none; }
+@media (max-width: 520px) { .ws-img { width: 56px; height: 32px; } .ws-car > summary { gap: 8px; padding: 10px; } }
+
+/* Handy: alle Hauptreiter nebeneinander, Icon über dem Text (kein seitliches Scrollen) */
+@media (max-width: 600px) {
+  .nav { gap: 2px; overflow-x: visible; }
+  .nav-btn { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 1px 5px; font-size: 11.5px; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; }
+  .nav-btn .ic { margin: 0; width: 20px; height: 20px; }
+  .nav-btn.nav-live { margin: 4px 1px 6px; padding: 6px 1px 5px; }
+}
+@media (max-width: 360px) { .nav-btn { font-size: 10px; letter-spacing: -.02em; } }
+
+/* G!RP > Fahrzeuge: Bilder direkt in der Rangliste */
+.podium-car-img { display: block; height: 44px; max-width: 100%; object-fit: contain; margin: 6px auto 2px; filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+.rank-car { gap: 12px; }
+.rank-car-thumb { flex: none; width: 76px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.rank-car-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.rank-car .rank-car-txt { flex: 1; min-width: 0; }
+@media (max-width: 600px) { .rank-car-thumb { width: 58px; height: 32px; } .podium-car-img { height: 32px; } .rank-car { gap: 8px; } }

@@ -529,3 +529,233 @@ test('Nach „kein Signal“ zählt die nächste Runde nicht für Bestzeiten', (
   assert.equal(s.cars.get(1).best, null);
   assert.equal(s.cars.get(1).lapTimes[0].interrupted, true);
 });
+
+test('Autotausch mitten im Training: Runden-Segmente je Fahrzeug, auch über Zurücksetzen hinweg', () => {
+  const s = new RaceEngine.Session({ mode: 'practice', entries, track });
+  s.start(0);
+  lap(s, 1, 1000); lap(s, 1, 8000); lap(s, 1, 15000);          // 2 Runden mit Auto 20
+  s.changeCar(1, 30);
+  lap(s, 1, 22000); lap(s, 1, 28500); lap(s, 1, 35000);          // 3 Runden mit Auto 30 (erste unterbrochen)
+  s.reset(36000);                                                // Anzeige auf 0, Segmente bleiben
+  lap(s, 1, 37000); lap(s, 1, 44000);                            // +1 Runde Auto 30
+  s.changeCar(1, 20);
+  lap(s, 1, 51000);                                              // +1 Runde Auto 20
+  const c = s.cars.get(1);
+  assert.equal(c.laps, 2, 'Anzeige seit dem Zurücksetzen');
+  assert.deepEqual(JSON.parse(JSON.stringify(c.carLaps.map(x => [x.carId, x.laps]))), [[20, 2], [30, 4], [20, 1]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(RaceEngine.Session.carLapsOf(c).map(x => [x.carId, x.laps]))), [[20, 3], [30, 4]]);
+  assert.equal(RaceEngine.Session.carLapsOf(c).find(x => x.carId === 30).best, 6500, 'Bestzeit gehört dem Auto, mit dem sie gefahren wurde');
+  assert.equal(c.pairBests[30], 6500);
+  assert.equal(c.pairBests[20], 7000);
+  assert.ok(s.records.some(r => r.carId === 30 && r.ms === 6500 && r.driverId === 10));
+  lap(s, 2, 1000); lap(s, 2, 8000);
+  assert.deepEqual({ ...s.carLapTotals() }, { 20: 3, 21: 1, 30: 4 });
+});
+
+test('Autotausch bei Roter Flagge im Rennen: Ergebnis fahrerbezogen, Runden je Auto, Sicherung behält Segmente', () => {
+  const { s } = race(4);
+  lap(s, 1, 6500); lap(s, 2, 6600);
+  lap(s, 1, 13500); lap(s, 2, 13700);                            // je 1 Runde
+  s.redFlag(14000);
+  assert.equal(s.changeCar(1, 30), true);
+  // Absturz + Fortsetzen: Segmente müssen mit
+  const r = RaceEngine.Session.restore(JSON.parse(JSON.stringify(s.snapshot(15000))), 100);
+  assert.deepEqual(JSON.parse(JSON.stringify(r.cars.get(1).carLaps.map(x => [x.carId, x.laps]))), [[20, 1]]);
+  r.resume(110);
+  for (let i = 1; i <= 5; i++) r.handle({ type: 'lights', step: i, t: 110 + i * 100 });
+  r.handle({ type: 'go', t: 800 });
+  for (const [t1, t2] of [[7000, 7200], [14000, 14300], [21000, 21400]]) { lap(r, 1, t1); lap(r, 2, t2); }   // Regler 1 mit Auto 30 ins Ziel (4 Runden)
+  assert.equal(r.phase, 'finished');
+  const res = r.result();
+  assert.equal(res[0].driverId, 10);
+  assert.equal(res[0].carId, 30, 'gewertet wird das Auto im Ziel');
+  assert.equal(res[0].laps, 4);
+  assert.deepEqual(JSON.parse(JSON.stringify(res[0].carLaps.map(x => [x.carId, x.laps]))), [[20, 1], [30, 3]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(res[1].carLaps.map(x => [x.carId, x.laps]))), [[21, 4]]);
+});
+
+test('Alte Sicherung ohne Segmente: alle Runden dem aktuellen Auto', () => {
+  const { s } = race(5);
+  lap(s, 1, 6500); lap(s, 1, 13500); lap(s, 1, 20500);
+  const snap = JSON.parse(JSON.stringify(s.snapshot(21000)));
+  snap.cars.forEach(c => delete c.carLaps);
+  const r = RaceEngine.Session.restore(snap, 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(RaceEngine.Session.carLapsOf(r.cars.get(1)).map(x => [x.carId, x.laps]))), [[20, 2]]);
+});
+
+test('Rote Flagge: „+1 Rd.“ zählt die Runde nach, neue Runde beginnt beim Startversatz', () => {
+  const { s, events } = race(10, { settings: { manualLapStartMs: 250 } });
+  lap(s, 1, 6500); lap(s, 2, 6700);
+  lap(s, 1, 13500); lap(s, 2, 13700);
+  s.redFlag(20480, 'buzzer');                                   // Regler 1 genau an der Linie (7,0 s Runde)
+  assert.equal(s.redLapMs(1), 6980);
+  assert.equal(s.redLapMs(2), 6780);
+  const fuelBefore = s.cars.get(1).fuel;
+  assert.equal(s.addManualLap(1), true);
+  const c = s.cars.get(1);
+  assert.equal(c.laps, 2);
+  assert.equal(c.last, 6730, 'Runde endet 0,25 s vor der Roten Flagge');
+  assert.equal(c.crossings[2], 20230);
+  assert.equal(c.lapTimes.at(-1).interrupted, true, 'zählt nicht für Bestzeiten');
+  assert.equal(c.lapTimes.at(-1).manual, true);
+  assert.equal(c.best, 7000, 'Bestzeit unverändert');
+  assert.ok(c.fuel < fuelBefore, 'Tank normal abgezogen');
+  assert.equal(s.addManualLap(1), false, 'nur einmal je Rote Flagge');
+  assert.equal(s.redLapMs(1), 250, 'Anzeige: neue Runde steht beim Startversatz');
+  assert.ok(events.some(([t, d]) => t === 'lap' && d.manual));
+  // Weiter: Startampel, die neue Runde läuft ab 0,25 s
+  s.resume(30000);
+  for (let i = 1; i <= 5; i++) s.handle({ type: 'lights', step: i, t: 30000 + i * 1000 });
+  s.handle({ type: 'go', t: 36000 });
+  assert.equal(c.manualUndo, null, 'nach dem Start nicht mehr rückgängig');
+  lap(s, 1, 42750);                                             // 6,75 s nach Grün + 0,25 s = 7,0 s
+  assert.equal(c.laps, 3);
+  assert.equal(c.last, 7000);
+  assert.equal(s.standings()[0].ctrl, 1);
+});
+
+test('Rote Flagge: „+1 Rd.“ rückgängig, Zielrunde zählt als Sieg', () => {
+  const { s, types } = race(2);
+  lap(s, 1, 6500); lap(s, 2, 6700);
+  lap(s, 1, 13500); lap(s, 2, 13600);
+  s.redFlag(20400);
+  const before = JSON.stringify({ ...s.cars.get(2), manualUndo: null });
+  assert.ok(s.addManualLap(2));
+  assert.equal(s.cars.get(2).laps, 2);
+  assert.equal(s.leaderFinished, true, 'Zielrunde: Fahrer 2 gewinnt');
+  assert.ok(!types().includes('win'), 'Sieg-Ansage erst nach dem Neustart');
+  assert.equal(s.standings()[0].ctrl, 2);
+  assert.ok(s.undoManualLap(2));
+  assert.equal(s.cars.get(2).laps, 1);
+  assert.equal(s.leaderFinished, false);
+  assert.equal(JSON.stringify(s.cars.get(2)), before, 'Fahrer wieder wie vorher');
+  assert.equal(s.phase, 'red');
+  assert.equal(s.undoManualLap(2), false);
+});
+
+test('„+1 Rd.“: echte Überquerung (Rote Flagge − 250 ms), Abstand erst gemessen, wenn der Fahrer selbst drüber ist', () => {
+  const entries3 = [{ ctrl: 1, driverId: 10, carId: 20 }, { ctrl: 2, driverId: 11, carId: 21 }, { ctrl: 3, driverId: 12, carId: 22 }];
+  const { s } = race(20, { entries: entries3 });
+  lap(s, 1, 6500); lap(s, 2, 6600); lap(s, 3, 6700);
+  lap(s, 1, 13500); lap(s, 2, 13700); lap(s, 3, 14000);        // Rd. 1
+  lap(s, 1, 20500); lap(s, 2, 20800); lap(s, 3, 21300);        // Rd. 2: Abstände 0,3 / 0,8
+  s.redFlag(27450);                                             // 1 bei 6,95 s, 2 bei 6,65 s, 3 bei 6,15 s
+  let st = s.standings();
+  assert.equal(st[1].gap, 300); assert.equal(st[2].gap, 800);
+  // Führender bekommt +1: die anderen haben diese Linie noch nicht überquert → Rundendifferenz „+1 Rd.“
+  assert.ok(s.addManualLap(1));
+  st = s.standings();
+  assert.deepEqual([...st.map(x => x.ctrl)], [1, 2, 3]);
+  assert.equal(st[1].gap, null); assert.equal(st[1].gapLaps, 1);
+  assert.equal(st[2].gap, null); assert.equal(st[2].gapLaps, 1);
+  assert.ok(s.undoManualLap(1));
+  // Zweiter bekommt +1 und übernimmt die Führung: kein +0,000 für den bisherigen Führenden
+  assert.ok(s.addManualLap(2));
+  st = s.standings();
+  assert.deepEqual([...st.map(x => x.ctrl)], [2, 1, 3]);
+  assert.equal(st[1].gapLaps, 1, 'statt +0,000');
+  assert.equal(st[2].gapLaps, 1);
+  assert.ok(s.undoManualLap(2));
+  // Dritter mit +1: Überquerung 27450 − 250 = 27200
+  assert.ok(s.addManualLap(3));
+  assert.equal(s.cars.get(3).crossings[3], 27200);
+  st = s.standings();
+  assert.deepEqual([...st.map(x => x.ctrl)], [3, 1, 2]);
+  assert.equal(st[1].gapLaps, 1); assert.equal(st[2].gapLaps, 1);
+  // Neustart nach langer Pause: Abstand in Rennzeit, die Pause zählt nicht mit
+  s.resume(30000);
+  for (let i = 1; i <= 5; i++) s.handle({ type: 'lights', step: i, t: 80000 + i * 1000 });
+  s.handle({ type: 'go', t: 87450 });
+  lap(s, 1, 87950);                                             // 1 kommt 0,5 s nach Grün über die Linie
+  st = s.standings();
+  const one = st.find(x => x.ctrl === 1);
+  assert.equal(one.gap, 750, '0,5 s nach Grün + die 0,25 s, die 3 schon hinter der Linie stand');
+  assert.equal(st.find(x => x.ctrl === 2).gapLaps, 1, '2 noch nicht über der Linie');
+});
+
+test('„+1 Rd.“ des Führenden: wer schon eine Runde zurück war, zeigt „+2 Rd.“', () => {
+  const { s } = race(20);
+  lap(s, 1, 6500); lap(s, 2, 6600);
+  lap(s, 1, 13500); lap(s, 1, 20500); lap(s, 2, 20800);        // 2 eine Runde zurück (Rd. 2 vs. 1)
+  s.redFlag(27400);
+  assert.equal(s.standings()[1].gapLaps, 1);
+  assert.ok(s.addManualLap(1));
+  assert.equal(s.standings()[1].gapLaps, 2);
+});
+
+test('„+1 Rd.“ mit Führungswechsel: sofort neu sortiert, Ansage erst nach dem Neustart, Führungsrunden', () => {
+  const { s, events } = race(20);
+  const lead = () => events.filter(e => e[0] === 'leadChange').length;
+  lap(s, 1, 6500); lap(s, 2, 6600); lap(s, 1, 13500); lap(s, 2, 13700); lap(s, 1, 20500); lap(s, 2, 20700);
+  s.redFlag(27600);
+  const before = lead();
+  assert.ok(s.addManualLap(2));
+  assert.equal(s.standings()[0].ctrl, 2, 'sofort vorn');
+  assert.equal(s.standings()[1].gapLaps, 1);
+  assert.equal(lead(), before, 'keine Ansage während der Roten Flagge');
+  assert.ok(s.undoManualLap(2));
+  assert.equal(s.standings()[0].ctrl, 1);
+  assert.ok(s.addManualLap(2));
+  s.resume(30000);
+  for (let i = 1; i <= 5; i++) s.handle({ type: 'lights', step: i, t: 30000 + i * 1000 });
+  s.handle({ type: 'go', t: 36000 });
+  assert.equal(lead(), before + 1, 'Führungswechsel nach dem Neustart angesagt');
+  assert.equal(events.filter(e => e[0] === 'leadChange').at(-1)[1].ctrl, 2);
+  lap(s, 1, 36400); lap(s, 2, 43100);
+  assert.equal(s.stats().leadLaps[2], 2, 'Linien 3 (nachgezählt) und 4 hat Fahrer 2 zuerst überquert');
+  assert.equal(s.stats().leadLaps[1], 2);
+});
+
+test('„+1 Rd.“ ohne Führungswechsel bzw. zurückgenommen: keine Ansage', () => {
+  const { s, events } = race(20);
+  lap(s, 1, 6500); lap(s, 2, 6600); lap(s, 1, 13500); lap(s, 2, 13700);
+  s.redFlag(20400);
+  const n = events.filter(e => e[0] === 'leadChange').length;
+  assert.ok(s.addManualLap(2)); assert.ok(s.undoManualLap(2));
+  s.resume(30000);
+  for (let i = 1; i <= 5; i++) s.handle({ type: 'lights', step: i, t: 30000 + i * 1000 });
+  s.handle({ type: 'go', t: 36000 });
+  assert.equal(events.filter(e => e[0] === 'leadChange').length, n);
+});
+
+test('„+1 Rd.“ entscheidet das Rennen: Sieg-Ansage erst nach dem Neustart, bei „−1“ gar nicht', () => {
+  const { s, types } = race(3, { entries: [...entries, { ctrl: 3, driverId: 12, carId: 22 }] });
+  lap(s, 1, 6500); lap(s, 2, 6600); lap(s, 3, 6700);
+  lap(s, 1, 13500); lap(s, 2, 13600); lap(s, 3, 13800);
+  lap(s, 1, 20500); lap(s, 2, 20600); lap(s, 3, 20900);
+  s.redFlag(27400);                                             // 1 genau an der Ziellinie (Runde 3)
+  const n = types().filter(t => t === 'win').length;
+  assert.ok(s.addManualLap(1));
+  assert.equal(s.leaderFinished, true);
+  assert.equal(s.cars.get(1).finished, true);
+  assert.equal(types().filter(t => t === 'win').length, n, 'noch keine Ansage');
+  assert.ok(s.undoManualLap(1));
+  assert.equal(s.leaderFinished, false);
+  assert.ok(s.addManualLap(1));
+  s.resume(30000);
+  for (let i = 1; i <= 5; i++) s.handle({ type: 'lights', step: i, t: 30000 + i * 1000 });
+  s.handle({ type: 'go', t: 36000 });
+  assert.equal(types().filter(t => t === 'win').length, n + 1, 'genau einmal, nach dem Neustart');
+  lap(s, 2, 36300);                                             // 2 und 3 kommen nach dem Neustart ins Ziel
+  lap(s, 3, 36800);
+  assert.equal(s.phase, 'finished');
+  assert.deepEqual([...s.standings().map(x => x.ctrl)], [1, 2, 3]);
+});
+
+test('„+1 Rd.“ ins Ziel mit offener Strafe: gleiche Regel wie bei echter Überquerung (DQ bei Haken)', () => {
+  const { s } = race(3, { dqOpenPenalties: true });
+  lap(s, 1, 6500); lap(s, 2, 6600);
+  lap(s, 1, 13500); lap(s, 2, 13600);
+  lap(s, 1, 20500); lap(s, 2, 20600);
+  s.addPenalty(1, 5);                                           // offen, nicht abgesessen
+  s.redFlag(27400);
+  assert.ok(s.addManualLap(1));                                 // Ziel per +1 mit offener Strafe
+  s.resume(30000);
+  for (let i = 1; i <= 5; i++) s.handle({ type: 'lights', step: i, t: 30000 + i * 1000 });
+  s.handle({ type: 'go', t: 36000 });
+  lap(s, 2, 36300);
+  assert.equal(s.phase, 'finished');
+  assert.equal(s.cars.get(1).status, 'dq');
+  assert.equal(s.cars.get(1).dqReason, 'offene Strafe');
+  assert.equal(s.standings()[0].ctrl, 2);
+});

@@ -35,6 +35,7 @@
     pitCallFuelPct: 20,         // „[Fahrer] muss an die Box“ ab diesem Tankstand
     emptyTankSpeed: 4,          // CU-Tempostufe (0–15), solange der Tank leer ist
     pitDriveMs: 2000,           // Fahrzeit vom Losfahren in der Box bis zum nächsten Sensor: wird beim Rausfahren von Tanken/Strafe wieder abgezogen
+    manualLapStartMs: 250,      // Rote Flagge „+1 Rd.“: mit dieser Zeit (ms) beginnt die neue Runde nach „Weiter geht's“
     noSignalSec: 20,            // Rennen: Warnung, wenn von einem Fahrzeug so lange keine Durchfahrt kam (0 = aus)
     fuelSpeedFactor: 1,         // 0 = Verbrauch unabhängig vom Tempo, 1 = proportional zum Tempo
     baseK: 32,                  // G!RP: maximaler K-Faktor (volles Feld, lange Distanz); gilt nur für neu gespeicherte Rennen
@@ -66,6 +67,8 @@
       emptyTankSpeed:       clampLevel(num(d.emptyTankSpeed, RACE_DEFAULTS.emptyTankSpeed)),
       pitDriveMs:           Math.max(0, Math.min(30000, Math.round(num(d.pitDriveMs, RACE_DEFAULTS.pitDriveMs)))),
       noSignalSec:          Math.max(0, Math.min(300, Math.round(num(d.noSignalSec, RACE_DEFAULTS.noSignalSec)))),
+      // früher kurz in Sekunden gespeichert (manualLapStartSec) → in ms übernehmen
+      manualLapStartMs:     Math.max(0, Math.min(10000, Math.round(num(d.manualLapStartMs, d.manualLapStartSec != null ? num(d.manualLapStartSec, 0.25) * 1000 : RACE_DEFAULTS.manualLapStartMs)))),
       baseK:                Math.max(1, Math.min(200, Math.round(num(d.baseK, RACE_DEFAULTS.baseK)))),
       voice:                ['ingrid', 'leni'].includes(d.voice) ? d.voice : RACE_DEFAULTS.voice
     };
@@ -145,11 +148,28 @@
     return { fuelPct, lapsPerTank: 100 / per, stops, refuelSec: refill / s.refuelPctPerSec };
   }
 
+  /**
+   * Rennrunden eines Fahrzeugs in einem gespeicherten Rennen, oder null, wenn es dort nicht gefahren ist.
+   * results[i].carLaps = [{ carId, laps }] gibt es nur, wenn ein Fahrer im Rennen das Auto getauscht hat –
+   * dann zählen die Runden je Fahrzeug. Sonst (und bei alten Rennen) bekommt das gewertete Auto die Renndistanz (rounds).
+   */
+  function raceCarLaps (race, carId) {
+    const same = x => x != null && String(x) === String(carId);
+    let laps = 0, hit = false;
+    for (const res of race?.results || []) {
+      if (Array.isArray(res.carLaps) && res.carLaps.length) {
+        for (const s of res.carLaps) if (same(s.carId)) { laps += s.laps || 0; hit = true; }
+      } else if (same(res.carId)) { laps += race.rounds || 0; hit = true; }
+    }
+    return hit ? laps : null;
+  }
+
   /** Runden und Rennen eines Fahrzeugs über alle Saisons (aus den gewerteten Rennen + Training) */
   function carTotals (carId, races = [], car = {}) {
     let racesCount = 0, laps = 0;
     for (const r of races) {
-      if ((r.results || []).some(res => res.carId === carId)) { racesCount++; laps += r.rounds || 0; }
+      const n = raceCarLaps(r, carId);
+      if (n != null) { racesCount++; laps += n; }
     }
     return { races: racesCount, raceLaps: laps, practiceLaps: car.practiceLaps || 0, laps: laps + (car.practiceLaps || 0) };
   }
@@ -164,7 +184,7 @@
   window.MasterData = {
     CONTROLLERS, controller, MAX_LEVEL, clampLevel, levelToPct,
     RACE_DEFAULTS, TRACK_DEFAULTS, raceSettings, trackSetup,
-    fuelPerLap, lapsPerTank, raceFuelPlan, isValidLap, suggestControllers, carTotals,
+    fuelPerLap, lapsPerTank, raceFuelPlan, isValidLap, suggestControllers, carTotals, raceCarLaps,
     parseLapTime, formatLapTime
   };
 })();

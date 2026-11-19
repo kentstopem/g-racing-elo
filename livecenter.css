@@ -306,14 +306,24 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 }
 @media (max-width: 820px) {
   .lc-setup-grid { grid-template-columns: 1fr; }
-  .lc-head-row, .lc-row { grid-template-columns: 9% 13% minmax(0, 1fr) 8% 17% 15% 10%; }
-  .is-race .lc-head-row, .is-race .lc-row { grid-template-columns: 8% 11% minmax(0, 1fr) 7% 13% 12% 11% 9%; }
+  /* „Beste“ ausgeblendet: eine Spalte je sichtbarer Zelle (sonst bricht der Status in eine 2. Grid-Zeile um
+     und die Zeile wird höher als die Reglerfarbe) */
+  .lc-head-row, .lc-row { grid-template-columns: 8% 12% minmax(0, 1fr) 9% 16% 13% 12% 8%; }
+  .is-race .lc-head-row, .is-race .lc-row { grid-template-columns: 7% 10% minmax(0, 1fr) 7% 13% 11% 11% 9% 8%; }
+  .lc-row .lc-laps, .lc-head-row span:nth-child(4) { padding-left: 10px; }
   .lc-clocks .lc-clock:last-child { display: none; }
   .lc-pen-row { flex-wrap: wrap; }
   .lc-head-row span:nth-child(6), .lc-row .lc-best { display: none; }
   .lc-trackrec, .lc-brand { display: none; }
   .lc-sim { max-width: calc(100% - 40px); bottom: 64px; }
   .lc-menu { left: 20px; right: 20px; width: auto; bottom: 64px; }
+}
+/* iPhone hochkant: Abstände der Zahlen kleiner, Überschriften kompakter */
+@media (max-width: 560px) {
+  .lc-head-row { padding: 6px 12px; font-size: 10px; letter-spacing: 0; }
+  .lc-board { padding: 0 12px 8px; }
+  .lc-num, .lc-head-row span:nth-child(n+4) { padding-right: 6px; }
+  .lc-head-row span:nth-child(n+8) { padding-right: 0; }
 }
 
 /* Rekorde: was genau ist neu */
@@ -496,3 +506,53 @@ html.lc-open .modal { z-index: 6000; }
   .lc-tune-row .lc-step-btn { width: 52px; }
 }
 .lc-res-tune { margin: 12px 0 4px; padding: 12px 14px; border-radius: 12px; background: var(--lc-panel); border: 1px solid var(--lc-line); }
+
+/* Schaden melden (Werkstatttagebuch) */
+.lc-dmg { width: 420px; max-height: calc(100% - 150px); overflow: auto; }
+.lc-dmg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+.lc-dmg-grid .lc-btn { font-size: 18px; min-height: 52px; }
+.lc-dmg-type.light { border-color: #FFC94D; }
+.lc-dmg-type.crit { border-color: var(--lc-red); }
+.lc-dmg-type.on.light { background: #FFC94D; color: #1D1D1F; }
+.lc-dmg-type.on.crit { background: var(--lc-red); color: #fff; }
+.lc-dmg-type:disabled { opacity: .45; }
+.lc-dmg-note { width: 100%; margin: 6px 0 10px; box-sizing: border-box; }
+.lc-dmg-sug { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 72px; margin: 4px 0 10px; padding: 8px 14px; text-align: left; }
+.lc-dmg-sug img { height: 48px; width: 96px; object-fit: contain; flex: none; }
+.lc-dmg-sug span { display: flex; flex-direction: column; min-width: 0; }
+.lc-dmg-sug b { font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-dmg-sug small { font-size: 15px; font-weight: 600; opacity: .75; }
+.lc-dmg-crit { color: var(--lc-red); }
+.lc-dmg-btn { border-color: #FFC94D; }
+@media (max-width: 700px) { .lc-dmg { width: auto; } }
+.lc-dmg-crit-tgl { font-size: 18px; min-height: 52px; }
+.lc-dmg-crit-tgl.on { background: var(--lc-red); border-color: var(--lc-red); color: #fff; }
+
+/* Ticker: Warnung (z. B. Licht-Schaden) gelb */
+.lc-tick.warn { color: #FFC94D; }
+.lc-tick.warn:first-child { background: #FFC94D; color: #2B2000; }
+
+
+/* Kopfzeile: Ton und Live-Übertragung nur als Icon */
+.lc-btn.lc-ico { width: 48px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.lc-btn.lc-ico .ic { width: 24px; height: 24px; margin: 0; }
+.lc-btn.lc-ico.off { color: var(--lc-muted); }
+.lc-btn.lc-cast.on { background: var(--lc-red); border-color: var(--lc-red); color: #fff; }
+.lc-dmg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255, 201, 77, .14); }
+.lc-dmg-btn .ic { width: 22px; height: 22px; margin: 0; color: #FFC94D; }
+
+/* Rote Flagge: laufende Rundenzeit beim Abbruch + „+1 Rd.“ */
+.lc-pen-lap { flex: none; min-width: 64px; text-align: right; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lc-pen-lap.manual { color: #FFE27A; }
+.lc-pen-plus { flex: none; min-height: 52px; padding: 0 10px; font-size: 16px; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.35); color: #fff; }
+.lc-pen-plus.on { background: #FFE27A; border-color: #FFE27A; color: #2B2000; }
+
+/* iPhone hochkant, Rennen: Tank als zweite Zeile unter den Zeiten (breiter) */
+@media (max-width: 560px) {
+  .is-race .lc-row { grid-template-columns: 7% 11% minmax(0, 1fr) 8% 15% 14% 11% 9%; grid-template-rows: minmax(0, 1fr) auto; }
+  .is-race .lc-head-row { grid-template-columns: 7% 11% minmax(0, 1fr) 8% 15% 14% 11% 9%; }
+  .is-race .lc-head-row span:nth-child(8) { display: none; }
+  .is-race .lc-row .lc-pos, .is-race .lc-row .lc-car, .is-race .lc-row .lc-who { grid-row: span 2; }
+  .is-race .lc-row .lc-fuelcell { grid-row: 2; grid-column: 4 / -1; padding: 0 10px 10px; }
+}
+@media (max-width: 560px) { .is-race .lc-row .lc-fuelcell .lc-fuel { height: 24px; } }

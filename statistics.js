@@ -27,7 +27,11 @@
            const cObj=statsMap.car[cId]||(statsMap.car[cId]={id:cId,races:0,wins:0,rounds:0,elo:0});
            dObj.races++;cObj.races++;
            if(res.position===1){dObj.wins++;cObj.wins++;}
-           dObj.rounds+=r.rounds;cObj.rounds+=r.rounds;
+           dObj.rounds+=r.rounds;
+           // Fahrzeug-Runden: nach Autotausch je Fahrzeug (carLaps), sonst die Renndistanz für das gewertete Auto
+           if(Array.isArray(res.carLaps)&&res.carLaps.length){
+             res.carLaps.forEach(sg=>{const o=statsMap.car[sg.carId]||(statsMap.car[sg.carId]={id:sg.carId,races:0,wins:0,rounds:0,elo:0});o.rounds+=sg.laps||0;});
+           }else cObj.rounds+=r.rounds;
            // track dates
            const dt=r.date;
            if(dt){

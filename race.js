@@ -353,7 +353,8 @@
 
   /**
    * Für das Livecenter: Ergebnis direkt speichern, ohne Formular.
-   * entries: [{ position, driverId, carId }], date: 'YYYY-MM-DD', time: 'HH:MM'
+   * entries: [{ position, driverId, carId, carLaps? }], date: 'YYYY-MM-DD', time: 'HH:MM'
+   * carLaps: [{ carId, laps }] Runden je Fahrzeug, wenn der Fahrer das Auto getauscht hat (→ results[i].carLaps)
    */
   function saveRaceResult({ date, time, rounds, entries }){
     const results=[];
@@ -361,7 +362,11 @@
       const driver=window.appData.drivers.find(d=>String(d.id)===String(e.driverId));
       const car   =window.appData.cars.find(c=>String(c.id)===String(e.carId));
       if(!(driver&&car)) return { error:'Fahrer oder Fahrzeug nicht gefunden' };
-      results.push({ position:e.position, driverId:driver.id, carId:car.id, driverName:driver.name, carName:car.name, oldDriverElo:driver.elo, oldCarElo:car.elo });
+      const res={ position:e.position, driverId:driver.id, carId:car.id, driverName:driver.name, carName:car.name, oldDriverElo:driver.elo, oldCarElo:car.elo };
+      // Autotausch während des Rennens: Runden je Fahrzeug (nur dann – sonst zählt wie bisher die Renndistanz fürs gewertete Auto)
+      const segs=(e.carLaps||[]).filter(s=>s&&s.carId!=null&&s.laps>0).map(s=>({ carId:s.carId, laps:s.laps }));
+      if(segs.length>1||(segs.length===1&&String(segs[0].carId)!==String(car.id))) res.carLaps=segs;
+      results.push(res);
     }
     if(results.length<2) return { error:'Mindestens 2 Teilnehmer erforderlich' };
     const race={ id:Date.now(), date:new Date(date).toLocaleDateString('de-DE'), time, rounds, baseK:currentBaseK(), results };
@@ -464,7 +469,8 @@
     prevSelectedDrivers=[...selectedDrivers];
     // Build car checklist (alphabetisch, nur aktive)
     carListDiv.classList.remove('hidden');
-    carListDiv.innerHTML=[...window.appData.cars].filter(c=>window.Elo.isActive(c))
+    // nur aktive und nicht wegen Schaden gesperrte (offener Motor-/Sensorschaden) – davon ziehen auch Glücksrad, Slotmachine, Memorykarten und Zufall
+    carListDiv.innerHTML=[...window.appData.cars].filter(c=>window.Elo.isActive(c)&&!window.Damage?.isLocked(c))
       .sort((a,b)=>a.name.localeCompare(b.name))
       .map(c=>`<label class='pick-row'><input type='checkbox' value='${c.id}'><span class='pick-check' aria-hidden='true'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></span><span class='pick-name'>${esc(c.name)}</span></label>`)
       .join('');

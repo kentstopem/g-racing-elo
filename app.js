@@ -196,7 +196,7 @@ function renderDetails(){
                (currentEntityType==='car'&&entry.carId==currentEntityId)){
                  stats.races++;
                  if(entry.position===1) stats.wins++;
-                 stats.rounds+=r.rounds||0;
+                 if(currentEntityType==='driver') stats.rounds+=r.rounds||0;
                  if(r.date) stats.dates.push(r.date);
             }
         });
@@ -211,10 +211,14 @@ function renderDetails(){
         }
         return a.localeCompare(b);
     });
+    // Fahrzeug: Runden je Auto (nach Autotausch aus carLaps, sonst Renndistanz) – auch Rennen, in denen es nur zeitweise fuhr
+    if(currentEntityType==='car') stats.rounds=races.reduce((n,r)=>n+(window.MasterData.raceCarLaps(r,currentEntityId)||0),0);
     const firstDate=stats.dates[0]||'-';
     // Runden gesamt: gewertete Rennen aller Saisons + Training/Quali/nicht gewertete Rennen (practiceLaps)
     const isMine=e=>currentEntityType==='driver'?e.driverId==currentEntityId:e.carId==currentEntityId;
-    const allRaceLaps=(appData.allRaces||appData.races||[]).reduce((n,r)=>n+((r.results||[]).some(isMine)?(r.rounds||0):0),0);
+    const allRaceLaps=(appData.allRaces||appData.races||[]).reduce((n,r)=>n+(currentEntityType==='car'
+        ? (window.MasterData.raceCarLaps(r,currentEntityId)||0)
+        : ((r.results||[]).some(isMine)?(r.rounds||0):0)),0);
     const entity=(currentEntityType==='driver'?appData.drivers:appData.cars).find(x=>x.id==currentEntityId);
     const totalLaps=allRaceLaps+(entity?.practiceLaps||0);
     const S=window.Seasons, sel=S?.selectedSeason?.();
@@ -254,12 +258,24 @@ function renderDetails(){
             }
         }
     }
+    // Werkstatttagebuch (nur Fahrzeuge): Reparaturen, Runden seit letzter Reparatur, Schäden pro 100 Runden
+    let dmgHTML='';
+    if(currentEntityType==='car'&&entity&&window.Damage){
+        const D=window.Damage;
+        const st=D.stats(entity,{totalLaps,races:appData.allRaces||appData.races||[],tsForRace});
+        const open=D.openDamages(entity);
+        dmgHTML=`<li>Reparaturen: <strong>${st.repairs}</strong></li>
+        <li>Runden seit letzter Reparatur: <strong>${st.lapsSinceRepair??'–'}</strong></li>
+        <li>Schäden pro 100 Runden: <strong>${st.per100Laps==null?'–':String(+st.per100Laps.toFixed(1)).replace('.',',')}</strong></li>
+        ${open.length?`<li>Offene Schäden: ${open.map(d=>`<span class="dmg-badge ${d.critical?'crit':'warn'}">${escapeHtml(D.entryLabel(d))}</span>`).join(' ')}${D.isLocked(entity)?' <span class="dmg-badge crit locked">gesperrt</span>':''}</li>`:''}`;
+    }
     const listHTML=`<ul style="list-style:none;padding-left:0;font-size:14px;line-height:1.6;">
         <li>Rennen: <strong>${stats.races}</strong></li>
         <li>Siege: <strong>${stats.wins}</strong></li>
         <li>Siegquote: <strong>${stats.races?((stats.wins/stats.races*100).toFixed(1)):0}%</strong></li>
         <li>Rennrunden ${seasonTxt}: <strong>${stats.rounds}</strong></li>
         <li>Runden insgesamt (alle Saisons, mit Training und Quali): <strong>${totalLaps}</strong></li>
+        ${dmgHTML}
         <li>${bestLine}</li>
         <li>Erstes Rennen: <strong>${firstDate}</strong></li>
         <li>Letztes Rennen: <strong>${lastDate}</strong></li>
@@ -364,6 +380,7 @@ function refreshViews(info = {}) {
     RaceUI.refreshPredictions?.();
     if (currentSection === 'stats') window.StatsUI?.reload();
     if (currentSection === 'halloffame') window.HallOfFame?.render(document.getElementById('halloffame'), rawState);
+    if (currentSection === 'workshop' && (!info.collection || ['cars', 'races'].includes(info.collection))) window.WorkshopUI?.render();
     if (currentSection === 'records' && info.collection === 'lapRecords') window.RecordsUI?.reload();
     if (currentSection === 'seasons' && ['seasons', 'tracks', 'races'].includes(info.collection)) window.SeasonsUI?.render();
     if (currentSection === 'setup' && ['seasons', 'tracks', 'settings'].includes(info.collection)) window.SetupUI?.render();
@@ -476,6 +493,8 @@ function showSection(sectionName) {
         window.SetupUI?.render();
     } else if (sectionName === 'halloffame') {
         window.HallOfFame?.render(document.getElementById('halloffame'), rawState);
+    } else if (sectionName === 'workshop') {
+        window.WorkshopUI?.render();
     } else if (sectionName === 'stats') {
         window.StatsUI?.reload();
     } else if (sectionName==='records'){
@@ -695,6 +714,7 @@ function toggleArchiveCar(id) {
     RaceUI.updateForm();
 }
 
+let carDamageFilter = 'all';   // Setup → Fahrzeuge: Schadens-Filter
 function updateCarsList() {
     const list = document.getElementById('carsList');
     if (!list) return;
@@ -706,11 +726,51 @@ function updateCarsList() {
     }
 
     const setup = !!window.SetupUI?.enabled();
-    const sortedCars=[...appData.cars].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
+    const D = window.Damage;
+    // Schadens-Filter (nur im Setup): Alle / Licht / Motor / Sensor – zeigt Fahrzeuge mit offenen Schäden dieser Kategorie
+    const tools = document.getElementById('carTools');
+    if (setup && D && tools && !tools.querySelector('.dmg-filter')) {
+        tools.insertAdjacentHTML('beforeend', `<div class="dmg-filter" role="group" aria-label="Schäden filtern">
+            ${[['all', 'Alle'], ...Object.values(D.CATEGORIES).map(c => [c.key, c.label])].map(([k, l]) => `<button type="button" class="dmg-chip${k === 'all' ? '' : ' cat-' + k}" data-dmgcat="${k}">${l}</button>`).join('')}
+        </div>`);
+        tools.querySelector('.dmg-filter').addEventListener('click', e => {
+            const b = e.target.closest('[data-dmgcat]'); if (!b) return;
+            carDamageFilter = b.dataset.dmgcat; updateCarsList();
+        });
+    }
+    tools?.querySelectorAll('[data-dmgcat]').forEach(b => {
+        const k = b.dataset.dmgcat;
+        const n = k === 'all' ? 0 : appData.cars.filter(c => D.openDamages(c).some(d => d.category === k)).length;
+        b.classList.toggle('active', k === carDamageFilter);
+        b.classList.toggle('crit', k !== 'all' && appData.cars.some(c => D.openDamages(c).some(d => d.category === k && d.critical)));
+        b.innerHTML = `${escapeHtml(k === 'all' ? 'Alle' : D.categoryLabel(k))}${n ? ` <span class="dmg-chip-n">${n}</span>` : ''}`;
+    });
+    const filt = setup && D ? carDamageFilter : 'all';
+    const shownCars = filt === 'all' ? appData.cars : appData.cars.filter(c => D.hasOpenCategory(c, filt));
+    if (!shownCars.length) {
+        list.innerHTML = `<p style="text-align: center; color:var(--text-muted);">Keine Fahrzeuge mit offenem Schaden (${escapeHtml(D.categoryLabel(filt))}).</p>`;
+        return;
+    }
+    // Badges: offene Schäden je Kategorie (kritisch rot, Licht gelb), „gesperrt“ bei offenem Motor-/Sensorschaden
+    const dmgBadges = car => {
+        if (!D) return '';
+        const open = D.openDamages(car);
+        if (!open.length) return '';
+        const byCat = {};
+        open.forEach(d => { byCat[d.category] = (byCat[d.category] || 0) + 1; });
+        return ' ' + Object.entries(byCat).map(([cat, n]) => {
+            const crit = open.some(d => d.category === cat && d.critical);   // Sonstige: je Eintrag
+            const title = open.filter(d => d.category === cat).map(D.entryLabel).join(', ');
+            return `<span class="dmg-badge ${crit ? 'crit' : 'warn'}" title="${escapeHtml(title)}">${window.Helpers.icon('alert')}${escapeHtml(D.categoryLabel(cat))}${n > 1 ? ' ×' + n : ''}</span>`;
+        }).join(' ');
+    };
+    // „aktiv“ bleibt unabhängig von der Sperre (nur Verlosung/Rangliste) – Hinweis, wenn das Auto wegen Schaden gesperrt ist
+    const lockHint = car => D?.isLocked(car) ? '<span class="dmg-lock-hint" title="Offener kritischer Schaden – im Livecenter und bei der Auslosung nicht wählbar, bis repariert">gesperrt wegen Schaden</span>' : '';
+    const sortedCars=[...shownCars].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
     list.innerHTML = sortedCars.map(car => `
         <div class="list-item${car.archived?' archived':''}" data-id="${car.id}">
             <div>
-                <strong>${escapeHtml(car.name)}</strong>${car.archived?' <span class="status-inactive">archiviert</span>':''}
+                <strong>${escapeHtml(car.name)}</strong>${car.archived?' <span class="status-inactive">archiviert</span>':''}${dmgBadges(car)}
                 <div style="font-size: 0.9em; color:var(--text-muted);">
                     ${car.races||0} Rennen · ${car.wins||0} Siege · ${car.totalRounds||0} Rd.${setup&&car.tuning?' · '+window.SetupUI.tuningLabel(car):''}
                 </div>
@@ -719,7 +779,7 @@ function updateCarsList() {
                 ${window.isAdmin && !car.archived?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;">
                     <input type="checkbox" class="toggle-hide" data-id="${car.id}" ${car.hideFromRanking?'' :'checked'}>
                     aktiv
-                </label>`:''}
+                </label>${lockHint(car)}`:lockHint(car)}
                 <span class="elo-score">${car.elo}</span>
                 ${setup?`<button class="btn edit-car" data-id="${car.id}">Bearbeiten</button>`:''}
                 ${hasRaces('carId', car.id)
@@ -769,7 +829,7 @@ function updateAuthUI() {
 }
 
 // Auth-Event Listener (nach Login als Admin: Werte einmal prüfen/reparieren)
-document.addEventListener('auth-changed', () => { updateAuthUI(); if (appStarted) { updateDriversList(); updateCarsList(); } if (window.isAdmin) window.Sync?.schedule(); });
+document.addEventListener('auth-changed', () => { updateAuthUI(); if (appStarted) { updateDriversList(); updateCarsList(); if (currentSection === 'workshop') window.WorkshopUI?.render(); } if (window.isAdmin) window.Sync?.schedule(); });
 
 // Auth-Button Click
 document.addEventListener('DOMContentLoaded', () => {

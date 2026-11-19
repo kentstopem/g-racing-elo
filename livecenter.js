@@ -43,6 +43,7 @@
   let discardArmed = false;   // „Verwerfen“ der gesicherten Sitzung zweimal tippen
   let tuneTimers = {};         // Regler → Timer: Tuning erst kurz nach dem letzten Tipp senden
   let tuneOk = {};             // Regler → true, sobald das Auto nach dem Senden über einen Sensor gefahren ist
+  let dmgPanel = null;          // Schaden melden: { ctrl, type, note, step: 'pick' | 'swap' }
   let qualiBests = {};         // beste Quali-Runde je Paarung ("driverId|carId" → ms), fürs Rennen danach
 
   // ---------- Daten aus der App ----------
@@ -50,7 +51,9 @@
   // Auswahl nur aktive Fahrer/Fahrzeuge (wie „Nur aktive“ in den Listen); bereits eingeteilte bleiben sichtbar
   const isActive = x => (window.Elo?.isActive ? window.Elo.isActive(x) : !!x && !x.archived && !x.hideFromRanking);
   const drivers = (keep = []) => [...(appData().drivers || [])].filter(d => isActive(d) || keep.includes(d.id)).sort((a, b) => a.name.localeCompare(b.name));
-  const cars = (keep = []) => [...(appData().cars || [])].filter(c => isActive(c) || keep.includes(c.id)).sort((a, b) => a.name.localeCompare(b.name));
+  // Gesperrt (offener Motor-/Sensorschaden, siehe damage.js) – unabhängig von „aktiv“, wird nie angeboten
+  const isLocked = c => !!window.Damage?.isLocked(c);
+  const cars = (keep = []) => [...(appData().cars || [])].filter(c => (isActive(c) && !isLocked(c)) || keep.includes(c.id)).sort((a, b) => a.name.localeCompare(b.name));
   const driverName = id => (appData().drivers || []).find(d => d.id === id)?.name ?? '?';
   const carName = id => (appData().cars || []).find(c => c.id === id)?.name ?? '';
   const trackId = () => window.Seasons?.current?.()?.trackId ?? null;
@@ -98,10 +101,11 @@
         const row = e.target.closest('.lc-row[data-ctrl]');
         if (!row || !session || !canEdit()) return;
         const ctrl = +row.dataset.ctrl;
-        menuCtrl = menuCtrl === ctrl ? null : ctrl; addPanel = null;
+        menuCtrl = menuCtrl === ctrl ? null : ctrl; addPanel = null; dmgPanel = null;
         renderLive();
       });
       root.addEventListener('change', onChange);
+      root.addEventListener('input', e => { if (dmgPanel && e.target.matches('[data-dmgnote]')) dmgPanel.note = e.target.value; });
     }
     document.documentElement.classList.add('lc-open');
     root.hidden = false;
@@ -201,10 +205,12 @@
     session.lapsCounted = true;
     const inc = n => firebase.firestore.FieldValue.increment(n);
     const byDriver = {}, byCar = {};
+    // Je Fahrzeug aus den Runden-Segmenten (Autotausch!); die zählen auch Runden vor „Zurücksetzen“ im Training
     for (const c of session.allCars()) {
-      if (!(c.laps > 0)) continue;
-      byDriver[c.driverId] = (byDriver[c.driverId] || 0) + c.laps;
-      byCar[c.carId] = (byCar[c.carId] || 0) + c.laps;
+      for (const sg of window.RaceEngine.Session.carLapsOf(c)) {
+        byDriver[c.driverId] = (byDriver[c.driverId] || 0) + sg.laps;
+        byCar[sg.carId] = (byCar[sg.carId] || 0) + sg.laps;
+      }
     }
     const fail = err => window.Helpers.showToast?.(`Runden nicht gespeichert: ${err.message}`, { icon: 'alert' });
     for (const [id, n] of Object.entries(byDriver)) {
@@ -235,6 +241,13 @@
   }
 
   function renderSetup () {
+    // Gesperrte Fahrzeuge (offener kritischer Schaden) aus der Zuweisung nehmen – auch nach „Autos rotieren“
+    const lockedOut = [];
+    for (const a of Object.values(cfg.assign)) {
+      const car = a?.carId != null && (appData().cars || []).find(x => x.id === a.carId);
+      if (car && isLocked(car)) { lockedOut.push(car.name); a.carId = null; }
+    }
+    if (lockedOut.length) { cfg.hint = `Gesperrt wegen Schaden: ${lockedOut.join(', ')} – bitte anderes Fahrzeug wählen.`; saveCfg(); }
     const dAll = drivers(Object.values(cfg.assign).map(a => a?.driverId)), cAll = cars(Object.values(cfg.assign).map(a => a?.carId));
     const t = track();
     const entries = entriesFromCfg();
@@ -645,7 +658,8 @@
   const isoDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   function resultEntries () {
     const byCtrl = new Map([...session.cars.values()].map(c => [c.ctrl, c]));
-    return (resultOrder || []).map((c, i) => ({ ctrl: c, position: i + 1, driverId: byCtrl.get(c).driverId, carId: byCtrl.get(c).carId }));
+    return (resultOrder || []).map((c, i) => ({ ctrl: c, position: i + 1, driverId: byCtrl.get(c).driverId, carId: byCtrl.get(c).carId,
+      carLaps: window.RaceEngine.Session.carLapsOf(byCtrl.get(c)).map(({ carId, laps }) => ({ carId, laps })) }));
   }
   /** Vorschau der G!RP-Änderung je Regler – dieselbe Rechnung wie beim Speichern (Elo.applyRace), auf einer Kopie */
   function girpPreview () {
@@ -916,7 +930,7 @@
     else if (session.mode === 'quali') progress = `<span class="lc-lapof">${session.laps} Runden je Fahrer</span>`;
     const flag = {
       ready: ['Startaufstellung', 'ready'], lights: [session.restarts ? 'Neustart' : 'Start', 'ready'],
-      green: session.leaderFinished ? ['Zielflagge', 'chk'] : ['Strecke freigegeben', 'green'],
+      green: session.leaderFinished ? ['Zielflagge', 'chk'] : ['Grüne Flagge', 'green'],
       red: ['Rote Flagge', 'red'], finished: ['Beendet', 'chk']
     }[phase];
     const clockHtml = race
@@ -979,11 +993,19 @@
           return `<div class="lc-pen-row ${sel ? 'on' : ''} ${out ? 'out' : ''}" style="${ctrlStyle(s.ctrl)}">
             <span class="lc-pen-pos">${out ? '–' : s.pos}</span>
             <span class="lc-pen-name"><span class="lc-pen-nm">${who(s.driverId)}</span>${state}${s.penaltySec ? `<em class="lc-pen-open">offen ${sec1(s.penaltySec * 1000)} s</em>` : ''}</span>
+            ${(() => {
+              // Laufende Rundenzeit beim Abbruch: 0,xxx → Durchfahrt wurde gezählt, 6,xxx → noch nicht über der Linie
+              const lapMs = session.redLapMs(s.ctrl), car = session.cars.get(s.ctrl), manual = !!car?.manualUndo;
+              const btn = canEdit() ? (manual
+                ? `<button class="lc-btn lc-pen-plus on" data-act="lapUndo" data-ctrl="${s.ctrl}" title="Nachgezählte Runde zurücknehmen">−1 Rd.</button>`
+                : `<button class="lc-btn lc-pen-plus" data-act="lapAdd" data-ctrl="${s.ctrl}" title="Runde nachzählen: war schon über Start/Ziel, die CU hat es nicht mehr erfasst" ${out || lapMs == null || car?.finished ? 'disabled' : ''}>+1 Rd.</button>`) : '';
+              return `<span class="lc-pen-lap ${manual ? 'manual' : ''}" title="Laufende Rundenzeit beim Abbruch">${lapMs == null ? '–' : fmt(lapMs)}</span>${btn}`;
+            })()}
             <span class="lc-pen-gap">${gap}</span>
             ${session.fuelOn ? `<span class="lc-fuel lc-pen-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''}" title="Tank"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : ''}
             ${canEdit() ? `<span class="lc-pen-opts">${[0, ...session.settings.penaltyOptionsSec].map(sec => `<button class="lc-btn ${sel === sec ? 'on' : ''}" data-act="redPen" data-ctrl="${s.ctrl}" data-sec="${sec}" ${out ? 'disabled' : ''}>${sec ? `+${String(sec).replace('.', ',')}` : '0'}</button>`).join('')}<button class="lc-btn lc-credit" data-act="credit" data-ctrl="${s.ctrl}" title="Gutschrift: 5 s von der offenen Strafe abziehen" ${s.penaltySec && !out ? '' : 'style="visibility:hidden" disabled'}>−5</button></span>
             <span class="lc-pen-acts">
-              <button class="lc-btn lc-pen-car" data-act="openMenu" data-ctrl="${s.ctrl}" ${out ? 'disabled' : ''}>Auto tauschen</button>
+              <button class="lc-btn lc-pen-dmg" data-act="dmgOpen" data-ctrl="${s.ctrl}" ${out ? 'disabled' : ''}>Schaden</button>
               <button class="lc-btn lc-pen-st ${out === 'dnf' ? 'on' : ''}" data-act="redStatus" data-s="dnf" data-ctrl="${s.ctrl}">DNF</button>
               <button class="lc-btn lc-pen-st ${out === 'dq' ? 'on' : ''}" data-act="redStatus" data-s="dq" data-ctrl="${s.ctrl}">DQL</button>
             </span>` : `<span class="lc-pen-gap">${out === 'dq' ? 'DQL' : out === 'dnf' ? 'DNF' : ''}</span>`}
@@ -992,7 +1014,7 @@
         ${canEdit() ? `<div class="lc-red-actions">
           <button class="lc-btn lc-big lc-white" data-act="resume">Weiter geht's</button>
           <button class="lc-btn lc-ghost" data-act="restart">${restartArmed ? 'Wirklich neu starten?' : restartLabel()}</button>
-          <button class="lc-btn lc-ghost" data-act="finish">Rennen abbrechen und werten</button>
+          <button class="lc-btn lc-ghost" data-act="finish">Abbrechen und zum Ergebnis</button>
         </div>` : ''}
       </div>` : `<div class="lc-red">
         <div class="lc-red-title">ROTE FLAGGE</div>
@@ -1100,16 +1122,16 @@
 
     // Fahrzeug wechseln und Tuning: Training/Quali jederzeit, im Rennen nur bei Roter Flagge
     function carTuneHtml (c, locked) {
+      // Rennen: Autotausch nur noch über „Schaden“ (kritisch → Ersatzauto), Tuning steckt schon im Auto
+      if (race) return `<div class="lc-menu-label">Autotausch im Rennen nur über „Schaden“${locked ? ' bei Roter Flagge' : ''} (kritisch → Ersatzauto). Tuning: vor dem Rennen in der Vorbereitung oder nach der Quali.</div>`;
       if (locked) return '<div class="lc-menu-label">Fahrzeug tauschen: bei Roter Flagge.</div>';
       const used = [...session.cars.values()].filter(x => x.ctrl !== c.ctrl).map(x => x.carId);
       const opts = cars([c.carId]).filter(x => !used.includes(x.id));
       const tu = tuningOf(c.carId);
       const st = tuneState(c.ctrl);
       const slider = (k, label) => `<div class="lc-tune"><span>${label}</span>${stepperHtml(c.ctrl, k, label, tu[k])}</div>`;
-      const sel = `<div class="lc-menu-label">Fahrzeug${race ? ' (gilt ab dem Neustart)' : ' – die laufende Runde zählt nicht'}</div>
+      const sel = `<div class="lc-menu-label">Fahrzeug</div>
         <select class="lc-menu-sel" data-carswap="${c.ctrl}">${opts.map(x => `<option value="${x.id}" ${x.id === c.carId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`;
-      // Im Rennen kein Tuning: bei Rot nimmt die CU nichts an, während der Fahrt stört das Programmieren die Zeitnahme
-      if (race) return sel + '<div class="lc-menu-label">Tuning: vor dem Rennen in der Vorbereitung oder nach der Quali.</div>';
       return `${sel}
         <div class="lc-menu-label">Tuning · wird ans Fahrzeug gespeichert${st ? ` · <span class="lc-tune-st ${st.cls}">${esc(st.txt)}</span>` : ''}</div>
         ${slider('speed', 'Gas')}${slider('brake', 'Bremse')}`;
@@ -1129,7 +1151,8 @@
             : '<button class="lc-btn" data-act="status" data-s="dnf">Ausgefallen (DNF)</button><button class="lc-btn lc-danger" data-act="status" data-s="dq">Disqualifizieren</button>'}
         </div>` : ''}
         ${carTuneHtml(c, race && phase !== 'red')}
-        ${session.mode === 'practice' && session.cars.size > 1 ? `<div class="lc-menu-btns"><button class="lc-btn lc-ghost" data-act="removeCar" data-ctrl="${c.ctrl}">Aus dem Training nehmen</button></div>` : ''}
+        ${session.mode === 'practice' && session.cars.size > 1 ? `<div class="lc-menu-btns"><button class="lc-btn lc-ghost" data-act="removeCar" data-ctrl="${c.ctrl}">Training verlassen</button></div>` : ''}
+        ${race && phase !== 'red' ? '<div class="lc-menu-label">Schaden melden: bei Roter Flagge.</div>' : `<div class="lc-menu-btns"><button class="lc-btn lc-dmg-btn" data-act="dmgOpen" data-ctrl="${c.ctrl}">${window.Helpers.icon('alert')}Schaden melden</button></div>`}
       </div>`;
     })() : '';
 
@@ -1154,6 +1177,48 @@
       </div>`;
     })();
 
+    // Schaden melden (Training/Quali jederzeit, Rennen nur bei Roter Flagge); kritisch → gleich Ersatzauto
+    if (dmgPanel && (!session.cars.get(dmgPanel.ctrl) || phase === 'finished' || !canEdit() || (race && phase !== 'red'))) dmgPanel = null;
+    const dmgHtml = !dmgPanel ? '' : (() => {
+      const c = session.cars.get(dmgPanel.ctrl);
+      const D = window.Damage;
+      // Rennen + kritischer Schaden: kein „Später“ und kein × – entweder Ersatzauto oder DNF
+      const mustDecide = race && dmgPanel.step === 'swap';
+      const head = `<div class="lc-menu-head"><span class="lc-swatch"></span><b>${dmgPanel.step === 'swap' ? 'Ersatzauto' : 'Schaden'} · ${who(c.driverId)}</b>${mustDecide ? '' : '<button class="lc-icon-btn" data-act="dmgClose" aria-label="Schließen">×</button>'}</div>`;
+      if (dmgPanel.step === 'swap') {
+        // Genau EIN Vorschlag: freies, nicht gesperrtes, aktives Auto mit der G!RP am nächsten am beschädigten (damage.js)
+        const used = [...session.cars.values()].filter(x => x.ctrl !== c.ctrl).map(x => x.carId);
+        const damaged = (appData().cars || []).find(x => x.id === dmgPanel.carId);
+        const sug = D.suggestReplacement(damaged, appData().cars || [], { exclude: [...used, c.carId], isActive });
+        const girp = x => Math.round(x?.elo ?? 1000);
+        const alt = race || session.mode === 'quali' ? '<button class="lc-btn lc-danger" data-act="dmgDnf">Ohne Ersatz: DNF</button>'
+          : session.mode === 'practice' && session.cars.size > 1 ? `<button class="lc-btn lc-danger" data-act="removeCar" data-ctrl="${c.ctrl}">Entfernen</button>` : '';
+        return `<div class="lc-menu lc-dmg" style="${ctrlStyle(c.ctrl)}">${head}
+          <div class="lc-menu-label"><b class="lc-dmg-crit">${esc(carName(dmgPanel.carId))} ist gesperrt</b> (G!RP ${girp(damaged)}) · ${sug ? 'Vorschlag Ersatzauto' + (race ? ' (gilt ab dem Neustart)' : '') : 'kein freies Fahrzeug'}</div>
+          ${sug ? `<button class="lc-btn lc-primary lc-dmg-sug" data-act="dmgSwap" data-car="${sug.id}">${sug && carImg(sug.id) ? `<img src="${carImg(sug.id)}" alt="">` : ''}<span><b>${esc(sug.name)}</b><small>G!RP ${girp(sug)} · übernehmen</small></span></button>` : ''}
+          <div class="lc-menu-btns">${alt}${race ? '' : '<button class="lc-btn lc-ghost" data-act="dmgClose">Später</button>'}</div>
+        </div>`;
+      }
+      const openKeys = D.openDamages((appData().cars || []).find(x => x.id === c.carId)).map(d => d.type);
+      const group = cat => D.TYPES.filter(t => t.category === cat).map(t => {
+        const already = !t.custom && openKeys.includes(t.key);
+        return `<button class="lc-btn lc-dmg-type ${t.critical ? 'crit' : 'light'} ${dmgPanel.type === t.key ? 'on' : ''}" data-act="dmgType" data-type="${t.key}" ${already ? 'disabled title="schon offen"' : ''}>${esc(t.category === 'light' ? t.label.replace('Licht ', '') : t.label)}${already ? ' ✓' : ''}</button>`;
+      }).join('');
+      const sel = dmgPanel.type && D.type(dmgPanel.type);
+      const other = !!sel?.custom;
+      const crit = other ? !!dmgPanel.critical : !!sel?.critical;
+      return `<div class="lc-menu lc-dmg" style="${ctrlStyle(c.ctrl)}">${head}
+        <div class="lc-menu-label">${esc(carName(c.carId))} · Licht (fährt weiter)</div>
+        <div class="lc-dmg-grid">${group('light')}</div>
+        <div class="lc-menu-label">Kritisch (Auto wird gesperrt)</div>
+        <div class="lc-dmg-grid">${group('motor')}${group('sensor')}</div>
+        <div class="lc-menu-label">Anderer Schaden</div>
+        <div class="lc-dmg-grid">${group('other')}${other ? `<button class="lc-btn lc-dmg-crit-tgl ${crit ? 'on' : ''}" data-act="dmgCrit" aria-pressed="${crit}">${crit ? 'kritisch: ja' : 'kritisch: nein'}</button>` : ''}</div>
+        <input class="lc-menu-sel lc-dmg-note" data-dmgnote placeholder="${other ? 'Beschreibung (Pflicht)' : 'Notiz (optional)'}" value="${esc(dmgPanel.note || '')}" maxlength="200" enterkeyhint="done">
+        <div class="lc-menu-btns"><button class="lc-btn ${crit ? 'lc-danger' : 'lc-primary'}" data-act="dmgSave" ${sel ? '' : 'disabled'}>${sel ? (crit ? 'Eintragen und Auto sperren' : 'Eintragen') : 'Schadensart wählen'}</button></div>
+      </div>`;
+    })();
+
     const simHtml = source.kind !== 'sim' ? '' : `<div class="lc-sim ${simOpen ? 'open' : ''}">
         <div class="lc-sim-row"><b>Simulator</b>
           ${[1, 2, 5, 10].map(x => `<button class="lc-btn ${source.speed === x ? 'on' : ''}" data-act="speed" data-x="${x}">×${x}</button>`).join('')}
@@ -1175,9 +1240,9 @@
     // Nur neu aufbauen, wenn sich Knöpfe/Overlays ändern – sonst gehen Fingertipps während des Neuzeichnens verloren
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
     const menuCar = menuCtrl != null ? session.cars.get(menuCtrl) : null;
-    const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, JSON.stringify(addPanel), session.cars.size, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
+    const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, JSON.stringify(addPanel), dmgPanel ? `${dmgPanel.ctrl}${dmgPanel.type}${dmgPanel.step}${dmgPanel.carId}${dmgPanel.critical}` : '', menuCar?.carId, session.cars.size, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
       session.lights, session.lightsRunning, endArmed, restartArmed, noScoreArmed, cfg.broadcast, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, girpSaving, resTab,
-      phase === 'red' ? st.map(s => s.ctrl + s.status + s.penaltySec + s.inPit + Math.round(s.pitStandMs / 100)).join() : ''].join('|');
+      phase === 'red' ? st.map(s => s.ctrl + s.status + s.penaltySec + s.inPit + Math.round(s.pitStandMs / 100) + 'L' + s.laps).join() : ''].join('|');
     if (key === shellKey && root.querySelector('.lc-live')) {
       root.querySelector('.lc-board').innerHTML = rows;
       root.querySelector('.lc-progress').innerHTML = progress;
@@ -1199,8 +1264,8 @@
           <div class="lc-clocks">${clockHtml}</div>
           <div class="lc-trackrec">${trHtml}</div>
           <div class="lc-actions">
-            ${source.kind === 'view' ? '<span class="lc-btn lc-viewing">Zuschauen</span>' : `<button class="lc-btn ${voiceOn ? 'on' : ''}" data-act="voice" aria-pressed="${voiceOn}">Ton ${voiceOn ? 'an' : 'aus'}</button>`}
-            ${canEdit() && source.kind !== 'view' ? `<button class="lc-btn ${cfg.broadcast ? 'on' : ''}" data-act="cast" aria-pressed="${cfg.broadcast}">Live ${cfg.broadcast ? 'an' : 'aus'}</button>` : ''}
+            ${source.kind === 'view' ? '<span class="lc-btn lc-viewing">Zuschauen</span>' : `<button class="lc-btn lc-ico ${voiceOn ? '' : 'off'}" data-act="voice" aria-pressed="${voiceOn}" title="Ton ${voiceOn ? 'an – antippen zum Ausschalten' : 'aus – antippen zum Einschalten'}" aria-label="Ton ${voiceOn ? 'an' : 'aus'}">${window.Helpers.icon(voiceOn ? 'volume' : 'volume-off')}</button>`}
+            ${canEdit() && source.kind !== 'view' ? `<button class="lc-btn lc-ico lc-cast ${cfg.broadcast ? 'on' : 'off'}" data-act="cast" aria-pressed="${cfg.broadcast}" title="Live-Übertragung für Zuschauer ${cfg.broadcast ? 'an – antippen zum Ausschalten' : 'aus – antippen zum Einschalten'}" aria-label="Live-Übertragung ${cfg.broadcast ? 'an' : 'aus'}">${window.Helpers.icon('cast')}</button>` : ''}
             ${canEdit() && source.kind === 'sim' ? `<button class="lc-btn ${simOpen ? 'on' : ''}" data-act="sim">Sim</button>` : ''}
             ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) ? '<button class="lc-btn lc-yellow" data-act="reset">Zurücksetzen</button>' : ''}
             ${canEdit() && (phase === 'green' || (phase === 'lights' && session.lightsRunning)) ? '<button class="lc-btn lc-danger" data-act="red">Rote Flagge</button>' : ''}
@@ -1211,7 +1276,7 @@
         <div class="lc-board">${rows}</div>
         ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) && MD.CONTROLLERS.some(x => !session.cars.has(x.n)) ? '<div class="lc-addbar"><button class="lc-btn" data-act="addOpen">+ Fahrer</button></div>' : ''}
         <footer class="lc-ticker">${tickHtml}</footer>
-        ${simHtml}${menuHtml}${addHtml}${lightsHtml}${redHtml}${resultHtml}${endHtml}
+        ${simHtml}${menuHtml}${addHtml}${dmgHtml}${lightsHtml}${redHtml}${resultHtml}${endHtml}
       </div>`;
   }
 
@@ -1244,11 +1309,15 @@
       case 'reset': session.reset(source.now()); ticker = []; lapFlash = {}; note(null, 'Zeiten und Runden zurückgesetzt'); renderLive(); break;
       case 'redStatus': session.setStatus(ctrl, session.cars.get(ctrl)?.status === b.dataset.s ? null : b.dataset.s); renderLive(); break;
       case 'resume':
+        // Kritischer Schaden im Rennen: erst Ersatzauto übernehmen oder DNF
+        if (dmgPanel?.step === 'swap' && session.mode === 'race') { window.Helpers.showToast?.(`Erst entscheiden: Ersatzauto oder DNF für ${driverName(session.cars.get(dmgPanel.ctrl)?.driverId)}`); break; }
         // Strafen aus dem Dialog vergeben, dann „Weiter geht's!“ + Startampel
         for (const [c, sec] of Object.entries(redPen)) if (sec > 0) session.addPenalty(+c, sec, 'Strafe (Rote Flagge)');
         redPen = {};
         session.resume(source.now()); renderLive();
         break;
+      case 'lapAdd': if (session.addManualLap(ctrl)) note(ctrl, `${driverName(session.cars.get(ctrl).driverId)}: Runde nachgezählt (+1 Rd.)`); shellKey = ''; saveSnap(true); renderLive(); break;
+      case 'lapUndo': if (session.undoManualLap(ctrl)) note(ctrl, `${driverName(session.cars.get(ctrl).driverId)}: nachgezählte Runde zurückgenommen`); shellKey = ''; saveSnap(true); renderLive(); break;
       case 'redPen': redPen[ctrl] = +b.dataset.sec; if (!redPen[ctrl]) delete redPen[ctrl]; renderLive(); break;
       case 'raceFromQuali': raceFromQuali(); break;
       case 'resTab': resTab = b.dataset.t; renderLive(); break;
@@ -1260,7 +1329,7 @@
       case 'saveRecords': saveRecords(); break;
       case 'girp': saveGirp(); break;
       case 'raceLaps': cfg.raceLaps = Math.max(1, cfg.raceLaps + +b.dataset.d); saveCfg(); renderLive(); break;
-      case 'openMenu': menuCtrl = ctrl; addPanel = null; renderLive(); break;
+      case 'openMenu': menuCtrl = ctrl; addPanel = null; dmgPanel = null; renderLive(); break;
       case 'status': session.setStatus(menuCtrl, b.dataset.s || null); menuCtrl = null; renderLive(); break;
       case 'finish': session.finish(source.now()); break;
       case 'again': stopSession(); view = 'setup'; renderSetup(); break;
@@ -1289,6 +1358,14 @@
       case 'simDiode': source.toggleDiode(ctrl); shellKey = ''; renderLive(); break;
       case 'simFalse': source.falseStart(ctrl); break;
       case 'menuClose': menuCtrl = null; renderLive(); break;
+      case 'dmgOpen': if (dmgPanel?.step === 'swap' && session.mode === 'race') break;
+        menuCtrl = null; addPanel = null; dmgPanel = { ctrl, type: null, note: '', critical: false, step: 'pick' }; renderLive(); break;
+      case 'dmgClose': dmgPanel = null; renderLive(); break;
+      case 'dmgType': if (dmgPanel) { dmgPanel.note = root.querySelector('[data-dmgnote]')?.value ?? dmgPanel.note; dmgPanel.type = b.dataset.type; } renderLive(); break;
+      case 'dmgSave': saveDamage(); break;
+      case 'dmgCrit': if (dmgPanel) { dmgPanel.note = root.querySelector('[data-dmgnote]')?.value ?? dmgPanel.note; dmgPanel.critical = !dmgPanel.critical; } renderLive(); break;
+      case 'dmgSwap': if (dmgPanel) { swapCar(dmgPanel.ctrl, isNaN(+b.dataset.car) ? b.dataset.car : +b.dataset.car); dmgPanel = null; } renderLive(); break;
+      case 'dmgDnf': if (dmgPanel) { session.setStatus(dmgPanel.ctrl, 'dnf'); note(dmgPanel.ctrl, `${driverName(session.cars.get(dmgPanel.ctrl)?.driverId)}: DNF (Schaden)`); dmgPanel = null; } renderLive(); break;
       case 'penalty': session.addPenalty(menuCtrl, +b.dataset.sec, 'Zeitstrafe'); menuCtrl = null; renderLive(); break;
       case 'credit': {
         const c = session.cars.get(ctrl);
@@ -1307,10 +1384,50 @@
           delete cfg.assign[ctrl]; saveCfg();
           note(ctrl, `${driverName(c.driverId)} ist raus, ${MD.controller(ctrl).name} ist frei`);
         }
-        menuCtrl = null; renderLive(); break;
+        menuCtrl = null; dmgPanel = null; renderLive(); break;
       }
       case 'penaltyClear': session.clearPenalty(menuCtrl); note(menuCtrl, `${driverName(session.cars.get(menuCtrl).driverId)}: Strafe zurückgenommen`); menuCtrl = null; renderLive(); break;
     }
+  }
+
+  /** Fahrzeug eines Reglers tauschen (Menü „Fahrzeug“ und Ersatzauto nach Schaden) */
+  function swapCar (ctrl, carId) {
+    if (!session?.changeCar(ctrl, carId)) return false;
+    const c = session.cars.get(ctrl);
+    source?.setPace?.(ctrl, simPace(c.driverId, carId));
+    if (session.mode !== 'race') source?.setTuning?.(ctrl, tuningOf(carId), { send: true });   // Rennen: Tuning steckt schon im Auto
+    if (cfg.assign[ctrl]) { cfg.assign[ctrl].carId = carId; saveCfg(); }
+    note(ctrl, `${driverName(c.driverId)} fährt jetzt ${carName(carId)}`);
+    saveSnap(true);
+    return true;
+  }
+
+  /**
+   * Schaden sofort ins Werkstatttagebuch des Fahrzeugs (Firestore) – nicht erst mit dem Ergebnis,
+   * damit er auch bei „Nicht werten“ erhalten bleibt. Kritisch → Ersatzauto-Auswahl.
+   */
+  function saveDamage () {
+    if (!dmgPanel || !session || !canEdit()) return;
+    const c = session.cars.get(dmgPanel.ctrl);
+    const car = c && (appData().cars || []).find(x => x.id === c.carId);
+    const t = window.Damage?.type(dmgPanel.type);
+    if (!car || !t) return;
+    const noteTxt = (root.querySelector('[data-dmgnote]')?.value ?? dmgPanel.note ?? '').trim();
+    if (t.custom && !noteTxt) { window.Helpers.showToast?.('Bitte den Schaden beschreiben'); root.querySelector('[data-dmgnote]')?.focus(); return; }
+    const crit = t.custom ? !!dmgPanel.critical : t.critical;
+    const tot = MD.carTotals(car.id, appData().allRaces || appData().races || [], car);
+    const { damages, duplicate } = window.Damage.addDamage(car, {
+      type: t.key, note: noteTxt, critical: crit, context: { practice: 'Training', quali: 'Quali', race: 'Rennen' }[session.mode],
+      // bisherige Runden + in dieser Sitzung schon mit genau diesem Fahrzeug gefahrene (alle Regler, Autotausch berücksichtigt)
+      lapsAtDamage: tot.laps + (session.carLapTotals()[car.id] || 0)
+    });
+    if (duplicate) { window.Helpers.showToast?.(`${t.label} ist bei ${car.name} schon eingetragen`); dmgPanel = null; renderLive(); return; }
+    car.damages = damages;   // sofort wirksam (Sperre), der Listener bestätigt
+    window.Storage?.updateCarFields?.(car.id, { damages })
+      .catch(err => window.Helpers.showToast?.(`Schaden nicht gespeichert: ${err.message}`, { icon: 'alert' }));
+    note(c.ctrl, `${car.name}: Schaden ${t.custom ? `Sonstige (${noteTxt})` : t.label}${crit ? ' – gesperrt' : ''}`, crit ? 'red' : 'warn');
+    dmgPanel = crit ? { ctrl: c.ctrl, step: 'swap', carId: car.id } : null;
+    shellKey = ''; renderLive();
   }
 
   /** Training: Fahrer aus dem Dazunehmen-Feld auf den freien Regler setzen */
@@ -1335,12 +1452,7 @@
     const swap = e.target.closest('select[data-carswap]');
     if (swap && session) {
       const ctrl = +swap.dataset.carswap, carId = isNaN(+swap.value) ? swap.value : +swap.value;
-      if (session.changeCar(ctrl, carId)) {
-        const c = session.cars.get(ctrl);
-        source?.setPace?.(ctrl, simPace(c.driverId, carId));
-        if (session.mode !== 'race') source?.setTuning?.(ctrl, tuningOf(carId), { send: true });   // Rennen: Tuning steckt schon im Auto
-        note(ctrl, `${driverName(c.driverId)} fährt jetzt ${carName(carId)}`);
-      }
+      swapCar(ctrl, carId);
       shellKey = ''; renderLive(); return;
     }
     const rec = e.target.closest('input[data-rec]');

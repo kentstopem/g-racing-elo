@@ -19,6 +19,22 @@
    * Rangliste für Fahrer oder Fahrzeuge.
    * Saison: sortiert nach G!RP. „Alle Saisons“: ewige Tabelle nach Siegen, dann Rennen.
    */
+  // Fahrzeugbilder in der Rangliste: Standardbild zur Startnummer sofort, eigenes Bild (Firestore „media“) nachgeladen
+  const imgCache={};
+  const carImg=(x,cls)=>`<img class="${cls}" data-rankimg="${x.id}" alt="" decoding="async" style="visibility:hidden">`;
+  function fillCarImgs(root){
+    root?.querySelectorAll('img[data-rankimg]').forEach(img=>{
+      const car=(window.appData.cars||[]).find(c=>String(c.id)===img.dataset.rankimg);
+      const show=src=>{ if(src){ img.onerror=()=>{img.style.display='none';}; img.onload=()=>{img.style.visibility='';}; img.src=src; } else img.style.display='none'; };
+      const UI=window.SetupUI;
+      if(!car||!UI) return;
+      const key=`${car.id}|${car.imageRev||''}`;
+      if(imgCache[key]!==undefined){ show(imgCache[key]); return; }
+      if(car.imageRev&&UI.carImageSrc){ UI.carImageSrc(car).then(src=>{ imgCache[key]=src||null; show(src); }).catch(()=>show(UI.carAssetSrc(car))); }
+      else { imgCache[key]=UI.carAssetSrc(car); show(imgCache[key]); }
+    });
+  }
+
   function renderRanking(kind){
     const isDriver=kind==='driver';
     const all=window.Seasons.isAll();
@@ -49,12 +65,14 @@
         const x=sorted[i];
         return `<div class="podium-item ${cls}" ${idAttr}="${x.id}" onclick="${open(x)}">
             <div class="podium-position">${places[cls]}</div>
+            ${isDriver?'':carImg(x,'podium-car-img')}
             <div class="podium-name">${esc(x.name)}</div>
             <div class="podium-elo">${scoreLong(x)}</div>
             <div style="font-size:0.75em;opacity:.9;">${x.races}R · ${x.wins||0}S · ${x.totalRounds||0}Rd</div>
           </div>`;
       }).join(''):'';
       podium.classList.toggle('hidden',!showPodium);
+      if(!isDriver) fillCarImgs(podium);
     }
 
     if(list){
@@ -63,9 +81,11 @@
         return;
       }
       let rank=showPodium?4:1;
-      list.innerHTML=sorted.slice(showPodium?3:0).map(x=>`<div class="list-item" ${idAttr}="${x.id}" onclick="${open(x)}">
-          <div><strong>#${rank++} ${esc(x.name)}</strong><div>${x.races} Rennen · ${x.wins||0} Siege · ${x.totalRounds||0} Runden</div></div>
+      list.innerHTML=sorted.slice(showPodium?3:0).map(x=>`<div class="list-item${isDriver?'':' rank-car'}" ${idAttr}="${x.id}" onclick="${open(x)}">
+          ${isDriver?'':`<span class="rank-car-thumb">${carImg(x,'rank-car-img')}</span>`}
+          <div class="rank-car-txt"><strong>#${rank++} ${esc(x.name)}</strong><div>${x.races} Rennen · ${x.wins||0} Siege · ${x.totalRounds||0} Runden</div></div>
           <span class="elo-score">${score(x)}</span></div>`).join('');
+      if(!isDriver) fillCarImgs(list);
     }
   }
 
