@@ -7,7 +7,7 @@
 //   cars/{id}      + tuning { speed: 0–15, brake: 0–15 } (CU-Stufen; fehlt = nicht festgelegt),
 //                    imageRev (eigenes Bild hochgeladen), practiceLaps (Runden außerhalb gewerteter Rennen)
 //   tracks/{id}    + lengthOuterM, lengthInnerM, refLapMs, minLapMs (kürzere Runden werden ignoriert), imageRev
-//   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelSpeedFactor, emptyTankSpeed, pitDriveMs, noSignalSec }
+//   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelCritPct, fuelSpeedFactor, emptyTankSpeed, pitDriveMs, noSignalSec }
 //   media/{key}    { data (Data-URL), type, bytes, updatedAt } – Bilder/Töne getrennt von den Stammdaten,
 //                  key: car_<id> | driver_voice_<id> | track_<id>
 (function () {
@@ -33,6 +33,7 @@
     falseStartPenaltySec: 5,    // Strafe für Fehlstart
     penaltyOptionsSec: [2, 5, 7, 10], // Auswahl im Strafendialog
     pitCallFuelPct: 20,         // „[Fahrer] muss an die Box“ ab diesem Tankstand
+    fuelCritPct: 5,             // „[Fahrer], du solltest jetzt tanken!“ ab diesem Tankstand (0 = aus)
     emptyTankSpeed: 4,          // CU-Tempostufe (0–15), solange der Tank leer ist
     pitDriveMs: 2000,           // Fahrzeit vom Losfahren in der Box bis zum nächsten Sensor: wird beim Rausfahren von Tanken/Strafe wieder abgezogen
     manualLapStartMs: 250,      // Rote Flagge „+1 Rd.“: mit dieser Zeit (ms) beginnt die neue Runde nach „Weiter geht's“
@@ -63,6 +64,7 @@
       falseStartPenaltySec: Math.max(0, num(d.falseStartPenaltySec, RACE_DEFAULTS.falseStartPenaltySec)),
       penaltyOptionsSec:    opts.length ? opts : [...RACE_DEFAULTS.penaltyOptionsSec],
       pitCallFuelPct:       Math.max(0, Math.min(100, num(d.pitCallFuelPct, RACE_DEFAULTS.pitCallFuelPct))),
+      fuelCritPct:          Math.max(0, Math.min(100, num(d.fuelCritPct, RACE_DEFAULTS.fuelCritPct))),
       fuelSpeedFactor:      Math.max(0, Math.min(3, num(d.fuelSpeedFactor, RACE_DEFAULTS.fuelSpeedFactor))),
       emptyTankSpeed:       clampLevel(num(d.emptyTankSpeed, RACE_DEFAULTS.emptyTankSpeed)),
       pitDriveMs:           Math.max(0, Math.min(30000, Math.round(num(d.pitDriveMs, RACE_DEFAULTS.pitDriveMs)))),

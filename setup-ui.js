@@ -599,6 +599,7 @@
           <div class="form-group"><label for="rsTank">Voller Tank reicht (Runden)</label><input id="rsTank" name="tank" type="number" min="1" max="500" value="${s.fullTankLaps}"></div>
           <div class="form-group"><label for="rsRefuel">Tanken (% pro Sekunde)</label><input id="rsRefuel" name="refuel" inputmode="decimal" value="${fmtNum(s.refuelPctPerSec, 1)}"></div>
           <div class="form-group"><label for="rsPitCall">„Muss an die Box“ ab Tank (%)</label><input id="rsPitCall" name="pitCall" type="number" min="0" max="100" value="${s.pitCallFuelPct}"></div>
+          <div class="form-group"><label for="rsFuelCrit">„Jetzt tanken!“ ab Tank (%)</label><input id="rsFuelCrit" name="fuelCrit" type="number" min="0" max="100" value="${s.fuelCritPct}"><small class="muted">Zweite, dringende Ansage. 0 = aus</small></div>
           <div class="form-group"><label for="rsEmpty">Tempo bei leerem Tank (Stufe 0–15)</label><input id="rsEmpty" name="emptyTank" type="number" min="0" max="15" value="${s.emptyTankSpeed}"><small class="muted">${M.levelToPct(s.emptyTankSpeed)} % · bis wieder getankt ist</small></div>
           <div class="form-group"><label for="rsManualLap">Startzeit nach „+1 Rd.“ (ms)</label><input id="rsManualLap" name="manualLap" type="number" min="0" max="10000" step="1" inputmode="numeric" value="${s.manualLapStartMs}"><small class="muted">Rote Flagge genau an Start/Ziel und die CU hat die Runde nicht mehr gezählt: Mit „+1 Rd.“ zählt sie nachträglich. Die neue Runde beginnt nach „Weiter geht's“ dann bei dieser Zeit statt bei 0 (das Auto stand schon hinter der Linie).</small></div>
           <div class="form-group"><label for="rsPitDrive">Boxendurchfahrt (ms)</label><input id="rsPitDrive" name="pitDrive" type="number" min="0" max="30000" step="1" inputmode="numeric" value="${s.pitDriveMs}"><small class="muted">Fahrzeit vom Losfahren in der Box bis zum nächsten Sensor (Weiche nach der Ausfahrt). Zählt live mit und wird beim Rausfahren von Tanken und Strafe wieder abgezogen</small></div>
@@ -747,6 +748,7 @@
         fullTankLaps: parseNum(form.tank.value),
         refuelPctPerSec: parseNum(form.refuel.value),
         pitCallFuelPct: parseNum(form.pitCall.value),
+        fuelCritPct: parseNum(form.fuelCrit.value),
         emptyTankSpeed: parseNum(form.emptyTank.value),
         pitDriveMs: parseNum(form.pitDrive.value),
         noSignalSec: parseNum(form.noSignal.value),

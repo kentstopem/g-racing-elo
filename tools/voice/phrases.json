@@ -13,6 +13,7 @@
   "race_win": "gewinnt das Rennen! Herzlichen Glückwunsch!",
   "pole": "holt sich die Pole-Position. Glückwunsch!",
   "pit_call": "dein Tank ist bald leer.",
+  "fuel_critical": "du solltest jetzt tanken!",
   "in_pit": "ist in der Box.",
   "penalty_served": "hat die gesamte Strafe abgesessen.",
   "refueled": "hat vollgetankt.",

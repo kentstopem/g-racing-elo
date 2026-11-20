@@ -176,6 +176,7 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 .lc-fuel { position: relative; height: 34cqh; border-radius: 6px; background: var(--lc-bg); border: 1px solid var(--lc-line); overflow: hidden; }
 .lc-fuel i { position: absolute; inset: 0 auto 0 0; background: var(--lc-green); transition: width .3s; }
 .lc-fuel.low i { background: var(--lc-pit); }
+.lc-fuel.crit i { background: var(--lc-red); }
 .lc-fuel.filling i { background: var(--lc-accent); }
 .lc-fuel.empty { border-color: var(--lc-red); animation: lc-blink 1s steps(2) infinite; }
 @keyframes lc-blink { 50% { border-color: transparent; } }

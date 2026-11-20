@@ -14,7 +14,7 @@
 //   { type: 'falseStart', t } ohne ctrl     Fehlstart, CU weiß nicht wer → Rote Flagge mit Strafendialog
 //
 // Ausgehende Meldungen (on(fn) → fn(type, data)), z. B. für Sprachausgabe und Laufschrift:
-//   lap, fastestLap, personalRecord, carRecord, trackRecord, pitCall, fuelEmpty, pitIn, pitOut, refueled,
+//   lap, fastestLap, personalRecord, carRecord, trackRecord, pitCall, fuelCritical, fuelEmpty, pitIn, pitOut, refueled,
 //   penalty, penaltyServed, falseStart, lights, go, redFlag, resume, lastLap, finish, win, qualiDone, pole, end
 (function () {
   // Ansagen, die bei „+1 Rd.“ (Rote Flagge) bis „Weiter geht's“ zurückgehalten werden
@@ -62,7 +62,7 @@
         // Zählt jede gefahrene Runde, auch nach „Zurücksetzen“ im Training (für Rundenzähler/Werkstatt der Fahrzeuge).
         carLaps: [],
         pausedMs: 0, interrupted: false,
-        fuel: 100, pitCalled: false, fuelEmpty: false,
+        fuel: 100, pitCalled: false, fuelCritCalled: false, fuelEmpty: false,
         inPit: false, pitLastT: null, pitStandMs: 0, pitStops: 0,
         penaltyMs: 0, penaltyLog: [], status: null, pairBests: {},       // status: null | 'dnf' | 'dq'
         finished: false, finishT: null, done: false, started: false,
@@ -272,7 +272,12 @@
     burnFuel (c, lapMs) {
       const before = c.fuel;
       c.fuel = Math.max(0, c.fuel - MD().fuelPerLap(lapMs ?? MD().trackSetup(this.track).refLapMs, this.track, this.settings));
-      if (!c.pitCalled && c.fuel <= this.settings.pitCallFuelPct && before > this.settings.pitCallFuelPct) {
+      const crit = this.settings.fuelCritPct;
+      // Zweite, dringende Warnung („du solltest jetzt tanken!“); fällt der Tank in einer Runde unter beide Schwellen, kommt nur sie
+      if (!c.fuelCritCalled && crit > 0 && c.fuel <= crit && before > crit) {
+        c.fuelCritCalled = true; c.pitCalled = true;
+        this.emit('fuelCritical', { ctrl: c.ctrl, driverId: c.driverId, fuel: c.fuel });
+      } else if (!c.pitCalled && c.fuel <= this.settings.pitCallFuelPct && before > this.settings.pitCallFuelPct) {
         c.pitCalled = true;
         this.emit('pitCall', { ctrl: c.ctrl, driverId: c.driverId, fuel: c.fuel });
       }
@@ -369,7 +374,7 @@
         Object.assign(c, { laps: 0, last: null, best: null, lastCross: null, crossings: [], lapTimes: [], pausedMs: 0, interrupted: false, started: false, pitStops: 0, pitStandMs: 0 });
         if (this.fuelOn) {                            // Tanken im Training: Zurücksetzen füllt alle Tanks wieder auf
           if (c.fuelEmpty) this.emit('fuelRestored', { ctrl: c.ctrl, driverId: c.driverId });
-          Object.assign(c, { fuel: 100, pitCalled: false, fuelEmpty: false });
+          Object.assign(c, { fuel: 100, pitCalled: false, fuelCritCalled: false, fuelEmpty: false });
         }
       }
       this.goT = t ?? this.goT;
@@ -505,6 +510,7 @@
       c.fuel = Math.min(100, c.fuel + dt / 1000 * this.settings.refuelPctPerSec);
       entry.fuel = c.fuel - before;
       if (c.fuel > this.settings.pitCallFuelPct) c.pitCalled = false;
+      if (c.fuel > this.settings.fuelCritPct) c.fuelCritCalled = false;
       if (c.fuelEmpty && c.fuel > 0) { c.fuelEmpty = false; this.emit('fuelRestored', { ctrl: c.ctrl, driverId: c.driverId }); }
       if (c.fuel >= 100 && before < 100) this.emit('refueled', { ctrl: c.ctrl, driverId: c.driverId });
     }

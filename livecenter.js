@@ -741,8 +741,11 @@
     renderLive();
   }
 
+  // Tankbalken: orange ab „muss an die Box“, rot ab „jetzt tanken“, blinkend wenn leer
+  const fuelClass = s => s.fuelEmpty ? 'empty' : s.fuel <= session.settings.fuelCritPct ? 'low crit' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : '';
+
   // ---------- Meldungen der Engine → Sprache + Laufschrift ----------
-  const PRIO = { lights: 9, go: 9, redFlag: 10, resume: 9, win: 8, pole: 8, trackRecord: 7, finishPlace: 7, falseStart: 7, lastLap: 6, fiveToGo: 6, halfway: 6, status: 6, carRecord: 6, personalRecord: 5, pitCall: 5, noSignal: 6, leadChange: 5, fastestLap: 4, penaltyServed: 4, refueled: 3, qualiDone: 3, pitIn: 2 };
+  const PRIO = { lights: 9, go: 9, redFlag: 10, resume: 9, win: 8, pole: 8, trackRecord: 7, finishPlace: 7, falseStart: 7, lastLap: 6, fiveToGo: 6, halfway: 6, status: 6, carRecord: 6, personalRecord: 5, pitCall: 5, fuelCritical: 6, noSignal: 6, leadChange: 5, fastestLap: 4, penaltyServed: 4, refueled: 3, qualiDone: 3, pitIn: 2 };
   // So lange darf nichts Unwichtigeres dazwischenreden (ms, sonst 2,2 s) – z. B. der Glückwunsch zum Sieg / zur Pole
   const HOLD = { win: 4500, pole: 4000, trackRecord: 3500 };
   // Diese Ansagen werden nicht verworfen, sondern nachgeholt, wenn gerade Wichtigeres läuft
@@ -783,6 +786,7 @@
         if (session.mode === 'race' && (session.cars.get(d.ctrl)?.laps ?? 0) >= 2) { say(type, 'fastest_lap', d.driverId); note(d.ctrl, `${name}: schnellste Runde ${fmt(d.ms)} s`, 'fl'); }
         break;
       case 'pitCall': say(type, 'pit_call', d.driverId); note(d.ctrl, `${name}: Tank bald leer`, 'warn'); break;
+      case 'fuelCritical': say(type, 'fuel_critical', d.driverId); note(d.ctrl, `${name}: jetzt tanken!`, 'warn'); break;
       case 'fuelEmpty': source?.limitSpeed?.(d.ctrl, d.level); note(d.ctrl, `${name}: Tank leer – gedrosselt`, 'warn'); break;
       case 'fuelRestored': source?.limitSpeed?.(d.ctrl, null); break;
       case 'noSignal': say(type, 'no_signal', d.driverId); note(d.ctrl, `${name}: seit ${d.sec} s keine Runde gezählt – Auto prüfen`, 'warn'); break;
@@ -963,7 +967,7 @@
         <div class="lc-num lc-last ${s.lastInterrupted ? 'int' : ''}">${fmt(s.last)}</div>
         <div class="lc-num lc-best ${bestCls}">${fmt(s.best)}</div>
         <div class="lc-num lc-gap">${out ? '' : fmtGap(s)}</div>`;
-      const fuel = `<div class="lc-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''} ${s.inPit && !s.servingPenalty ? 'filling' : ''}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></div>`;
+      const fuel = `<div class="lc-fuel ${fuelClass(s)} ${s.inPit && !s.servingPenalty ? 'filling' : ''}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></div>`;
       if (!race) {
         const status = s.done ? '<span class="lc-badge chk">Fertig</span>' : s.inPit ? '<span class="lc-badge pit">Box</span>' : '';
         return `<div class="${cls}" style="${ctrlStyle(s.ctrl)}" data-ctrl="${s.ctrl}">${common}
@@ -982,7 +986,7 @@
     const lightsHtml = (() => {
       if (overlay && now < overlay.until && overlay.kind === 'go') return `<div class="lc-lights go"><div class="lc-lamps">${'<i></i>'.repeat(5)}</div><div class="lc-go">LOS!</div></div>`;
       // Startaufstellung mit Tank (vor dem Start alle 100 %, nach Roter Flagge der echte Stand)
-      const gridHtml = `<div class="lc-grid-list">${st.map(s => `<span style="${ctrlStyle(s.ctrl)}"><i></i>${who(s.driverId)}${session.fuelOn && !s.status ? `<span class="lc-fuel lc-grid-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : ''}</span>`).join('')}</div>`;
+      const gridHtml = `<div class="lc-grid-list">${st.map(s => `<span style="${ctrlStyle(s.ctrl)}"><i></i>${who(s.driverId)}${session.fuelOn && !s.status ? `<span class="lc-fuel lc-grid-fuel ${fuelClass(s)}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : ''}</span>`).join('')}</div>`;
       if (overlay && now < overlay.until && overlay.kind === 'resume') return `<div class="lc-lights"><div class="lc-go">Weiter geht's!</div>${gridHtml}</div>`;
       if (phase !== 'lights') return '';
       const lit = session.lights;
@@ -1017,7 +1021,7 @@
               return `<span class="lc-pen-lap ${manual ? 'manual' : ''}" title="Laufende Rundenzeit beim Abbruch">${lapMs == null ? '–' : fmt(lapMs)}</span>${btn}`;
             })()}
             <span class="lc-pen-gap">${gap}</span>
-            ${session.fuelOn ? `<span class="lc-fuel lc-pen-fuel ${s.fuelEmpty ? 'empty' : s.fuel <= session.settings.pitCallFuelPct ? 'low' : ''}" title="Tank"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : ''}
+            ${session.fuelOn ? `<span class="lc-fuel lc-pen-fuel ${fuelClass(s)}" title="Tank"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : ''}
             ${canEdit() ? `<span class="lc-pen-opts">${[0, ...session.settings.penaltyOptionsSec].map(sec => `<button class="lc-btn ${sel === sec ? 'on' : ''}" data-act="redPen" data-ctrl="${s.ctrl}" data-sec="${sec}" ${out ? 'disabled' : ''}>${sec ? `+${String(sec).replace('.', ',')}` : '0'}</button>`).join('')}<button class="lc-btn lc-credit" data-act="credit" data-ctrl="${s.ctrl}" title="Gutschrift: 5 s von der offenen Strafe abziehen" ${s.penaltySec && !out ? '' : 'style="visibility:hidden" disabled'}>−5</button></span>
             <span class="lc-pen-acts">
               <button class="lc-btn lc-pen-dmg" data-act="dmgOpen" data-ctrl="${s.ctrl}" ${out ? 'disabled' : ''}>Schaden</button>

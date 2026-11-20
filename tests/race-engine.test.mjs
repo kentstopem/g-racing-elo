@@ -796,3 +796,28 @@ test('Quali mit Tanken: Option bleibt im Snapshot erhalten', () => {
   assert.equal(s.fuelOn, true);
   assert.equal(s.snapshot().opts.fuel, true);
 });
+
+test('Tank: zweite Warnung „jetzt tanken“ ab 5 %, einmal je Tankfüllung', () => {
+  const { s, events } = race(60, { settings: { fullTankLaps: 25, pitCallFuelPct: 20, fuelCritPct: 5, pitDriveMs: 0 } });
+  let t = 6500;
+  lap(s, 1, t);
+  for (let i = 0; i < 24; i++) { t += 7000; lap(s, 1, t); }   // 24 Runden à 4 % → 4 %
+  const c = s.cars.get(1);
+  assert.ok(Math.abs(c.fuel - 4) < 1e-9);
+  const n = k => events.filter(e => e[0] === k).length;
+  assert.equal(n('pitCall'), 1);
+  assert.equal(n('fuelCritical'), 1);
+  s.handle({ type: 'pit', ctrl: 1, inPit: true, t: t + 1000 });
+  s.tick(t + 1000 + 20000);
+  assert.equal(c.fuel, 100);
+  assert.equal(c.fuelCritCalled, false);
+});
+
+test('Tank: fällt der Tank in einer Runde unter beide Schwellen, kommt nur „jetzt tanken“', () => {
+  const { s, events } = race(60, { settings: { fullTankLaps: 25, pitCallFuelPct: 19, fuelCritPct: 17, pitDriveMs: 0 } });
+  let t = 6500;
+  lap(s, 1, t);
+  for (let i = 0; i < 21; i++) { t += 7000; lap(s, 1, t); }   // 20 % → 16 %
+  assert.equal(events.filter(e => e[0] === 'pitCall').length, 0);
+  assert.equal(events.filter(e => e[0] === 'fuelCritical').length, 1);
+});
