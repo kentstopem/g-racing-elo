@@ -43,7 +43,7 @@
   function render () {
     const root = document.getElementById('workshopRoot');
     if (!root || !D()) return;
-    const Dm = D(), admin = !!window.isAdmin;
+    const Dm = D();
     const all = cars();
     const withOpen = all.filter(c => Dm.openDamages(c).length);
     const matches = (c, k) => (k === 'crit' ? Dm.isLocked(c) : !Dm.isLocked(c) && Dm.openDamages(c).length > 0);
@@ -64,7 +64,7 @@
         </div>
       </div>
       <p class="ws-summary">${withOpen.length ? `<strong>${withOpen.length}</strong> Fahrzeug${withOpen.length === 1 ? '' : 'e'} mit offenen Schäden${locked ? ` · <strong class="ws-locked">${locked}</strong> gesperrt` : ''}` : 'Alle Fahrzeuge sind fahrbereit.'}
-        ${admin ? '' : '<span class="muted"> · Nur lesen – Reparaturen trägt der Admin ein.</span>'}</p>
+</p>
       <div class="ws-list">${shown.map(c => `
         <details class="ws-car${Dm.isLocked(c) ? ' is-locked' : ''}" data-id="${esc(String(c.id))}" ${opened.has(String(c.id)) ? 'open' : ''}>
           <summary>
