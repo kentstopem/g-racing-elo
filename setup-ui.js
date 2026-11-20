@@ -653,7 +653,7 @@
           <div class="form-group"><label for="rsBaseK">K-Faktor (maximal)</label><input id="rsBaseK" name="baseK" type="number" min="1" max="200" step="1" inputmode="numeric" value="${s.baseK}"><small class="muted">So viel kann ein Rennen mit 6 Fahrern über 75 Runden oder mehr höchstens bewegen. Weniger Fahrer oder Runden verringern ihn, im Extremfall auf ein Viertel. Gilt nur für neue Rennen, gewertete Rennen behalten ihren Wert.</small></div>
         </div>
         </details>
-        <div class="edit-foot rs-foot"><button type="button" class="btn" id="rsReset">Standardwerte</button><span style="flex:1"></span><button type="submit" class="btn btn-primary">Speichern</button></div>
+        <div class="edit-foot rs-foot"><button type="button" class="btn" id="rsReset">Standardwerte</button><span style="flex:1"></span><span class="muted edit-note" id="rsSaved">Änderungen werden sofort gespeichert</span></div>
       </form>
       <details class="bal-details" id="balDetails" data-rssec="balance">
         <summary class="setup-h">Balancing prüfen</summary>
@@ -767,8 +767,13 @@
       if (!confirm('Alle Renneinstellungen auf die Standardwerte zurücksetzen?')) return;
       persist(window.Storage.updateRaceSettings({ ...M.RACE_DEFAULTS, penaltyOptionsSec: [...M.RACE_DEFAULTS.penaltyOptionsSec], voice: s.voice }), 'Standardwerte gesetzt');
     };
-    form.onsubmit = e => {
-      e.preventDefault();
+    // Sofort speichern: jede geänderte Eingabe (beim Verlassen des Felds bzw. Loslassen des Reglers) wird gespeichert
+    const savedNote = el.querySelector('#rsSaved');
+    let saveTimer = null;
+    form.addEventListener('change', () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 300); });
+    form.onsubmit = e => { e.preventDefault(); clearTimeout(saveTimer); saveNow(); };   // Enter auf der Tastatur
+    function saveNow () {
+      if (!form.checkValidity()) { form.reportValidity(); return; }
       const opts = form.opts.value.split(/[;\s]+/).map(parseNum).filter(v => v > 0);
       const fields = M.raceSettings({
         fullTankLaps: parseNum(form.tank.value),
@@ -785,8 +790,14 @@
         baseK: parseNum(form.baseK.value),
         voice: window.appData.raceSettings?.voice
       });
-      persist(window.Storage.updateRaceSettings(fields), 'Renneinstellungen gespeichert');
-    };
+      const cur = window.appData.raceSettings || {};
+      if (Object.keys(fields).every(k => JSON.stringify(fields[k]) === JSON.stringify(cur[k]))) return;   // nichts geändert
+      window.appData.raceSettings = fields;   // sofort wirksam, Sync folgt
+      if (savedNote) savedNote.textContent = 'Wird gespeichert …';
+      persist(window.Storage.updateRaceSettings(fields), 'Renneinstellungen gespeichert')
+        .then(() => { if (savedNote) savedNote.textContent = 'Gespeichert ✓'; })
+        .catch(() => { if (savedNote) savedNote.textContent = 'Nicht gespeichert – Verbindung prüfen'; });
+    }
   }
 
   function render () {
