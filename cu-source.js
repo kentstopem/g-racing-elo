@@ -121,8 +121,29 @@
   const B = () => window.CU.BUTTON;
   const RESEND_MS = 900;
 
+  /**
+   * Vorbereitung (keine Sitzung): Strecke freigeben, falls die CU noch auf Rot steht, z. B. nach einem Rennen
+   * (Tristan 20.11.2026). ESC wiederholen, bis die Ampel 0 meldet (Befehle gehen per Bluetooth mal verloren), höchstens 8 s.
+   * Eine neue Sitzung (CuSource) bricht das ab, damit sich Freigabe und „Rot halten“ nicht abwechseln.
+   */
+  hub.releaseTrack = function () {
+    clearInterval(this.releaseLoop);
+    const until = performance.now() + 8000;
+    let last = -Infinity;
+    const step = () => {
+      const st = this.lastStatus?.start;
+      if (this.state !== 'connected' || performance.now() > until || st === 0) { clearInterval(this.releaseLoop); this.releaseLoop = null; return; }
+      if (st == null || (st >= 2 && st <= 7) || performance.now() - last < RESEND_MS) return;   // Countdown nicht abbrechen
+      this.send(C().press(B().ESC)); last = performance.now();
+    };
+    this.releaseLoop = setInterval(step, 150);
+    step();
+  };
+  hub.cancelRelease = function () { clearInterval(this.releaseLoop); this.releaseLoop = null; };
+
   class CuSource {
     constructor () {
+      hub.cancelRelease();
       this.listeners = [];
       this.ctrls = new Set();
       this.tuning = {};          // ctrl → { speed, brake }

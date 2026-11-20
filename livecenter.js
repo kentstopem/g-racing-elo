@@ -112,7 +112,7 @@
     root.hidden = false;
     shellKey = '';
     watchCu();
-    if (!session) { if (canEdit()) { view = 'setup'; renderSetup(); } else startWatch(); } else renderLive();
+    if (!session) { if (canEdit()) enterSetup(); else startWatch(); } else renderLive();
   }
 
   // ---------- Live-Übertragung: Rennstand für Zuschauer (ein kleines Dokument live/current) ----------
@@ -247,6 +247,10 @@
   function entriesFromCfg () {
     return MD.CONTROLLERS.map(c => ({ ctrl: c.n, ...(cfg.assign[c.n] || {}) })).filter(e => e.driverId && e.carId);
   }
+
+  /** In der Vorbereitung ist die Strecke immer frei – egal, wie das Event davor beendet wurde (Tristan 20.11.) */
+  function releaseTrack () { if (cfg.source === 'cu' && canEdit()) cuHub()?.releaseTrack?.(); }
+  function enterSetup () { view = 'setup'; releaseTrack(); renderSetup(); }
 
   function renderSetup () {
     restoreThrottled();
@@ -403,6 +407,7 @@
     cuWatch = cuHub().onState(() => {
       if (!session) restoreThrottled();
       if (root?.hidden) return;
+      if (view === 'setup' && !session && cuHub().state === 'connected') releaseTrack();   // frisch verbunden: Strecke frei
       if (view === 'setup' && !session) renderSetup(); else { shellKey = ''; renderLive(); }
     });
     // Tuning: „gesendet“ → „im Auto“, sobald das Auto über einen Sensor fährt
@@ -444,7 +449,7 @@
   /** Nach dem Rennen: zurück zur Vorbereitung mit gleichen Paarungen, getauschten Autos oder neuer Zuteilung */
   function nextRace (how) {
     const entries = [...session.cars.values()].map(c => ({ ctrl: c.ctrl, driverId: c.driverId, carId: c.carId }));
-    stopSession(); view = 'setup';
+    stopSession(); view = 'setup'; releaseTrack();
     cfg.assign = {};
     entries.forEach(e => { cfg.assign[e.ctrl] = { driverId: e.driverId, carId: e.carId }; });
     cfg.hint = 'Gleiche Paarungen wie im letzten Rennen.';
@@ -1363,9 +1368,9 @@
       case 'openMenu': menuCtrl = ctrl; addPanel = null; dmgPanel = null; renderLive(); break;
       case 'status': session.setStatus(menuCtrl, b.dataset.s || null); menuCtrl = null; renderLive(); break;
       case 'finish': session.finish(source.now()); break;
-      case 'again': stopSession(); view = 'setup'; renderSetup(); break;
+      case 'again': stopSession(); enterSetup(); break;
       case 'noScore':   // Testrennen: nichts speichern, Sicherung verwerfen
-        if (noScoreArmed) { noScoreArmed = false; try { countLaps({ unscored: true }); } catch (err) { console.error(err); } stopSession(); view = 'setup'; renderSetup(); window.Helpers.showToast?.('Rennen nicht gewertet'); }
+        if (noScoreArmed) { noScoreArmed = false; try { countLaps({ unscored: true }); } catch (err) { console.error(err); } stopSession(); enterSetup(); window.Helpers.showToast?.('Rennen nicht gewertet'); }
         else { noScoreArmed = true; shellKey = ''; renderLive(); setTimeout(() => { noScoreArmed = false; shellKey = ''; renderLive(); }, 3000); }
         break;
       case 'end':
