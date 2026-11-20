@@ -13,8 +13,8 @@
   --text-muted: #5A5A5E;       /* Labels, Nebentexte */
 
   /* Akzent */
-  --iu-accent: #00F9FF;
-  --iu-accent-light: #D2FAFB;
+  --iu-accent: #00C96B;
+  --iu-accent-light: #D2F4E3;
 
   /* Funktionsfarben (nur Status) */
   --status-error: #B3261E;

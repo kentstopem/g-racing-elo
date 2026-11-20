@@ -5,3 +5,5 @@
 window.APP_VERSION_BASE = '3.2';
 window.APP_RELEASE = null;
 window.APP_VERSION = `${window.APP_VERSION_BASE}.r${window.APP_RELEASE ?? 'dev'}`;
+// Sofort in die Fußzeile schreiben (das Skript steht nach der Fußzeile), damit beim Laden keine alte Nummer aufblitzt
+{ const el = document.getElementById('appVersion'); if (el) el.textContent = window.APP_VERSION; }

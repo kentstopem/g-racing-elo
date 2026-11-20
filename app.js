@@ -113,7 +113,7 @@ function renderChart(mode){
         })();
   eloChartInstance=new Chart(canvas.getContext('2d'),{
     type:'line',
-    data:{labels,datasets:[{label:mode==='elo'?'G!RP':'Rang',data,borderColor:'#1D1D1F',backgroundColor:'#00F9FF',pointBorderColor:'#1D1D1F',pointBorderWidth:2,borderWidth:2,tension:0.2,pointRadius:4,pointHoverRadius:8}]},
+    data:{labels,datasets:[{label:mode==='elo'?'G!RP':'Rang',data,borderColor:'#1D1D1F',backgroundColor:getComputedStyle(document.documentElement).getPropertyValue('--iu-accent').trim(),pointBorderColor:'#1D1D1F',pointBorderWidth:2,borderWidth:2,tension:0.2,pointRadius:4,pointHoverRadius:8}]},
     options:{
       scales:{y:yOpts},
       interaction:{mode:'index',intersect:false},
