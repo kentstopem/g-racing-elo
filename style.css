@@ -24,7 +24,7 @@
   --status-ok: #1E6B3A;
   --status-ok-bg: #E0FAD2;
 
-  --radius: 12px;
+  --radius: 6px;
   --radius-btn: 4px;
 }
 
@@ -202,6 +202,11 @@ h3 { font-size: 18px; font-weight: 600; }
   border-bottom: 1px solid var(--iu-grey);
 }
 
+/* Überschrift mit Filter-Button rechtsbündig in derselben Zeile */
+.ranking-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--iu-grey); }
+.ranking-header-row > .ranking-header { flex: 1; min-width: 0; margin: 0; padding: 0; border: 0; }
+.ranking-header-row > .ranking-filter-btn { flex: none; min-height: 32px; padding: 4px 10px; font-size: 13px; }
+
 .card {
   background: var(--iu-light-grey);
   border-radius: var(--radius);
@@ -308,7 +313,7 @@ input[type=checkbox] { accent-color: var(--iu-black); width: 16px; height: 16px;
   font-variant-numeric: tabular-nums;
   background: var(--iu-light-grey);
   color: var(--iu-black);
-  border-radius: 999px;
+  border-radius: var(--radius-btn);
   padding: 2px 12px;
   white-space: nowrap;
 }
@@ -818,7 +823,7 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
 .ws-summary { font-size: 14px; margin: 0 0 10px; }
 .ws-locked { color: var(--status-error); }
 .ws-list { display: flex; flex-direction: column; gap: 8px; }
-.ws-car { border: 1px solid var(--iu-grey); border-radius: 10px; background: var(--iu-white); }
+.ws-car { border: 1px solid var(--iu-grey); border-radius: var(--radius); background: var(--iu-white); }
 .ws-car.is-locked { border-color: #E8B4B0; }
 .ws-car > summary { display: flex; align-items: center; gap: 12px; padding: 10px 12px; cursor: pointer; list-style: none; }
 .ws-car > summary::-webkit-details-marker { display: none; }
