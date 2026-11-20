@@ -28,7 +28,7 @@
     return Object.entries(byCat).map(([cat, list]) => {
       const crit = list.some(d => d.critical);
       return `<span class="dmg-badge ${crit ? 'crit' : 'warn'}" title="${esc(list.map(Dm.entryLabel).join(', '))}">${icon(cat === 'light' ? 'light-off' : 'alert')}${esc(Dm.categoryLabel(cat))}${list.length > 1 ? ' ×' + list.length : ''}</span>`;
-    }).join(' ') + (Dm.isLocked(car) ? ' <span class="dmg-badge crit locked">gesperrt</span>' : '');
+    }).join(' ');   // gesperrt: Motor/Sensor sind schon tiefrot, kein extra Hinweis
   }
 
   function subline (car) {
@@ -105,7 +105,8 @@
       });
       root.addEventListener('toggle', e => {
         const d = e.target.closest?.('details.ws-car');
-        if (!d) return;
+        if (!d || e.target !== d) return;   // Tagebuch-Klappe im Auto zählt nicht als Auto auf/zu
+        if (d.open) d.querySelectorAll('details.dmg-diary[open]').forEach(x => { x.open = false; });   // Tagebuch beim Öffnen des Autos immer zu
         if (d.open) { opened.add(d.dataset.id); fill(d); } else opened.delete(d.dataset.id);
       }, true);
       // Admin hat repariert/eingetragen: Kopfzeile + Zähler aktualisieren, Tagebuch bleibt offen

@@ -782,9 +782,9 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
 .dmg-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
 .dmg-chip { border: 1px solid var(--iu-grey); background: var(--iu-white); color: var(--iu-black); border-radius: var(--radius-btn); padding: 6px 14px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 34px; }
 .dmg-chip.active { background: var(--iu-black); color: var(--iu-white); border-color: var(--iu-black); }
-.dmg-chip-n { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; font-size: 12px; font-weight: 700; background: var(--status-warning-bg); color: var(--status-warning); }
+.dmg-chip-n { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: var(--radius-btn); font-size: 12px; font-weight: 700; background: var(--status-warning-bg); color: var(--status-warning); }
 .dmg-chip.crit .dmg-chip-n, .dmg-chip.cat-motor .dmg-chip-n, .dmg-chip.cat-sensor .dmg-chip-n { background: var(--status-error-bg); color: var(--status-error); }
-.dmg-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; vertical-align: middle; white-space: nowrap; }
+.dmg-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-btn); vertical-align: middle; white-space: nowrap; }
 .dmg-badge .ic { width: 13px; height: 13px; }
 .dmg-badge.warn { background: var(--status-warning-bg); color: var(--status-warning); }
 .dmg-badge.crit { background: var(--status-error-bg); color: var(--status-error); }
@@ -792,7 +792,7 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
 .dmg-section { margin-top: 16px; border-top: 1px solid var(--iu-grey); padding-top: 12px; }
 .dmg-section h4 { margin: 0 0 8px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
 .dmg-types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
-.dmg-type { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--iu-grey); border-radius: 8px; font-size: 14px; cursor: pointer; margin: 0; }
+.dmg-type { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--iu-grey); border-radius: var(--radius-btn); font-size: 14px; cursor: pointer; margin: 0; }
 .dmg-type input { width: auto; margin: 0; }
 .dmg-type.crit { border-color: #E8B4B0; }
 .dmg-type.is-open { opacity: .55; cursor: default; }
@@ -836,10 +836,16 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
 .ws-head { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .ws-head small { flex-basis: 100%; font-size: 13px; }
 .ws-chev { flex: none; width: 10px; height: 10px; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); transform: rotate(45deg); margin: 0 6px 4px 0; transition: transform .15s; }
-.ws-car[open] .ws-chev { transform: rotate(-135deg); margin-bottom: -4px; }
+.ws-car[open] > summary .ws-chev { transform: rotate(-135deg); margin-bottom: -4px; }
 .ws-body { padding: 0 12px 12px; }
 .ws-body .dmg-section:first-child { margin-top: 0; }
 .ws-body .dmg-log { max-height: none; }
+/* Werkstatt: Tagebuch im aufgeklappten Fahrzeug einklappbar */
+.dmg-diary > summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; }
+.dmg-diary > summary::-webkit-details-marker { display: none; }
+.dmg-diary > summary h4 { margin: 0; }
+.dmg-diary[open] > summary { margin-bottom: 8px; }
+.dmg-diary[open] > summary .ws-chev { transform: rotate(-135deg); margin-bottom: -4px; }
 @media (max-width: 520px) { .ws-img { width: 56px; height: 32px; } .ws-car > summary { gap: 8px; padding: 10px; } }
 
 /* Handy: alle Hauptreiter nebeneinander, Icon über dem Text (kein seitliches Scrollen) */

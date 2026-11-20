@@ -355,6 +355,7 @@
     const D = window.Damage;
     let damages = D.list(window.appData.cars.find(x => x.id === id));
     let fixing = null;   // id des Schadens, der gerade als repariert markiert wird
+    let diaryOpen = false;   // Werkstatt: Tagebuch eingeklappt, bis man es öffnet (bleibt beim Neuzeichnen so)
     const car = () => ({ ...(window.appData.cars.find(x => x.id === id) || { id }), damages });
     const save = (next, ok) => {
       if (readOnly || !window.isAdmin) return;
@@ -374,7 +375,7 @@
       const openKeys = open.map(d => d.type);
       box.innerHTML = `
         <div class="dmg-section">
-          <h4>${icon('alert')}Schäden${D.isLocked(cur) ? ' <span class="dmg-badge crit locked">gesperrt</span>' : open.length ? ' <span class="dmg-badge warn">fahrbereit</span>' : ''}</h4>
+          <h4>${icon('alert')}Schäden${D.isLocked(cur) ? (inDialog ? ' <span class="dmg-badge crit locked">gesperrt</span>' : '') : open.length ? ' <span class="dmg-badge warn">fahrbereit</span>' : ''}</h4>
           ${open.length ? open.map(d => `<div class="dmg-open-item">
               <span class="dmg-badge ${d.critical ? 'crit' : 'warn'}">${esc(D.categoryLabel(d.category))}</span>
               <span class="dmg-what"><strong>${esc(D.entryLabel(d))}</strong> <span class="muted">seit ${fmtWhen(d.at)}${ctx(d) ? ' · ' + ctx(d) : ''}</span></span>
@@ -404,8 +405,8 @@
             <p class="muted edit-note">${inDialog ? 'Angekreuzte Schäden werden mit „Speichern“ eingetragen. ' : ''}Motor, Sensor und „Sonstige“ mit Haken „kritisch“ sperren das Fahrzeug, bis der Schaden repariert ist.</p>
           </div>`}
         </div>
-        <div class="dmg-section">
-          <h4>${icon('list')}Werkstatttagebuch</h4>
+        ${inDialog ? '<div class="dmg-section">' : `<details class="dmg-section dmg-diary" ${diaryOpen ? 'open' : ''}><summary>`}
+          <h4>${icon('list')}Werkstatttagebuch</h4>${inDialog ? '' : '<span class="ws-chev" aria-hidden="true"></span></summary>'}
           <div class="dmg-stats"><span>Schäden: <strong>${st.damages}</strong></span><span>Reparaturen: <strong>${st.repairs}</strong></span>
             <span>Runden seit letzter Reparatur: <strong>${st.lapsSinceRepair ?? '–'}</strong></span><span>Schäden pro 100 Runden: <strong>${fmtDec(st.per100Laps)}</strong></span></div>
           <div class="dmg-log">${D.journal(cur).map(d => `<div class="dmg-log-item ${d.fixedAt ? 'fixed' : ''}">
@@ -414,8 +415,9 @@
                 <br><span class="muted">${d.fixedAt ? `repariert am ${fmtWhen(d.fixedAt)}${d.fixNote ? ` · „${esc(d.fixNote)}“` : ''}` : 'offen'}</span></span>
               ${readOnly || noDelete ? '' : `<button type="button" class="btn btn-small btn-danger" data-dmgdel="${d.id}" aria-label="Eintrag löschen" title="Eintrag löschen">${icon('trash')}</button>`}
             </div>`).join('') || '<p class="dmg-empty">Noch keine Einträge.</p>'}</div>
-        </div>`;
+        ${inDialog ? '</div>' : '</details>'}`;
     }
+    box.addEventListener('toggle', e => { if (e.target.matches?.('.dmg-diary')) diaryOpen = e.target.open; }, true);
     box.addEventListener('click', e => {
       if (readOnly || !window.isAdmin) return;
       const b = e.target.closest('button'); if (!b) return;
