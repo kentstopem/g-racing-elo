@@ -250,6 +250,7 @@
   }
 
   function renderSetup () {
+    restoreThrottled();
     // Gesperrte Fahrzeuge (offener kritischer Schaden) aus der Zuweisung nehmen – auch nach „Autos rotieren“
     const lockedOut = [];
     for (const a of Object.values(cfg.assign)) {
@@ -392,9 +393,16 @@
 `;
   }
   let cuWatch = null;
+  /** Noch wegen leerem Tank gedrosselte Autos (Rennende, Absturz) in der Vorbereitung auf ihr Tuning zurücksetzen */
+  function restoreThrottled () {
+    if (session || cfg.source !== 'cu' || cuHub()?.state !== 'connected') return;
+    const done = cuHub().restoreThrottled?.() || [];
+    if (done.length) window.Helpers.showToast?.(`Tempo zurückgesetzt (leerer Tank): ${done.map(n => MD.CONTROLLERS.find(c => c.n === n)?.name || n).join(', ')} – einmal über einen Sensor fahren`);
+  }
   function watchCu () {
     if (cuWatch || !cuHub()) return;
     cuWatch = cuHub().onState(() => {
+      if (!session) restoreThrottled();
       if (root?.hidden) return;
       if (view === 'setup' && !session) renderSetup(); else { shellKey = ''; renderLive(); }
     });

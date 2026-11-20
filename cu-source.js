@@ -21,6 +21,9 @@
     progSubs: new Set(),
     pending: {},              // ctrl → Zeitpunkt, seit dem Gas/Bremse gesendet, aber noch kein Sensor gemeldet ist
     programmedAt: 0,
+    // Wegen leerem Tank gedrosselte Autos: ctrl → eigenes Tuning { speed, brake }. Das Tempo bleibt im Auto
+    // gespeichert, deshalb gemerkt (auch über Neuladen), bis es wieder zurückgesetzt ist.
+    throttled: (() => { try { return JSON.parse(localStorage.getItem('cuThrottled') || '{}') || {}; } catch (e) { return {}; } })(),
 
     available () { return !!window.CU?.Connection?.available?.(); },
 
@@ -85,6 +88,32 @@
       esc(); setTimeout(wait, 150);
       return true;
     },
+    saveThrottled () { try { localStorage.setItem('cuThrottled', JSON.stringify(this.throttled)); } catch (e) {} },
+    /** Leerer Tank: nur Tempo senden, Bremse bleibt (ein Befehl, damit die CU möglichst kurz programmiert) */
+    throttle (ctrl, level, own) {
+      if (this.state !== 'connected') return false;
+      this.throttled[ctrl] = { speed: own?.speed ?? 15, brake: own?.brake ?? 15 };
+      this.saveThrottled();
+      this.programmedAt = this.pending[ctrl] = performance.now();
+      this.send(window.CU.Commands.speed(ctrl, level));
+      return true;
+    },
+    /** Getankt: eigenes Tempo zurück ins Auto */
+    unthrottle (ctrl, { release = false } = {}) {
+      const own = this.throttled[ctrl];
+      if (!own || this.state !== 'connected') return false;
+      if (!release) {
+        this.programmedAt = this.pending[ctrl] = performance.now();
+        this.send(window.CU.Commands.speed(ctrl, own.speed));
+      } else if (!this.program(ctrl, own, { release: true })) return false;
+      delete this.throttled[ctrl];
+      this.saveThrottled();
+      return true;
+    },
+    /** Vorbereitung: Autos, die noch gedrosselt im Auto stehen (Rennende/Absturz mit leerem Tank), zurücksetzen */
+    restoreThrottled () {
+      return Object.keys(this.throttled).map(Number).filter(ctrl => this.unthrottle(ctrl, { release: true }));
+    },
     onProgram (fn) { this.progSubs.add(fn); return () => this.progSubs.delete(fn); }
   };
 
@@ -139,8 +168,15 @@
       hub.program(ctrl, t, { release });
     }
 
-    /** Leerer Tank: vorerst ohne Drosselung über die CU (siehe setTuning) */
-    limitSpeed (ctrl, level) { this.limit[ctrl] = level; }
+    /** Leerer Tank: nur das Tempo dieses Autos per CU auf level drosseln (null = wieder eigenes Tuning).
+     *  Kein ESC: das Auto fährt ja (Ampel 0). Bei Rot nimmt die CU nichts an, dann bleibt es beim alten Stand. */
+    limitSpeed (ctrl, level) {
+      this.limit[ctrl] = level;
+      const t = this.tuning[ctrl] || { speed: 15, brake: 15 };
+      if (level == null) { if (hub.throttled[ctrl]) hub.unthrottle(ctrl); return; }
+      if (level >= t.speed) return;                                        // ist ohnehin nicht schneller
+      hub.throttle(ctrl, level, t);
+    }
 
     press (button) { hub.send(C().press(button)); this.lastSend = performance.now(); }
 
@@ -158,6 +194,11 @@
       } else if (this.want === 'release') {
         if (st === 0) this.want = null;
         else if (!countdown) this.press(B().ESC);                              // 1 → 0
+      } else if (this.want === null && st === 1 && performance.now() - (hub.programmedAt || 0) > 15000) {
+        // Rot, das in den 15 s nach dem Programmieren (z. B. Drosselung bei leerem Tank) nicht als Buzzer
+        // gewertet wurde, aber stehen bleibt: dann war es echt → Rote Flagge nachholen
+        this.want = 'hold';
+        this.emit({ type: 'stop' });
       } else if (this.want === 'hold') {
         if (st === 0 || st === 9) this.press(B().START);                       // → 1 (Rot)
         else if (countdown && !this.counting) this.press(B().ESC);             // fremder Countdown → abbrechen
