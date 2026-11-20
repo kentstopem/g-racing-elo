@@ -256,7 +256,7 @@
         ${isNew || !window.Damage ? '' : '<div id="dmgBox"></div>'}
         ${footer()}
       </form>`);
-    if (!isNew && window.Damage) damageSection(body.querySelector('#dmgBox'), id);
+    if (!isNew && window.Damage) damageSection(body.querySelector('#dmgBox'), id, { inDialog: true });
 
     const form = body.querySelector('#carForm');
     const showImg = async car => {
@@ -323,6 +323,9 @@
         closeModal();
         return;
       }
+      // Angekreuzt, aber nicht „Eintragen“ gedrückt: Schaden mit speichern statt verlieren
+      const dmgBox = body.querySelector('#dmgBox');
+      if (dmgBox?._addPendingDamage && !dmgBox._addPendingDamage({ silentIfEmpty: true })) return;
       persist(window.Storage.updateCarFields(id, { tuning }), 'Fahrzeug gespeichert');
       closeModal();
     };
@@ -348,7 +351,7 @@
    * Schäden + Werkstatttagebuch eines Fahrzeugs in box zeichnen.
    * readOnly: nur lesen (Werkstatt-Reiter ohne Login) · noDelete: ohne Löschen (Werkstatt-Reiter als Admin)
    */
-  function damageSection (box, id, { readOnly = false, noDelete = false } = {}) {
+  function damageSection (box, id, { readOnly = false, noDelete = false, inDialog = false } = {}) {
     const D = window.Damage;
     let damages = D.list(window.appData.cars.find(x => x.id === id));
     let fixing = null;   // id des Schadens, der gerade als repariert markiert wird
@@ -396,9 +399,9 @@
             <div class="dmg-add-row">
               <input type="datetime-local" data-dmgat value="${localInput()}" aria-label="Datum des Schadens">
               <input type="text" data-dmgnote placeholder="Notiz (optional)" maxlength="200">
-              <button type="button" class="btn btn-small" data-dmgadd>Eintragen</button>
+              ${inDialog ? '' : '<button type="button" class="btn btn-small" data-dmgadd>Eintragen</button>'}
             </div>
-            <p class="muted edit-note">Motor, Sensor und „Sonstige“ mit Haken „kritisch“ sperren das Fahrzeug, bis der Schaden repariert ist.</p>
+            <p class="muted edit-note">${inDialog ? 'Angekreuzte Schäden werden mit „Speichern“ eingetragen. ' : ''}Motor, Sensor und „Sonstige“ mit Haken „kritisch“ sperren das Fahrzeug, bis der Schaden repariert ist.</p>
           </div>`}
         </div>
         <div class="dmg-section">
@@ -431,13 +434,28 @@
         save(D.removeDamage(car(), b.dataset.dmgdel), 'Eintrag gelöscht');
         return;
       }
-      if ('dmgadd' in b.dataset) {
+      if ('dmgadd' in b.dataset) addPending();
+    });
+    // Beschreibung bei „Sonstige“ getippt → Haken setzen; Enter in den Schadensfeldern = „Eintragen“ (nicht den Dialog speichern)
+    box.addEventListener('input', e => {
+      if (e.target.matches('[data-dmgother]')) { const cb = box.querySelector('[data-dmgtype="other"]'); if (cb) cb.checked = !!e.target.value.trim(); }
+    });
+    box.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target.matches('[data-dmgother], [data-dmgnote], [data-dmgat]')) { e.preventDefault(); addPending(); }
+    });
+    /** Angekreuzte Schäden eintragen. Rückgabe: true = nichts offen oder eingetragen, false = Eingabe unvollständig */
+    function addPending ({ silentIfEmpty = false } = {}) {
+      if (readOnly || !window.isAdmin) return true;
+      {
         const keys = [...box.querySelectorAll('[data-dmgtype]:checked:not(:disabled)')].map(i => i.dataset.dmgtype);
-        if (!keys.length) { showToast('Bitte mindestens eine Schadensart ankreuzen'); return; }
+        if (!keys.length) {
+          if (silentIfEmpty) return true;
+          showToast('Bitte mindestens eine Schadensart ankreuzen'); return false;
+        }
         const at = fromInput(box.querySelector('[data-dmgat]')?.value), note = box.querySelector('[data-dmgnote]')?.value || '';
         const lapsAtDamage = M.carTotals(id, window.appData.allRaces || window.appData.races || [], car()).laps;
         const otherTxt = (box.querySelector('[data-dmgother]')?.value || '').trim();
-        if (keys.includes('other') && !otherTxt) { showToast('Bitte den Schaden unter „Sonstige“ beschreiben'); box.querySelector('[data-dmgother]')?.focus(); return; }
+        if (keys.includes('other') && !otherTxt) { showToast('Bitte den Schaden unter „Sonstige“ beschreiben'); box.querySelector('[data-dmgother]')?.focus(); return false; }
         const otherCrit = !!box.querySelector('[data-dmgothercrit]')?.checked;
         let next = damages;
         for (const k of keys) {
@@ -446,8 +464,10 @@
             : { type: k, at, note, context: 'Werkstatt', lapsAtDamage }).damages;
         }
         save(next, keys.length === 1 ? 'Schaden eingetragen' : `${keys.length} Schäden eingetragen`);
+        return true;
       }
-    });
+    }
+    box._addPendingDamage = addPending;   // „Speichern“ im Fahrzeug-Dialog trägt angekreuzte Schäden mit ein
     render();
   }
 

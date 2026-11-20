@@ -812,7 +812,11 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
 .dmg-badge.done { background: var(--iu-light-grey); color: var(--text-muted); }
 .dmg-type-other { grid-column: 1 / -1; flex-wrap: wrap; }
 .dmg-type-other input[type="text"] { flex: 1 1 180px; width: auto; margin: 0; padding: 6px 10px; font-size: 14px; }
-.dmg-type-other .dmg-crit-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.dmg-type-other .dmg-crit-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+/* Schaden eintragen: .form-group label (display:block) überstimmen → Haken und Text mittig in einer Zeile, gleicher Abstand */
+.form-group .dmg-type, .form-group .dmg-crit-check { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; color: var(--iu-black); }
+.form-group .dmg-crit-check { display: inline-flex; }
+.dmg-types input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 0; padding: 0; }
 .dmg-lock-hint { font-size: 12px; font-weight: 600; color: var(--status-error); white-space: nowrap; }
 
 /* ---------- Werkstatt (Hauptmenü) ---------- */
