@@ -11,9 +11,9 @@ Laut abgeschnitten wird. Schon gekürzte Dateien werden nicht noch einmal neu ko
 import os, re, subprocess, sys
 
 THRESH = '-50dB'   # leiser gilt als Stille
-LEAD = 0.03        # so viel Stille bleibt vorne stehen (s)
-TAIL = 0.12        # … und hinten (s), damit Ausklang/Atmen nicht abgeschnitten wird
-MIN_CUT = 0.06     # weniger abzuschneiden lohnt keine Neukodierung
+LEAD = 0.01        # so viel Stille bleibt vorne stehen (s)
+TAIL = 0.04        # … und hinten (s), damit der Ausklang nicht abgeschnitten wird
+MIN_CUT = 0.03     # weniger abzuschneiden lohnt keine Neukodierung
 
 
 def bounds(path):

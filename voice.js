@@ -79,7 +79,7 @@
   // tools/voice/trim.py, live erzeugte und hochgeladene Namen kürzt das hier: MP3-Frames vor dem ersten
   // und hinter dem letzten Laut (bis auf einen kleinen Rest) werden weggelassen, ohne neu zu kodieren.
   // Geht etwas schief, bleibt der Ton wie er ist.
-  const TAIL_KEEP = 0.12, LEAD_KEEP = 0.06;   // s Stille, die stehen bleibt
+  const TAIL_KEEP = 0.04, LEAD_KEEP = 0.02;   // s Stille, die stehen bleibt
   const MP3_BR = [[0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160]];
   const MP3_SR = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] };
   async function trimTail (blob) {
@@ -174,10 +174,11 @@
   async function playSources (sources) {
     stop();
     const my = token;
-    for (const src of sources.filter(Boolean)) {
+    // Alle Teile vorab laden, damit zwischen [Name] und Ansage keine Lade-Pause entsteht
+    const clips = sources.filter(Boolean).map(src => { const a = new Audio(src); a.preload = 'auto'; try { a.load(); } catch (e) {} return a; });
+    for (const a of clips) {
       if (my !== token) return;
       await new Promise(resolve => {
-        const a = new Audio(src);
         current = a;
         a.onended = a.onerror = () => resolve();
         a.play().catch(() => resolve());
