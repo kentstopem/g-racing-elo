@@ -6,16 +6,15 @@
   const D = () => window.Damage;
   const FILTER_KEY = 'workshopFilter';
 
-  const filters = new Set();   // gewählte Kategorien (light | motor | sensor | other), leer = Alle, ODER-verknüpft
-  let showAll = false;         // auch Fahrzeuge ohne offene Schäden
+  const filters = new Set();   // gewählt: crit (gesperrt) | ok (offen, aber fahrbereit); leer = Alle, ODER-verknüpft
+  const KINDS = { crit: 'Kritisch', ok: 'Unkritisch' };
   const opened = new Set();    // aufgeklappte Fahrzeuge (bleiben beim Neuzeichnen offen)
   try {
     const f = JSON.parse(localStorage.getItem(FILTER_KEY) || '{}');
     const list = Array.isArray(f.filters) ? f.filters : (f.filter && f.filter !== 'all' ? [f.filter] : []);   // alte Form { filter }
-    list.forEach(k => filters.add(k));
-    showAll = !!f.showAll;
+    list.filter(k => k in KINDS).forEach(k => filters.add(k));   // alte Kategorie-Filter fallen weg
   } catch (e) {}
-  const remember = () => { try { localStorage.setItem(FILTER_KEY, JSON.stringify({ filters: [...filters], showAll })); } catch (e) {} };
+  const remember = () => { try { localStorage.setItem(FILTER_KEY, JSON.stringify({ filters: [...filters] })); } catch (e) {} };
   const isActive = k => (k === 'all' ? !filters.size : filters.has(k));
 
   const cars = () => (window.appData?.cars || []);
@@ -47,9 +46,10 @@
     const Dm = D(), admin = !!window.isAdmin;
     const all = cars();
     const withOpen = all.filter(c => Dm.openDamages(c).length);
-    const count = k => (k === 'all' ? withOpen : withOpen.filter(c => Dm.hasOpenCategory(c, k))).length;
-    const base = showAll ? all.filter(c => !c.archived || Dm.list(c).length) : withOpen;
-    const shown = base.filter(c => !filters.size || [...filters].some(k => Dm.hasOpenCategory(c, k)))
+    const matches = (c, k) => (k === 'crit' ? Dm.isLocked(c) : !Dm.isLocked(c) && Dm.openDamages(c).length > 0);
+    const base = all.filter(c => !c.archived || Dm.openDamages(c).length);   // „Alle“ = wirklich alle Fahrzeuge (archivierte nur mit offenem Schaden)
+    const count = k => (k === 'all' ? base : base.filter(c => matches(c, k))).length;
+    const shown = base.filter(c => !filters.size || [...filters].some(k => matches(c, k)))
       .sort((a, b) => (Dm.isLocked(b) - Dm.isLocked(a)) || (Dm.openDamages(b).length - Dm.openDamages(a).length)
         || a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
     const locked = withOpen.filter(Dm.isLocked).length;
@@ -57,12 +57,11 @@
     root.innerHTML = `
       <div class="ws-tools">
         <div class="dmg-filter" role="group" aria-label="Schäden filtern">
-          ${[['all', 'Alle'], ...Object.values(Dm.CATEGORIES).map(c => [c.key, c.label])].map(([k, l]) => {
-            const n = count(k), crit = k !== 'all' && withOpen.some(c => Dm.openDamages(c).some(d => d.category === k && d.critical));
-            return `<button type="button" class="dmg-chip${k === 'all' ? '' : ' cat-' + k}${isActive(k) ? ' active' : ''}${crit ? ' crit' : ''}" data-wsfilter="${k}" aria-pressed="${isActive(k)}">${esc(l)}${n ? ` <span class="dmg-chip-n">${n}</span>` : ''}</button>`;
+          ${[['all', 'Alle'], ...Object.entries(KINDS)].map(([k, l]) => {
+            const n = count(k), crit = k === 'crit';
+            return `<button type="button" class="dmg-chip${isActive(k) ? ' active' : ''}${crit ? ' crit' : ''}" data-wsfilter="${k}" aria-pressed="${isActive(k)}">${esc(l)}${n ? ` <span class="dmg-chip-n">${n}</span>` : ''}</button>`;
           }).join('')}
         </div>
-        <label class="ws-showall"><input type="checkbox" data-wsall ${showAll ? 'checked' : ''}> auch fahrbereite Fahrzeuge</label>
       </div>
       <p class="ws-summary">${withOpen.length ? `<strong>${withOpen.length}</strong> Fahrzeug${withOpen.length === 1 ? '' : 'e'} mit offenen Schäden${locked ? ` · <strong class="ws-locked">${locked}</strong> gesperrt` : ''}` : 'Alle Fahrzeuge sind fahrbereit.'}
         ${admin ? '' : '<span class="muted"> · Nur lesen – Reparaturen trägt der Admin ein.</span>'}</p>
@@ -75,7 +74,7 @@
             <span class="ws-chev" aria-hidden="true"></span>
           </summary>
           <div class="ws-body"></div>
-        </details>`).join('') || `<p class="dmg-empty" style="text-align:center;">${!filters.size ? 'Keine offenen Schäden.' : `Keine Fahrzeuge mit offenem Schaden (${esc([...filters].map(Dm.categoryLabel).join(' / '))}).`}</p>`}
+        </details>`).join('') || `<p class="dmg-empty" style="text-align:center;">${!filters.size ? 'Keine Fahrzeuge.' : `Keine Fahrzeuge mit ${esc([...filters].map(k => KINDS[k].toLowerCase() + 'en').join(' oder '))} Schäden.`}</p>`}
       </div>`;
 
     // aufgeklappte Fahrzeuge: Schäden + Tagebuch (Admin: reparieren / eintragen, sonst nur lesen)
@@ -99,9 +98,6 @@
         else if (filters.has(k)) filters.delete(k);
         else filters.add(k);
         remember(); render();
-      });
-      root.addEventListener('change', e => {
-        if (e.target.matches('[data-wsall]')) { showAll = e.target.checked; remember(); render(); }
       });
       root.addEventListener('toggle', e => {
         const d = e.target.closest?.('details.ws-car');
