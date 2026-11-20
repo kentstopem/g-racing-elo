@@ -1041,7 +1041,7 @@
         ${canEdit() ? `<div class="lc-red-actions">
           <button class="lc-btn lc-big lc-white" data-act="resume">Weiter geht's</button>
           <button class="lc-btn lc-ghost" data-act="restart">${restartArmed ? 'Wirklich neu starten?' : restartLabel()}</button>
-          <button class="lc-btn lc-ghost" data-act="finish">Beenden und werten</button>
+          <button class="lc-btn lc-ghost" data-act="finish">Beenden</button>
         </div>` : ''}
       </div>` : `<div class="lc-red">
         <div class="lc-red-title">ROTE FLAGGE</div>
