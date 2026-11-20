@@ -159,8 +159,25 @@
       this.log(`Gewählt: ${this.device.name || '(ohne Namen)'} · ${this.device.id}`);
       this.manual = false;
       this.device.addEventListener('gattserverdisconnected', () => this.lost());
+      this.device._grpListen = true;
+      try { localStorage.setItem('cuDeviceId', this.device.id); } catch (e) {}
       await this.setup();
       return this.device.name || 'Control Unit';
+    }
+
+    /** Nach Neuladen: schon erlaubte CU ohne Auswahlfenster wieder verbinden (navigator.bluetooth.getDevices,
+     *  nicht in jedem Browser vorhanden). Liefert den Namen oder null, wenn es so nicht geht. */
+    async reconnectKnown () {
+      if (!navigator.bluetooth?.getDevices) return null;
+      const list = await navigator.bluetooth.getDevices();
+      let lastId = null; try { lastId = localStorage.getItem('cuDeviceId'); } catch (e) {}
+      const dev = list.find(d => d.id === lastId) || list.find(d => /control|carrera/i.test(d.name || ''));
+      if (!dev) return null;
+      this.device = dev;
+      this.manual = false;
+      if (!dev._grpListen) { dev.addEventListener('gattserverdisconnected', () => this.lost()); dev._grpListen = true; }
+      await this.setup();
+      return dev.name || 'Control Unit';
     }
 
     async setup () {

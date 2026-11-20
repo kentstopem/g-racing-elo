@@ -31,9 +31,7 @@
     onState (fn) { this.stateSubs.add(fn); return () => this.stateSubs.delete(fn); },
     subscribe (fn) { this.subs.add(fn); return () => this.subs.delete(fn); },
 
-    async connect () {
-      if (this.state === 'connected' || this.state === 'connecting') return;
-      this.setState('connecting');
+    ensureConn () {
       if (!this.conn) {
         this.conn = new window.CU.Connection({
           onMessage: raw => {
@@ -53,6 +51,12 @@
           log: () => {}
         });
       }
+    },
+
+    async connect () {
+      if (this.state === 'connected' || this.state === 'connecting') return;
+      this.setState('connecting');
+      this.ensureConn();
       try {
         this.name = await this.conn.connect({ variant: 'name' });
         this.conn.startPolling();
@@ -61,6 +65,27 @@
       } catch (err) {
         this.setState(this.conn.connected ? 'connected' : 'idle', err.message);
       }
+    },
+
+    /** Beim Laden der Seite: zuletzt gewählte CU still wieder verbinden (klappt nur, wenn der Browser
+     *  getDevices kennt und die CU an ist). Sonst bleibt alles wie bisher: „Mit CU verbinden“. */
+    async autoConnect () {
+      if (!this.available() || this.state !== 'idle' || !navigator.bluetooth?.getDevices) return;
+      try { if (!localStorage.getItem('cuDeviceId')) return; } catch (e) { return; }
+      this.setState('connecting');
+      this.ensureConn();
+      for (let i = 0; i < 3 && this.state === 'connecting'; i++) {
+        try {
+          const name = await Promise.race([this.conn.reconnectKnown(), new Promise((_, no) => setTimeout(() => no(new Error('Zeit')), 6000))]);
+          if (!name) break;
+          this.name = name;
+          this.conn.startPolling();
+          this.conn.requestVersion();
+          this.setState('connected');
+          return;
+        } catch (err) { await new Promise(r => setTimeout(r, 1500)); }
+      }
+      if (this.state === 'connecting') this.setState('idle');
     },
 
     disconnect () { this.conn?.disconnect(); this.lastStatus = null; this.setState('idle'); },
@@ -276,4 +301,6 @@
   }
 
   window.LiveCU = { hub, CuSource };
+  // Nach Neuladen automatisch wieder mit der CU verbinden (Tristan 20.11.2026)
+  setTimeout(() => hub.autoConnect(), 300);
 })();
