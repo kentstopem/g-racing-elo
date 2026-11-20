@@ -116,7 +116,7 @@
     const car = cars().find(c => String(c.id) === det.dataset.id);
     if (!car || !window.SetupUI?.damageSection) return;
     body.dataset.filled = '1';
-    window.SetupUI.damageSection(body, car.id, { readOnly: !window.isAdmin, noDelete: true });
+    window.SetupUI.damageSection(body, car.id, { readOnly: !window.isAdmin, noDelete: true, detailsLink: true });
   }
 
   window.WorkshopUI = { render };

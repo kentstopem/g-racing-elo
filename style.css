@@ -840,6 +840,11 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
 .ws-body { padding: 0 12px 12px; }
 .ws-body .dmg-section:first-child { margin-top: 0; }
 .ws-body .dmg-log { max-height: none; }
+/* Werkstatt: „Details“ öffnet das G!RP-Fahrzeugfenster */
+.ws-details { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; border-top: 1px solid var(--iu-grey); padding: 12px 0 0; margin-top: 16px; font: inherit; font-size: 16px; font-weight: 600; color: inherit; cursor: pointer; text-align: left; }
+.ws-details > span:first-of-type { flex: 1; }
+.ws-next { flex: none; width: 10px; height: 10px; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); transform: rotate(-45deg); margin-right: 8px; }
+.ws-body > .ws-details:first-child { margin-top: 0; }
 /* Werkstatt: Tagebuch im aufgeklappten Fahrzeug einklappbar */
 .dmg-diary > summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; }
 .dmg-diary > summary::-webkit-details-marker { display: none; }

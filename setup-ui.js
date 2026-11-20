@@ -351,7 +351,7 @@
    * Schäden + Werkstatttagebuch eines Fahrzeugs in box zeichnen.
    * readOnly: nur lesen (Werkstatt-Reiter ohne Login) · noDelete: ohne Löschen (Werkstatt-Reiter als Admin)
    */
-  function damageSection (box, id, { readOnly = false, noDelete = false, inDialog = false } = {}) {
+  function damageSection (box, id, { readOnly = false, noDelete = false, inDialog = false, detailsLink = false } = {}) {
     const D = window.Damage;
     let damages = D.list(window.appData.cars.find(x => x.id === id));
     let fixing = null;   // id des Schadens, der gerade als repariert markiert wird
@@ -373,9 +373,11 @@
       const open = D.openDamages(cur);
       const st = carDamageStats(cur);
       const openKeys = open.map(d => d.type);
+      // Werkstatt: Schäden-Block nur, wenn es offene gibt (Admin behält das Eintragen-Formular, dann ohne Überschrift)
+      const showHead = inDialog || open.length;
       box.innerHTML = `
-        <div class="dmg-section">
-          <h4>${icon('alert')}Schäden${D.isLocked(cur) ? (inDialog ? ' <span class="dmg-badge crit locked">gesperrt</span>' : '') : open.length ? ' <span class="dmg-badge warn">fahrbereit</span>' : ''}</h4>
+        ${!showHead && readOnly ? '' : `<div class="dmg-section">
+          ${showHead ? `<h4>${icon('alert')}Schäden${D.isLocked(cur) ? (inDialog ? ' <span class="dmg-badge crit locked">gesperrt</span>' : '') : open.length ? ' <span class="dmg-badge warn">fahrbereit</span>' : ''}</h4>` : ''}
           ${open.length ? open.map(d => `<div class="dmg-open-item">
               <span class="dmg-badge ${d.critical ? 'crit' : 'warn'}">${esc(D.categoryLabel(d.category))}</span>
               <span class="dmg-what"><strong>${esc(D.entryLabel(d))}</strong> <span class="muted">seit ${fmtWhen(d.at)}${ctx(d) ? ' · ' + ctx(d) : ''}</span></span>
@@ -386,7 +388,7 @@
                 <button type="button" class="btn btn-small btn-primary" data-dmgfixok="${d.id}">Als repariert speichern</button>
                 <button type="button" class="btn btn-small" data-dmgfixno>Abbrechen</button>
               </div>` : ''}
-            </div>`).join('') : '<p class="dmg-empty">Keine offenen Schäden.</p>'}
+            </div>`).join('') : showHead ? '<p class="dmg-empty">Keine offenen Schäden.</p>' : ''}
           ${readOnly ? '' : `<div class="form-group" style="margin:10px 0 0;">
             <label>Schaden eintragen</label>
             <div class="dmg-types">${D.TYPES.filter(t => !t.custom).map(t => `<label class="dmg-type ${t.critical ? 'crit' : ''} ${openKeys.includes(t.key) ? 'is-open' : ''}">
@@ -404,7 +406,8 @@
             </div>
             <p class="muted edit-note">${inDialog ? 'Angekreuzte Schäden werden mit „Speichern“ eingetragen. ' : ''}Motor, Sensor und „Sonstige“ mit Haken „kritisch“ sperren das Fahrzeug, bis der Schaden repariert ist.</p>
           </div>`}
-        </div>
+        </div>`}
+        ${detailsLink ? `<button type="button" class="dmg-section ws-details" data-wsdetails>${icon('chart')}<span>Details</span><span class="ws-next" aria-hidden="true"></span></button>` : ''}
         ${inDialog ? '<div class="dmg-section">' : `<details class="dmg-section dmg-diary" ${diaryOpen ? 'open' : ''}><summary>`}
           <h4>${icon('list')}Werkstatttagebuch</h4>${inDialog ? '' : '<span class="ws-chev" aria-hidden="true"></span></summary>'}
           <div class="dmg-stats"><span>Schäden: <strong>${st.damages}</strong></span><span>Reparaturen: <strong>${st.repairs}</strong></span>
@@ -417,6 +420,7 @@
             </div>`).join('') || '<p class="dmg-empty">Noch keine Einträge.</p>'}</div>
         ${inDialog ? '</div>' : '</details>'}`;
     }
+    box.addEventListener('click', e => { if (e.target.closest('[data-wsdetails]')) window.openEloModal?.('car', id); });
     box.addEventListener('toggle', e => { if (e.target.matches?.('.dmg-diary')) diaryOpen = e.target.open; }, true);
     box.addEventListener('click', e => {
       if (readOnly || !window.isAdmin) return;
