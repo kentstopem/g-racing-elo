@@ -670,6 +670,10 @@
         <div class="form-group"><label for="voiceSel">Stimme (gilt für alle Geräte)</label>
           <select id="voiceSel">${Object.values(window.Voice?.VOICES || {}).map(v => `<option value="${v.key}" ${s.voice === v.key ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}</select>
         </div>
+        <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="form-group"><label for="voiceTail">Stille am Ende (ms)</label><input id="voiceTail" type="number" min="0" max="1000" step="10" inputmode="numeric" value="${s.voiceTailMs}"><small class="muted">So viel Pause bleibt hinter jedem Teil, z. B. zwischen Name und Satz</small></div>
+          <div class="form-group"><label for="voiceGap">Längste Pause im Satz (ms)</label><input id="voiceGap" type="number" min="0" max="2000" step="10" inputmode="numeric" value="${s.voiceGapMs}"><small class="muted">Längere Pausen, z. B. zwischen zwei Sätzen, werden darauf gekürzt. 0 = nicht kürzen</small></div>
+        </div>
         <p class="muted edit-note" style="margin:-4px 0 12px;">Jede Stimme hat eigene Ansagen und eigene gesprochene Namen. Fehlt ein Name in der gewählten Stimme, wird er mit der anderen gesprochen. Für das Erzeugen von Fahrernamen im Fahrer-Dialog braucht dieses Gerät einen Azure-Speech-Schlüssel (Gratis-Tarif F0). Er wird nur auf diesem Gerät gespeichert.</p>
         <div class="race-meta-grid" style="grid-template-columns:2fr 1fr;">
           <div class="form-group"><label for="azKey">Azure-Speech-Schlüssel</label><input id="azKey" type="password" autocomplete="off" value="${esc(window.Voice?.azureConfig()?.key || '')}" placeholder="Schlüssel 1 aus dem Azure-Portal"></div>
@@ -723,6 +727,14 @@
         'Start mit vollem Tank, getankt wird nur so viel wie nötig.';
     };
     // Sprachausgabe
+    [['#voiceTail', 'voiceTailMs', 'Stille am Ende'], ['#voiceGap', 'voiceGapMs', 'Längste Pause im Satz']].forEach(([sel, field, label]) => {
+      el.querySelector(sel).onchange = e => {
+        const v = M.raceSettings({ ...window.appData.raceSettings, [field]: parseNum(e.target.value) })[field];
+        e.target.value = v;
+        if (window.appData.raceSettings) window.appData.raceSettings[field] = v;   // sofort wirksam (Anhören), Sync folgt
+        persist(window.Storage.updateRaceSettings({ [field]: v }), `${label}: ${v} ms`);
+      };
+    });
     el.querySelector('#voiceSel').onchange = e => {
       const v = window.Voice.VOICES[e.target.value];
       if (window.appData.raceSettings) window.appData.raceSettings.voice = v.key;   // sofort wirksam, Sync folgt
@@ -788,7 +800,9 @@
         falseStartPenaltySec: parseNum(form.falseStart.value),
         penaltyOptionsSec: opts,
         baseK: parseNum(form.baseK.value),
-        voice: window.appData.raceSettings?.voice
+        voice: window.appData.raceSettings?.voice,
+        voiceTailMs: window.appData.raceSettings?.voiceTailMs,
+        voiceGapMs: window.appData.raceSettings?.voiceGapMs
       });
       const cur = window.appData.raceSettings || {};
       if (Object.keys(fields).every(k => JSON.stringify(fields[k]) === JSON.stringify(cur[k]))) return;   // nichts geändert

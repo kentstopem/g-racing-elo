@@ -37,6 +37,8 @@
     emptyTankSpeed: 4,          // CU-Tempostufe (0–15), solange der Tank leer ist
     pitDriveMs: 2000,           // Fahrzeit vom Losfahren in der Box bis zum nächsten Sensor: wird beim Rausfahren von Tanken/Strafe wieder abgezogen
     manualLapStartMs: 250,      // Rote Flagge „+1 Rd.“: mit dieser Zeit (ms) beginnt die neue Runde nach „Weiter geht's“
+    voiceTailMs: 40,            // Sprachausgabe: so viel Stille bleibt am Ende jedes Ton-Schnipsels
+    voiceGapMs: 250,            // … und längere Pausen mitten im Satz werden auf so viel gekürzt (0 = nicht kürzen)
     noSignalSec: 20,            // Rennen: Warnung, wenn von einem Fahrzeug so lange keine Durchfahrt kam (0 = aus)
     fuelSpeedFactor: 1,         // 0 = Verbrauch unabhängig vom Tempo, 1 = proportional zum Tempo
     baseK: 32,                  // G!RP: maximaler K-Faktor (volles Feld, lange Distanz); gilt nur für neu gespeicherte Rennen
@@ -72,6 +74,8 @@
       // früher kurz in Sekunden gespeichert (manualLapStartSec) → in ms übernehmen
       manualLapStartMs:     Math.max(0, Math.min(10000, Math.round(num(d.manualLapStartMs, d.manualLapStartSec != null ? num(d.manualLapStartSec, 0.25) * 1000 : RACE_DEFAULTS.manualLapStartMs)))),
       baseK:                Math.max(1, Math.min(200, Math.round(num(d.baseK, RACE_DEFAULTS.baseK)))),
+      voiceTailMs:          Math.max(0, Math.min(1000, Math.round(num(d.voiceTailMs, RACE_DEFAULTS.voiceTailMs)))),
+      voiceGapMs:           Math.max(0, Math.min(2000, Math.round(num(d.voiceGapMs, RACE_DEFAULTS.voiceGapMs)))),
       voice:                ['ingrid', 'leni'].includes(d.voice) ? d.voice : RACE_DEFAULTS.voice
     };
   }

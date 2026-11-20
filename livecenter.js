@@ -758,7 +758,7 @@
   const HOLD = { win: 4500, pole: 4000, trackRecord: 3500 };
   // Diese Ansagen werden nicht verworfen, sondern nachgeholt, wenn gerade Wichtigeres läuft
   // (und unterbrechen sich nicht gegenseitig: Platz 2 und Platz 3 kurz hintereinander)
-  const WAIT = new Set(['finishPlace', 'status', 'qualiDone']);
+  const WAIT = new Set(['finishPlace', 'status', 'qualiDone', 'noSignal', 'fuelCritical']);
   function say (type, key, driverId, tries = 0) {
     if (!voiceOn || !window.Voice) return;
     if (type === 'qualiDone' && (session?.phase === 'finished' || tries && session?.mode !== 'quali')) return;   // nach der Pole nicht mehr nachholen

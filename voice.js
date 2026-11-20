@@ -162,20 +162,111 @@
   }
 
   // ---------- Wiedergabe ----------
-  let current = null;   // { audio, token }
+  // Bevorzugt Web Audio: Alle Teile einer Ansage ([Name] + Satz) werden vorher dekodiert und lückenlos
+  // hintereinander eingeplant. Mit <audio> entstand zwischen den Teilen eine Pause, weil jedes Element
+  // erst laden und starten muss. Beim Dekodieren wird die Stille vorne/hinten bis auf einen kleinen Rest
+  // entfernt und lange Pausen mitten im Satz werden gekürzt (gilt auch für eigene Namens-Töne).
+  // Geht Web Audio nicht (noch nicht freigeschaltet, Fehler), bleibt es beim bisherigen <audio>-Weg.
+  // Stille: Schwelle ≈ −50 dB, vorne bleiben 0,02 s. Hinten und mitten im Satz: Setup → Renneinstellungen → Sprachausgabe
+  const CUT = { thresh: 0.003, lead: 0.02 };
+  const cutCfg = () => {
+    const r = window.appData?.raceSettings || {};
+    const ms = (v, d) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Math.max(0, Number(v)) : d) / 1000;
+    return { tail: ms(r.voiceTailMs, 40), gap: ms(r.voiceGapMs, 250) };
+  };
+  let ctx = null, nodes = [];
+  let current = null;   // <audio> im Rückfall-Weg
   let token = 0;
+
+  function audioCtx () {
+    if (ctx) return ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { ctx = new AC(); } catch (e) { return null; }
+    return ctx;
+  }
+  // iOS: Web Audio soll wie Musik klingen, auch wenn das Gerät stumm geschaltet ist (wie bisher <audio>)
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  // Web Audio darf erst nach einer Berührung starten → bei jeder Berührung freischalten
+  const unlock = () => { const c = audioCtx(); if (c && c.state !== 'running') c.resume().catch(() => {}); };
+  ['pointerdown', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, unlock, { capture: true, passive: true }));
+
+  /** Stille vorne/hinten weg, lange Pausen im Satz auf CUT.keepGap kürzen */
+  function tighten (buf, cfg) {
+    const sr = buf.sampleRate, ch = buf.numberOfChannels, n = buf.length;
+    const d0 = buf.getChannelData(0);
+    const loud = i => { for (let c = 0; c < ch; c++) if (Math.abs((c ? buf.getChannelData(c) : d0)[i]) >= CUT.thresh) return true; return false; };
+    let first = 0, last = n - 1;
+    while (first < n && !loud(first)) first++;
+    while (last > first && !loud(last)) last--;
+    if (first >= last) return buf;
+    const keep = [];   // [von, bis) in Samples
+    const keepGap = Math.round(cfg.gap * sr), maxGap = cfg.gap > 0 ? keepGap : Infinity;
+    let segStart = Math.max(0, first - Math.round(CUT.lead * sr)), quiet = 0;
+    for (let i = first; i <= last; i++) {
+      if (loud(i)) {
+        if (quiet > maxGap) { keep.push([segStart, i - quiet + Math.round(keepGap / 2)]); segStart = i - Math.round(keepGap / 2); }
+        quiet = 0;
+      } else quiet++;
+    }
+    keep.push([segStart, Math.min(n, last + 1 + Math.round(cfg.tail * sr))]);
+    const len = keep.reduce((a, [x, y]) => a + (y - x), 0);
+    if (len >= n - Math.round(0.01 * sr)) return buf;
+    const out = ctx.createBuffer(ch, len, sr);
+    for (let c = 0; c < ch; c++) {
+      const src = buf.getChannelData(c), dst = out.getChannelData(c);
+      let o = 0;
+      for (const [x, y] of keep) { dst.set(src.subarray(x, y), o); o += y - x; }
+    }
+    return out;
+  }
+
+  const buffers = new Map();   // Quelle → Promise<AudioBuffer>
+  function decoded (src) {
+    const cfg = cutCfg(), key = `${cfg.tail}|${cfg.gap}|${src}`;
+    let p = buffers.get(key);
+    if (!p) {
+      p = fetch(src).then(r => { if (!r.ok) throw new Error('Ton fehlt'); return r.arrayBuffer(); })
+        .then(ab => new Promise((resolve, reject) => { const q = ctx.decodeAudioData(ab, resolve, reject); if (q?.catch) q.catch(reject); }))
+        .then(buf => tighten(buf, cfg));
+      p.catch(() => buffers.delete(key));
+      buffers.set(key, p);
+      if (buffers.size > 120) buffers.delete(buffers.keys().next().value);
+    }
+    return p;
+  }
 
   function stop () {
     token++;
+    for (const s of nodes) { try { s.onended = null; s.stop(); } catch (e) {} }
+    nodes = [];
     if (current) { current.pause(); current.src = ''; current = null; }
+  }
+
+  async function playWebAudio (sources, my) {
+    const bufs = await Promise.all(sources.map(decoded));
+    if (my !== token) return true;
+    let t = ctx.currentTime + 0.03;
+    const list = bufs.map(b => { const s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(t); t += b.duration; return s; });
+    nodes = list;
+    await new Promise(resolve => { list[list.length - 1].onended = resolve; });
+    if (my === token) nodes = [];
+    return true;
   }
 
   /** Spielt eine Folge von Quellen (URLs/Data-URLs) nacheinander; unterbricht Laufendes. */
   async function playSources (sources) {
     stop();
     const my = token;
-    // Alle Teile vorab laden, damit zwischen [Name] und Ansage keine Lade-Pause entsteht
-    const clips = sources.filter(Boolean).map(src => { const a = new Audio(src); a.preload = 'auto'; try { a.load(); } catch (e) {} return a; });
+    sources = sources.filter(Boolean);
+    if (!sources.length) return;
+    const c = audioCtx();
+    if (c && c.state === 'running') {
+      try { if (await playWebAudio(sources, my)) return; } catch (e) { console.warn('Web Audio', e); }
+      if (my !== token) return;
+    }
+    // Rückfall <audio>: alle Teile vorab laden, damit zwischen [Name] und Ansage keine Lade-Pause entsteht
+    const clips = sources.map(src => { const a = new Audio(src); a.preload = 'auto'; try { a.load(); } catch (e) {} return a; });
     for (const a of clips) {
       if (my !== token) return;
       await new Promise(resolve => {
@@ -209,6 +300,7 @@
   async function preload () {
     const man = await loadManifest();
     await Promise.all(Object.keys(man.phrases || {}).map(k => fetch(phraseSrc(k)).catch(() => {})));
+    if (audioCtx()) Object.keys(man.phrases || {}).forEach(k => decoded(phraseSrc(k)).catch(() => {}));   // schon dekodiert bereithalten
   }
 
   window.Voice = {
