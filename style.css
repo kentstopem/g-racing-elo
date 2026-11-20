@@ -784,6 +784,7 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
 .dmg-chip.active { background: var(--iu-black); color: var(--iu-white); border-color: var(--iu-black); }
 .dmg-chip-n { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: var(--radius-btn); font-size: 12px; font-weight: 700; background: var(--status-warning-bg); color: var(--status-warning); }
 .dmg-chip.crit .dmg-chip-n, .dmg-chip.cat-motor .dmg-chip-n, .dmg-chip.cat-sensor .dmg-chip-n { background: var(--status-error-bg); color: var(--status-error); }
+.dmg-chip.none .dmg-chip-n { background: var(--iu-light-grey); color: var(--text-muted); }
 .dmg-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: var(--radius-btn); vertical-align: middle; white-space: nowrap; }
 .dmg-badge .ic { width: 13px; height: 13px; }
 .dmg-badge.warn { background: var(--status-warning-bg); color: var(--status-warning); }

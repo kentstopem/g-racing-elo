@@ -6,8 +6,8 @@
   const D = () => window.Damage;
   const FILTER_KEY = 'workshopFilter';
 
-  const filters = new Set();   // gewählt: crit (gesperrt) | ok (offen, aber fahrbereit); leer = Alle, ODER-verknüpft
-  const KINDS = { crit: 'Kritisch', ok: 'Unkritisch' };
+  const filters = new Set();   // gewählt: none (ohne offenen Schaden) | crit (gesperrt) | ok (offen, aber fahrbereit); leer = alle, ODER-verknüpft
+  const KINDS = { none: 'Ohne Schaden', crit: 'Kritisch', ok: 'Unkritisch' };
   const opened = new Set();    // aufgeklappte Fahrzeuge (bleiben beim Neuzeichnen offen)
   try {
     const f = JSON.parse(localStorage.getItem(FILTER_KEY) || '{}');
@@ -15,7 +15,7 @@
     list.filter(k => k in KINDS).forEach(k => filters.add(k));   // alte Kategorie-Filter fallen weg
   } catch (e) {}
   const remember = () => { try { localStorage.setItem(FILTER_KEY, JSON.stringify({ filters: [...filters] })); } catch (e) {} };
-  const isActive = k => (k === 'all' ? !filters.size : filters.has(k));
+  const isActive = k => filters.has(k);
 
   const cars = () => (window.appData?.cars || []);
   const fmtDate = iso => { const d = new Date(iso); return isNaN(d) ? '–' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
@@ -46,9 +46,9 @@
     const Dm = D();
     const all = cars();
     const withOpen = all.filter(c => Dm.openDamages(c).length);
-    const matches = (c, k) => (k === 'crit' ? Dm.isLocked(c) : !Dm.isLocked(c) && Dm.openDamages(c).length > 0);
+    const matches = (c, k) => (k === 'none' ? !Dm.openDamages(c).length : k === 'crit' ? Dm.isLocked(c) : !Dm.isLocked(c) && Dm.openDamages(c).length > 0);
     const base = all.filter(c => !c.archived || Dm.openDamages(c).length);   // „Alle“ = wirklich alle Fahrzeuge (archivierte nur mit offenem Schaden)
-    const count = k => (k === 'all' ? base : base.filter(c => matches(c, k))).length;
+    const count = k => base.filter(c => matches(c, k)).length;
     const shown = base.filter(c => !filters.size || [...filters].some(k => matches(c, k)))
       .sort((a, b) => (Dm.isLocked(b) - Dm.isLocked(a)) || (Dm.openDamages(b).length - Dm.openDamages(a).length)
         || a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
@@ -57,9 +57,9 @@
     root.innerHTML = `
       <div class="ws-tools">
         <div class="dmg-filter" role="group" aria-label="Schäden filtern">
-          ${[['all', 'Alle'], ...Object.entries(KINDS)].map(([k, l]) => {
-            const n = count(k), crit = k === 'crit';
-            return `<button type="button" class="dmg-chip${isActive(k) ? ' active' : ''}${crit ? ' crit' : ''}" data-wsfilter="${k}" aria-pressed="${isActive(k)}">${esc(l)}${n ? ` <span class="dmg-chip-n">${n}</span>` : ''}</button>`;
+          ${Object.entries(KINDS).map(([k, l]) => {
+            const n = count(k), crit = k === 'crit';   // nichts gewählt = alle Fahrzeuge
+            return `<button type="button" class="dmg-chip${isActive(k) ? ' active' : ''}${crit ? ' crit' : ''}${k === 'none' ? ' none' : ''}" data-wsfilter="${k}" aria-pressed="${isActive(k)}">${esc(l)}${n ? ` <span class="dmg-chip-n">${n}</span>` : ''}</button>`;
           }).join('')}
         </div>
       </div>
@@ -74,7 +74,7 @@
             <span class="ws-chev" aria-hidden="true"></span>
           </summary>
           <div class="ws-body"></div>
-        </details>`).join('') || `<p class="dmg-empty" style="text-align:center;">${!filters.size ? 'Keine Fahrzeuge.' : `Keine Fahrzeuge mit ${esc([...filters].map(k => KINDS[k].toLowerCase() + 'en').join(' oder '))} Schäden.`}</p>`}
+        </details>`).join('') || `<p class="dmg-empty" style="text-align:center;">${!filters.size ? 'Keine Fahrzeuge.' : `Keine Fahrzeuge (${esc([...filters].map(k => KINDS[k]).join(' / '))}).`}</p>`}
       </div>`;
 
     // aufgeklappte Fahrzeuge: Schäden + Tagebuch (Admin: reparieren / eintragen, sonst nur lesen)
@@ -94,8 +94,7 @@
         const b = e.target.closest('[data-wsfilter]');
         if (!b) return;
         const k = b.dataset.wsfilter;
-        if (k === 'all') filters.clear();
-        else if (filters.has(k)) filters.delete(k);
+        if (filters.has(k)) filters.delete(k);
         else filters.add(k);
         remember(); render();
       });
