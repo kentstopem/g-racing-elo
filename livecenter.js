@@ -28,8 +28,9 @@
   let voiceOn = readVoice();
   let lastSay = { prio: 0, type: '', at: 0, until: 0 };
   let shellKey = '';
-  let endArmed = 0;            // „Beenden“: Auswahl (werten / neu starten / weiterfahren) offen
+  let endArmed = 0;            // „Hauptmenü“: Rückfrage offen
   let restartArmed = false;
+  let prepArmed = false;       // Training: „Beenden und werten“ zweimal tippen
   let noScoreArmed = false;    // „Nicht werten“ (zum Testen) zweimal tippen    // „Neu starten“ in der Roten Flagge zweimal tippen
   let redPen = {};             // Strafendialog bei Roter Flagge: { ctrl: Sekunden }
   let redReason = '';
@@ -187,6 +188,13 @@
           <button class="lc-btn lc-ghost" data-act="close">Schließen</button></header>
         <div class="lc-watch-idle"><h2>${esc(msg)}</h2><p class="lc-note">Sobald live von der Strecke übertragen wird, siehst du hier mehr.</p></div>
       </div>`;
+  }
+
+  /** Ins Hauptmenü, Sitzung (Zeitnahme, CU, Sicherung) läuft weiter; open() zeigt sie wieder an */
+  function hide () {
+    shellKey = '';
+    root.hidden = true;
+    document.documentElement.classList.remove('lc-open');
   }
 
   function close () {
@@ -1021,7 +1029,7 @@
         ${canEdit() ? `<div class="lc-red-actions">
           <button class="lc-btn lc-big lc-white" data-act="resume">Weiter geht's</button>
           <button class="lc-btn lc-ghost" data-act="restart">${restartArmed ? 'Wirklich neu starten?' : restartLabel()}</button>
-          <button class="lc-btn lc-ghost" data-act="finish">Abbrechen und zum Ergebnis</button>
+          <button class="lc-btn lc-ghost" data-act="finish">Beenden und werten</button>
         </div>` : ''}
       </div>` : `<div class="lc-red">
         <div class="lc-red-title">ROTE FLAGGE</div>
@@ -1033,12 +1041,12 @@
         </div>` : ''}
       </div>`;
 
-    // „Beenden“ während der Sitzung: werten, neu starten oder weiterfahren
+    // „Hauptmenü“ während der Sitzung: Rückfrage. Die Sitzung läuft im Hintergrund weiter, „Live“ führt direkt hierher zurück.
     const endHtml = !endArmed || phase === 'finished' || phase === 'ready' ? '' : `<div class="lc-endask"><div class="lc-endask-box">
-        <h3>${MODE_LABEL[session.mode]} beenden?</h3>
-        <button class="lc-btn lc-primary lc-big" data-act="finishNow">Beenden und werten</button>
-        ${session.mode !== 'practice' ? `<button class="lc-btn lc-big" data-act="restartNow">${restartLabel()}</button>` : ''}
-        <button class="lc-btn lc-ghost" data-act="endCancel">Weiterfahren</button>
+        <h3>Wirklich ins Hauptmenü zurückkehren?</h3>
+        <p class="lc-note">${MODE_LABEL[session.mode]} bleibt erhalten${phase === 'green' ? ' und läuft weiter' : ''}. Über „Live“ kommst du direkt hierher zurück.</p>
+        <button class="lc-btn lc-primary lc-big" data-act="toMenu">Ja</button>
+        <button class="lc-btn lc-ghost" data-act="endCancel">Nein</button>
       </div></div>`;
 
     // G!RP-Änderung je Zeile: Admin = Vorschau (bzw. gespeichert), Zuschauer = was das iPad mitschickt
@@ -1248,7 +1256,7 @@
     const overlayOn = overlay && now < overlay.until ? overlay.kind : '';
     const menuCar = menuCtrl != null ? session.cars.get(menuCtrl) : null;
     const key = [canEdit(), phase, session.leaderFinished, simOpen, menuCtrl, JSON.stringify(addPanel), dmgPanel ? `${dmgPanel.ctrl}${dmgPanel.type}${dmgPanel.step}${dmgPanel.carId}${dmgPanel.critical}` : '', menuCar?.carId, session.cars.size, menuCar ? `${menuCar.penaltyMs}${menuCar.status}` : '', voiceOn, overlayOn,
-      session.lights, session.lightsRunning, endArmed, restartArmed, noScoreArmed, cfg.broadcast, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, girpSaving, resTab,
+      session.lights, session.lightsRunning, endArmed, restartArmed, noScoreArmed, prepArmed, cfg.broadcast, source.speed, st.length, session.restarts, redReason, JSON.stringify(redPen), cfg.raceLaps, (resultOrder || []).join(), [...recPick].join(), recState, girpDone, girpSaving, resTab,
       phase === 'red' ? st.map(s => s.ctrl + s.status + s.penaltySec + s.inPit + Math.round(s.pitStandMs / 100) + 'L' + s.laps).join() : ''].join('|');
     if (key === shellKey && root.querySelector('.lc-live')) {
       root.querySelector('.lc-board').innerHTML = rows;
@@ -1276,12 +1284,15 @@
             ${canEdit() && source.kind === 'sim' ? `<button class="lc-btn ${simOpen ? 'on' : ''}" data-act="sim">Sim</button>` : ''}
             ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) ? '<button class="lc-btn lc-yellow" data-act="reset">Zurücksetzen</button>' : ''}
             ${canEdit() && (phase === 'green' || (phase === 'lights' && session.lightsRunning)) ? '<button class="lc-btn lc-danger" data-act="red">Rote Flagge</button>' : ''}
-            ${source.kind === 'view' ? '<button class="lc-btn lc-ghost" data-act="close">Schließen</button>' : phase === 'finished' ? '' : '<button class="lc-btn lc-ghost" data-act="end">Beenden</button>'}
+            ${source.kind === 'view' ? '<button class="lc-btn lc-ghost" data-act="close">Schließen</button>' : phase === 'finished' ? '' : '<button class="lc-btn lc-ghost" data-act="end">Hauptmenü</button>'}
           </div>
         </header>
         <div class="lc-head-row">${head}</div>
         <div class="lc-board">${rows}</div>
-        ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) && MD.CONTROLLERS.some(x => !session.cars.has(x.n)) ? '<div class="lc-addbar"><button class="lc-btn" data-act="addOpen">+ Fahrer</button></div>' : ''}
+        ${canEdit() && session.mode === 'practice' && ['green', 'red'].includes(phase) ? `<div class="lc-addbar">
+          ${MD.CONTROLLERS.some(x => !session.cars.has(x.n)) ? '<button class="lc-btn" data-act="addOpen">+ Fahrer</button>' : ''}
+          <button class="lc-btn ${prepArmed ? 'armed' : ''}" data-act="toPrep">${prepArmed ? 'Wirklich beenden?' : 'Beenden und werten'}</button>
+        </div>` : ''}
         <footer class="lc-ticker">${tickHtml}</footer>
         ${simHtml}${menuHtml}${addHtml}${dmgHtml}${lightsHtml}${redHtml}${resultHtml}${endHtml}
       </div>`;
@@ -1347,10 +1358,10 @@
       case 'end':
         if (session.phase === 'finished' || session.phase === 'ready') { close(); break; }
         if (!canEdit()) break;
-        // Laufende Sitzung: eigene Auswahl (kein Browser-Dialog, der das Livecenter blockiert)
+        // Laufende Sitzung: eigene Rückfrage (kein Browser-Dialog, der das Livecenter blockiert)
         endArmed = 1; renderLive();
         break;
-      case 'finishNow': endArmed = 0; session.finish(source.now()); renderLive(); break;
+      case 'toMenu': endArmed = 0; hide(); break;
       case 'endCancel': endArmed = 0; renderLive(); break;
       case 'restartNow': restartEvent(); break;
       case 'restart':
@@ -1380,6 +1391,10 @@
         if (got) note(ctrl, `${driverName(c.driverId)}: Gutschrift ${sec1(got * 1000)} s`);
         renderLive(); break;
       }
+      case 'toPrep':   // Training beenden und werten wie bei „Beenden und werten“: Ergebnis mit Rekorden, von dort zurück zur Vorbereitung
+        if (prepArmed) { prepArmed = false; session.finish(source.now()); renderLive(); }
+        else { prepArmed = true; shellKey = ''; renderLive(); setTimeout(() => { if (!prepArmed) return; prepArmed = false; if (session) { shellKey = ''; renderLive(); } }, 3000); }
+        break;
       case 'addOpen': menuCtrl = null; addPanel = { ctrl: MD.CONTROLLERS.map(x => x.n).find(n => !session.cars.has(n)), driverId: null, carId: null }; renderLive(); break;
       case 'addClose': addPanel = null; renderLive(); break;
       case 'addCtrl': if (addPanel) addPanel.ctrl = ctrl; renderLive(); break;

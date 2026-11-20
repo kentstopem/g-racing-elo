@@ -494,8 +494,9 @@ html.lc-open .modal { z-index: 6000; }
 .lc-add-ctrls { flex-wrap: wrap; }
 .lc-add-ctrls .lc-btn { display: inline-flex; align-items: center; gap: 8px; }
 .lc-add-ctrls .lc-btn.on { outline: 3px solid var(--lc-accent); outline-offset: 1px; background: var(--lc-panel-2); color: var(--lc-text); border-color: var(--lc-line); }
-.lc-addbar { display: flex; justify-content: center; padding: 0 20px 8px; }
+.lc-addbar { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 0 20px 8px; }
 .lc-addbar .lc-btn { border-style: dashed; background: transparent; color: var(--lc-muted); }
+.lc-addbar .lc-btn.armed { border-style: solid; color: var(--lc-text, #fff); border-color: currentColor; }
 
 /* Tuning auf dem Handy (hochkant): Name + Senden oben, Gas und Bremse darunter */
 @media (max-width: 700px) {
