@@ -775,10 +775,13 @@ function updateCarsList() {
     const sortedCars=[...shownCars].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
     list.innerHTML = sortedCars.map(car => `
         <div class="list-item${car.archived?' archived':''}" data-id="${car.id}">
-            <div>
+            <div class="car-row-main">
+                <span class="rank-car-thumb">${window.RankingUI?.carImg ? window.RankingUI.carImg(car, 'rank-car-img') : ''}</span>
+                <div class="car-row-txt">
                 <strong>${escapeHtml(car.name)}</strong>${car.archived?' <span class="status-inactive">archiviert</span>':''}${dmgBadges(car)}
                 <div style="font-size: 0.9em; color:var(--text-muted);">
                     ${car.races||0} Rennen · ${car.wins||0} Siege · ${car.totalRounds||0} Rd.${setup&&car.tuning?' · '+window.SetupUI.tuningLabel(car):''}
+                </div>
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap:8px;">
@@ -789,11 +792,12 @@ function updateCarsList() {
                 <span class="elo-score">${car.elo}</span>
                 ${setup?`<button class="btn edit-car" data-id="${car.id}">Bearbeiten</button>`:''}
                 ${hasRaces('carId', car.id)
-                  ? `<button class="btn archive-car" data-id="${car.id}">${car.archived?'Reaktivieren':'Archivieren'}</button>`
+                  ? (car.archived ? `<button class="btn archive-car" data-id="${car.id}">Reaktivieren</button>` : '')
                   : `<button class="btn btn-danger delete-car" data-id="${car.id}">Löschen</button>`}
             </div>
         </div>
     `).join('');
+    window.RankingUI?.fillCarImgs?.(list);
 
     if (!list._delegationBound) {
         list.addEventListener('click', (e) => {

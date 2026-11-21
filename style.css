@@ -886,3 +886,6 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
 .hof-champ-img img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
 .hof-tile-img { display: block; height: 34px; max-width: 100%; object-fit: contain; margin: 6px 0 2px; }
 @media (max-width: 600px) { .rank-car-thumb { width: 58px; height: 32px; } .podium-car-img { height: 32px; } .rank-car { gap: 8px; } .rank-row { gap: 4px; } .rank-pos { width: 2em; font-size: 13px; } .rank-row > .list-item { padding: 10px 10px; gap: 8px; } .hof-champ-img { width: 58px; height: 32px; } }
+/* Setup > Fahrzeuge: Autobild vorne in der Zeile */
+#carsList .car-row-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+#carsList .car-row-txt { min-width: 0; }
