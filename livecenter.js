@@ -436,24 +436,22 @@
         ${resumeBar}
         <div class="lc-setup-grid">
           <section class="lc-card lc-mode-card">
-            <h3>Modus</h3>
             <div class="lc-mode-row">
+              <h3>Modus</h3>
               <div class="lc-seg lc-mode-seg" role="tablist">
                 ${Object.entries(MODE_LABEL).map(([k, l]) => `<button role="tab" data-act="mode" data-mode="${k}" class="${cfg.mode === k ? 'on' : ''}">${k === 'quali' ? 'Quali' : l}</button>`).join('')}
               </div>
               ${cfg.mode === 'race' ? `<div class="lc-field-row">${lapsField}${raceOpts}` : lapsField}
               ${fuelCheck}
-            </div>
-          </section>
-          <section class="lc-card">
-            <div class="lc-card-head">
-              <h3>Zuweisung</h3>
-              ${canEdit() ? `<div class="lc-card-btns">
+              ${canEdit() ? `<div class="lc-card-btns lc-mode-btns">
                 <button class="lc-btn" data-act="rotateCars" ${entries.length >= 2 ? '' : 'disabled'} title="Jeder Fahrer behält seinen Regler, die Autos rücken einen Regler weiter">Rotieren</button>
                 <span class="lc-draw-btns" role="group" aria-label="Fahrer wählen und Autos auslosen">${DRAW_METHODS.map(([m, ic, l]) =>
                   `<button class="lc-btn lc-primary lc-draw-btn" data-act="autoSetup" data-method="${m}" title="Fahrer wählen, Autos per ${l} auslosen" aria-label="Auslosen per ${l}">${window.Helpers.icon(ic)}</button>`).join('')}</span>
               </div>` : ''}
             </div>
+          </section>
+          <section class="lc-card">
+            <h3>Zuweisung</h3>
             <div class="lc-tiles">${rows}</div>
             ${problems.length || cfg.hint ? `<p class="lc-hint ${problems.length ? 'warn' : ''}" id="lcHint">${esc(problems.length ? problems.join(' · ') : cfg.hint)}</p>` : ''}
           </section>
