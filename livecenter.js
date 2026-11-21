@@ -402,7 +402,6 @@
     // Tanken im Training/Quali per Checkbox (Tristan 2026-11-19), im Rennen immer an
     const fuelKey = cfg.mode === 'practice' ? 'fuelPractice' : cfg.mode === 'quali' ? 'fuelQuali' : null;
     const fuelCheck = fuelKey ? `<label class="lc-check"><input type="checkbox" data-cfg="${fuelKey}" ${cfg[fuelKey] ? 'checked' : ''}> Tank</label>` : '';
-    const fuelNote = '';   // Hinweise in „Was wird gefahren?“ entfernt (Tristan 21.11.)
 
     const saved = readSnap();
     const resumeBar = !saved ? '' : (() => {
@@ -420,31 +419,30 @@
 
     root.innerHTML = `
       <div class="lc-setup">
-        <header class="lc-top">
+        <header class="lc-top lc-setup-top">
           <div class="lc-brand">Livecenter</div>
           <div class="lc-track">${esc(t.name || 'Keine Strecke')}</div>
-          <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
+          <div class="lc-top-tools">
+            ${SIM_OK ? `<div class="lc-seg lc-seg-sm">
+              <button data-act="src" data-src="cu" class="${cfg.source === 'cu' ? 'on' : ''}">CU</button>
+              <button data-act="src" data-src="sim" class="${cfg.source === 'sim' ? 'on' : ''}">Sim</button>
+            </div>` : ''}
+            ${cfg.source === 'cu' ? cuBox() : ''}
+            <button class="lc-btn lc-ico lc-cast ${cfg.broadcast ? 'on' : 'off'}" data-act="cast" aria-pressed="${cfg.broadcast}" title="Live-Übertragung für Zuschauer ${cfg.broadcast ? 'an' : 'aus'}" aria-label="Live-Übertragung ${cfg.broadcast ? 'an' : 'aus'}">${window.Helpers.icon('cast')}</button>
+            <button class="lc-btn lc-ghost" data-act="watch">Zuschauen</button>
+            <button class="lc-btn lc-ghost" data-act="close">Schließen</button>
+          </div>
         </header>
         ${resumeBar}
         <div class="lc-setup-grid">
-          <section class="lc-card">
-            <h3>Was wird gefahren?</h3>
-            <div class="lc-seg" role="tablist">
-              ${Object.entries(MODE_LABEL).map(([k, l]) => `<button role="tab" data-act="mode" data-mode="${k}" class="${cfg.mode === k ? 'on' : ''}">${k === 'quali' ? 'Quali' : l}</button>`).join('')}
-            </div>
-            ${cfg.mode === 'race' ? `<div class="lc-field-row">${lapsField}${raceOpts}` : lapsField}
-            ${fuelCheck}
-            ${fuelNote}
-            <h3>Verbindung</h3>
-            ${SIM_OK ? `<div class="lc-seg">
-              <button data-act="src" data-src="cu" class="${cfg.source === 'cu' ? 'on' : ''}">Control Unit</button>
-              <button data-act="src" data-src="sim" class="${cfg.source === 'sim' ? 'on' : ''}">Simulator</button>
-            </div>` : ''}
-            ${cfg.source === 'cu' ? cuBox() : ''}
-            <h3>Zuschauer</h3>
-            <div class="lc-cast-row">
-              <button class="lc-btn ${cfg.broadcast ? 'on' : ''}" data-act="cast" aria-pressed="${cfg.broadcast}">Live übertragen: ${cfg.broadcast ? 'an' : 'aus'}</button>
-              <button class="lc-btn lc-ghost" data-act="watch">Selbst zuschauen</button>
+          <section class="lc-card lc-mode-card">
+            <h3>Modus</h3>
+            <div class="lc-mode-row">
+              <div class="lc-seg lc-mode-seg" role="tablist">
+                ${Object.entries(MODE_LABEL).map(([k, l]) => `<button role="tab" data-act="mode" data-mode="${k}" class="${cfg.mode === k ? 'on' : ''}">${k === 'quali' ? 'Quali' : l}</button>`).join('')}
+              </div>
+              ${cfg.mode === 'race' ? `<div class="lc-field-row">${lapsField}${raceOpts}` : lapsField}
+              ${fuelCheck}
             </div>
           </section>
           <section class="lc-card">
