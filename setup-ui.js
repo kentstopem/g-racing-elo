@@ -681,6 +681,9 @@
         </div>
         <div class="edit-foot"><button type="button" class="btn" id="azTest">Testen</button><span style="flex:1"></span><button type="button" class="btn btn-primary" id="azSave">Auf diesem Gerät speichern</button></div>
         <h3 class="setup-h" style="margin-top:16px;">Feste Ansagen</h3>
+        <div class="form-group"><label for="phraseDriver">Probehören mit Fahrer</label>
+          <select id="phraseDriver"><option value="">ohne Namen</option>${(window.appData.drivers || []).filter(d => !d.archived).sort((a, b) => String(a.name).localeCompare(String(b.name), 'de')).map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select>
+        </div>
         <div id="phraseList" class="muted">Wird geladen …</div>
       </details>`;
     const form = el.querySelector('#raceSettingsForm');
@@ -759,15 +762,23 @@
         if (before) window.Voice.setAzureConfig(before.key, before.region); else window.Voice.setAzureConfig('');
       }
     };
+    // Probehören: Ansage mit dem gewählten Fahrernamen, wie im Livecenter (Auswahl merkt sich das Gerät)
+    const PROBE_KEY = 'grp.voiceProbeDriver';
+    const probeSel = el.querySelector('#phraseDriver');
+    try { const v = localStorage.getItem(PROBE_KEY); if (v && [...probeSel.options].some(o => o.value === v)) probeSel.value = v; } catch (e) {}
+    const probeDriver = () => window.appData.drivers?.find(d => String(d.id) === probeSel.value) || null;
+    probeSel.onchange = () => { try { localStorage.setItem(PROBE_KEY, probeSel.value); } catch (e) {} renderPhrases(el.querySelector('#phraseList')); };
     const renderPhrases = box => window.Voice?.loadManifest().then(man => {
       if (!box) return;
+      const pd = probeDriver();
+      const nameTag = pd ? `<b>${esc(pd.name)}</b>` : '<span class="muted">[Fahrername]</span>';
       const order = window.Voice.PHRASES.map(p => p[0]);
       const rank = k => (order.includes(k) ? order.indexOf(k) : 999);
       const entries = Object.entries(man.phrases || {}).sort((a, b) => rank(a[0]) - rank(b[0]));
       box.innerHTML = entries.length
-        ? entries.map(([k, t]) => `<div class="media-row" style="margin-bottom:6px;"><button type="button" class="btn btn-small" data-phrase="${esc(k)}">Anhören</button><span>${window.Voice.NAME_POS[k] === 'before' ? '<span class="muted">[Fahrername]</span> ' : ''}${esc(t)}${window.Voice.NAME_POS[k] === 'after' ? ' <span class="muted">[Fahrername]</span>' : ''}</span></div>`).join('')
+        ? entries.map(([k, t]) => `<div class="media-row" style="margin-bottom:6px;"><button type="button" class="btn btn-small" data-phrase="${esc(k)}">Anhören</button><span>${window.Voice.NAME_POS[k] === 'before' ? nameTag + ' ' : ''}${esc(t)}${window.Voice.NAME_POS[k] === 'after' ? ' ' + nameTag : ''}</span></div>`).join('')
         : 'Noch keine Ansagen erzeugt.';
-      box.querySelectorAll('[data-phrase]').forEach(b => { b.onclick = () => window.Voice.say(b.dataset.phrase); });
+      box.querySelectorAll('[data-phrase]').forEach(b => { b.onclick = () => { const pd = probeDriver(); pd ? window.Voice.announce(b.dataset.phrase, pd.id) : window.Voice.say(b.dataset.phrase); }; });
     });
     renderPhrases(el.querySelector('#phraseList'));
     const update = () => { note(); balance(); };
