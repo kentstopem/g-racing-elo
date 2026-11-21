@@ -23,6 +23,8 @@
   let lapFlash = {};
   let overlay = null;          // { kind: 'go' | 'resume', until }
   let simOpen = false;
+  let carPick = null;
+  let lastSwipe = 0;           // nach einem Wisch kein „Klick“ aufs Autobild auswerten         // Vorbereitung: Regler, für den die Fahrzeugauswahl (Galerie) offen ist
   let addPanel = null;         // Training: { ctrl, driverId, carId } – Fahrer dazunehmen
   let menuCtrl = null;         // Regler, dessen Strafen-Menü offen ist
   let voiceOn = readVoice();
@@ -107,6 +109,15 @@
         menuCtrl = menuCtrl === ctrl ? null : ctrl; addPanel = null; dmgPanel = null;
         renderLive();
       });
+      // Vorbereitung: über das Autobild wischen = voriges/nächstes freies Auto (Tristan 21.11.)
+      let swipe = null;
+      root.addEventListener('touchstart', e => { const im = e.target.closest('.lc-tile-car[data-ctrl]'); swipe = im ? { ctrl: +im.dataset.ctrl, x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
+      root.addEventListener('touchend', e => {
+        if (!swipe || session || !canEdit()) { swipe = null; return; }
+        const dx = e.changedTouches[0].clientX - swipe.x, dy = e.changedTouches[0].clientY - swipe.y;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) { stepCar(swipe.ctrl, dx < 0 ? 1 : -1); swipe.done = performance.now(); }
+        lastSwipe = swipe.done || 0; swipe = null;
+      }, { passive: true });
       root.addEventListener('change', onChange);
       root.addEventListener('input', e => { if (dmgPanel && e.target.matches('[data-dmgnote]')) dmgPanel.note = e.target.value; });
     }
@@ -254,6 +265,59 @@
   function releaseTrack () { if (cfg.source === 'cu' && canEdit()) cuHub()?.releaseTrack?.(); }
   function enterSetup () { view = 'setup'; releaseTrack(); renderSetup(); }
 
+  /** Galerie: alle wählbaren Autos; vergebene mit Reglerfarbe, Auswahl tauscht die Plätze */
+  function carPickHtml (n, cAll) {
+    const c = MD.controller(n), cur = cfg.assign[n]?.carId ?? null;
+    const owner = id => MD.CONTROLLERS.find(o => o.n !== n && cfg.assign[o.n]?.carId === id);
+    const tile = x => {
+      const o = owner(x.id), img = carImg(x.id);
+      return `<button class="lc-pick-car ${x.id === cur ? 'on' : ''} ${o ? 'taken' : ''}" data-act="carSet" data-ctrl="${n}" data-car="${x.id}" ${o ? `style="${ctrlStyle(o.n)}"` : ''}>
+        <span class="lc-pick-img">${img ? `<img src="${img}" alt="">` : ''}</span>
+        <span class="lc-pick-name">${esc(x.name)}</span>
+        ${o ? `<span class="lc-pick-owner" title="Vergeben – tauscht die Plätze">${esc(cfg.assign[o.n]?.driverId != null ? driverName(cfg.assign[o.n].driverId) : o.name)} ⇄</span>` : ''}
+      </button>`;
+    };
+    return `<div class="lc-pick-back" data-act="carPickClose"></div>
+      <div class="lc-pick" style="${ctrlStyle(n)}" role="dialog" aria-label="Fahrzeug für Regler ${c.name}">
+        <div class="lc-pick-head"><span class="lc-swatch"></span><b>Fahrzeug wählen${cfg.assign[n]?.driverId ? ` für ${esc(driverName(cfg.assign[n].driverId))}` : ''}</b>
+          ${cur != null ? `<button class="lc-btn lc-ghost" data-act="carSet" data-ctrl="${n}" data-car="">Kein Fahrzeug</button>` : ''}
+          <button class="lc-btn lc-ghost" data-act="carPickClose">Schließen</button></div>
+        <div class="lc-pick-grid">${cAll.map(tile).join('')}</div>
+      </div>`;
+  }
+
+  /** Fahrer/Fahrzeug auf Regler n setzen; steht es schon auf einem anderen Regler, tauschen die beiden die Plätze */
+  function assignSlot (n, kind, val) {
+    const prev = cfg.assign[n]?.[kind] ?? null;
+    cfg.assign[n] = { ...(cfg.assign[n] || {}), [kind]: val };
+    if (val != null) {
+      for (const [k, a] of Object.entries(cfg.assign)) {
+        if (+k === n || a?.[kind] !== val) continue;
+        a[kind] = prev;
+        if (!a.driverId && !a.carId) delete cfg.assign[k];
+      }
+    }
+    if (kind === 'driverId' && val != null && !cfg.assign[n].carId) {
+      // Fahrzeug vorschlagen: das, mit dem der Fahrer zuletzt gefahren ist
+      const last = cfg.lastCar?.[val];
+      if (last && !Object.values(cfg.assign).some(a => a?.carId === last) && cars().some(x => x.id === last)) cfg.assign[n].carId = last;
+    }
+    if (cfg.assign[n].driverId && cfg.assign[n].carId) { cfg.lastCar = { ...(cfg.lastCar || {}), [cfg.assign[n].driverId]: cfg.assign[n].carId }; }
+    if (!cfg.assign[n].driverId && !cfg.assign[n].carId) delete cfg.assign[n];
+    delete cfg.hint;
+    saveCfg(); renderSetup();
+  }
+
+  /** ‹ › bzw. Wischen: voriges/nächstes freie Auto (vergebene werden übersprungen) */
+  function stepCar (n, dir) {
+    const cur = cfg.assign[n]?.carId ?? null;
+    const list = cars(Object.values(cfg.assign).map(a => a?.carId)).filter(x => x.id === cur || !MD.CONTROLLERS.some(o => o.n !== n && cfg.assign[o.n]?.carId === x.id));
+    if (!list.length) return;
+    const i = list.findIndex(x => x.id === cur);
+    const next = i < 0 ? (dir > 0 ? list[0] : list[list.length - 1]) : list[(i + dir + list.length) % list.length];
+    if (next.id !== cur) assignSlot(n, 'carId', next.id);
+  }
+
   function renderSetup () {
     restoreThrottled();
     // Gesperrte Fahrzeuge (offener kritischer Schaden) aus der Zuweisung nehmen – auch nach „Autos rotieren“
@@ -284,18 +348,21 @@
         const o = x => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`;
         return free.map(o).join('') + (taken.length ? `<optgroup label="Vergeben – tauscht die Plätze">${taken.map(x => `<option value="${x.id}">${esc(x.name)} · ${owner(kind, x.id).name}</option>`).join('')}</optgroup>` : '');
       };
-      return `<div class="lc-slot ${a.driverId ? 'used' : ''}" style="${ctrlStyle(c.n)}">
-        <span class="lc-swatch" title="${c.name}"></span>
-        <span class="lc-slot-name">${c.name}</span>
-        <select data-ctrl="${c.n}" data-kind="driverId" aria-label="Fahrer ${c.name}">
+      // Kachel je Regler (Rahmen in Reglerfarbe, ohne Farbnamen): Autobild mit ‹ › bzw. Wischen, Tippen = alle Autos (Tristan 21.11.)
+      const img = a.carId != null ? carImg(a.carId) : null;
+      const can = canEdit();
+      return `<div class="lc-tile ${a.driverId || a.carId ? 'used' : ''}" style="${ctrlStyle(c.n)}" aria-label="Regler ${c.name}">
+        <button class="lc-tile-clear" data-act="clear" data-ctrl="${c.n}" aria-label="Regler ${c.name} leeren" title="Leeren" ${(a.driverId || a.carId) && can ? '' : 'hidden'}>×</button>
+        <div class="lc-tile-gal">
+          <button class="lc-tile-arrow" data-act="carStep" data-ctrl="${c.n}" data-dir="-1" aria-label="Voriges Auto" ${can ? '' : 'disabled'}>‹</button>
+          <button class="lc-tile-car" data-act="carPick" data-ctrl="${c.n}" aria-label="Fahrzeug wählen" ${can ? '' : 'disabled'}>${a.carId != null ? (img ? `<img src="${img}" alt="">` : `<span>${esc(carName(a.carId))}</span>`) : '<span>Fahrzeug wählen</span>'}</button>
+          <button class="lc-tile-arrow" data-act="carStep" data-ctrl="${c.n}" data-dir="1" aria-label="Nächstes Auto" ${can ? '' : 'disabled'}>›</button>
+        </div>
+        <div class="lc-tile-name">${a.carId != null ? esc(carName(a.carId)) : '&nbsp;'}</div>
+        <select data-ctrl="${c.n}" data-kind="driverId" aria-label="Fahrer ${c.name}" ${can ? '' : 'disabled'}>
           <option value="">– Fahrer –</option>
           ${opts(dAll, 'driverId', a.driverId)}
         </select>
-        <select data-ctrl="${c.n}" data-kind="carId" aria-label="Fahrzeug ${c.name}">
-          <option value="">– Fahrzeug –</option>
-          ${opts(cAll, 'carId', a.carId)}
-        </select>
-        <button class="lc-icon-btn" data-act="clear" data-ctrl="${c.n}" aria-label="${c.name} leeren" ${a.driverId || a.carId ? '' : 'disabled'}>×</button>
       </div>`;
     }).join('');
     const incomplete = MD.CONTROLLERS.filter(c => { const a = cfg.assign[c.n] || {}; return !!a.driverId !== !!a.carId; });
@@ -379,7 +446,7 @@
                   `<button class="lc-btn lc-primary lc-draw-btn" data-act="autoSetup" data-method="${m}" title="Fahrer wählen, Autos per ${l} auslosen" aria-label="Auslosen per ${l}">${window.Helpers.icon(ic)}</button>`).join('')}</span>
               </div>` : ''}
             </div>
-            <div class="lc-slots">${rows}</div>
+            <div class="lc-tiles">${rows}</div>
             <p class="lc-hint ${problems.length ? 'warn' : ''}" id="lcHint">${problems.length ? problems.map(esc).join(' · ') : cfg.hint ? esc(cfg.hint) : 'Leere Regler fahren nicht mit.'}</p>
           </section>
           <section id="lcTune" class="lc-card lc-tune-card">${tuneCardHtml()}</section>
@@ -389,6 +456,7 @@
           ${canEdit() ? '' : '<span class="lc-note">Starten nur mit Admin-Anmeldung</span>'}
           <button class="lc-btn lc-primary lc-big" data-act="start" ${entries.length && !problems.length && canEdit() && (cfg.source === 'sim' || cuHub()?.state === 'connected') ? '' : 'disabled'}>${cfg.mode === 'race' ? 'Zur Startaufstellung' : 'Strecke freigeben'}</button>
         </footer>
+        ${carPick != null && canEdit() ? carPickHtml(carPick, cAll) : ''}
       </div>`;
   }
 
@@ -871,13 +939,15 @@
 
   /** Fahrzeugbild (eigenes Bild aus dem Setup oder assets/cars/NN.png), einmal pro Fahrzeug geladen */
   const carImgs = {};
+  let setupRaf = 0;
+  const renderSetupSoon = () => { if (!setupRaf) setupRaf = requestAnimationFrame(() => { setupRaf = 0; if (!session && view === 'setup' && !root?.hidden) renderSetup(); }); };
   function carImg (carId) {
     if (!(carId in carImgs)) {
       carImgs[carId] = null;
       const car = (appData().cars || []).find(c => c.id === carId);
       const hook = window.Livecenter?.carImage;
       const p = hook ? Promise.resolve(hook(car)) : window.SetupUI?.carImageSrc ? window.SetupUI.carImageSrc(car) : Promise.resolve(null);
-      p.then(src => { carImgs[carId] = src || ''; if (src) { shellKey = ''; renderLive(); } }).catch(() => { carImgs[carId] = ''; });
+      p.then(src => { carImgs[carId] = src || ''; if (!src || root?.hidden) return; if (session) { shellKey = ''; renderLive(); } else if (view === 'setup') renderSetupSoon(); }).catch(() => { carImgs[carId] = ''; });
     }
     return carImgs[carId];
   }
@@ -1342,6 +1412,10 @@
       case 'close': close(); break;
       case 'mode': cfg.mode = b.dataset.mode; saveCfg(); renderSetup(); break;
       case 'clear': delete cfg.assign[ctrl]; saveCfg(); renderSetup(); break;
+      case 'carStep': stepCar(ctrl, +b.dataset.dir); break;
+      case 'carPick': if (performance.now() - lastSwipe > 400) { carPick = ctrl; renderSetup(); } break;
+      case 'carPickClose': carPick = null; renderSetup(); break;
+      case 'carSet': carPick = null; assignSlot(ctrl, 'carId', b.dataset.car === '' ? null : (isNaN(+b.dataset.car) ? b.dataset.car : +b.dataset.car)); break;
       case 'autoSetup': openAutoSetup(undefined, b.dataset.method || null); break;
       case 'rotateCars': rotateCars(); break;
       case 'next': nextRace(b.dataset.how); break;
@@ -1511,27 +1585,7 @@
     if (rec) { rec.checked ? recPick.add(rec.dataset.rec) : recPick.delete(rec.dataset.rec); renderLive(); return; }
     const sel = e.target.closest('select[data-ctrl]');
     if (sel) {
-      const n = +sel.dataset.ctrl;
-      const val = sel.value ? (isNaN(+sel.value) ? sel.value : +sel.value) : null;
-      const prev = cfg.assign[n]?.[sel.dataset.kind] ?? null;
-      cfg.assign[n] = { ...(cfg.assign[n] || {}), [sel.dataset.kind]: val };
-      // Derselbe Fahrer / dasselbe Fahrzeug auf einem anderen Regler → Plätze tauschen (der andere bekommt den bisherigen)
-      if (val != null) {
-        for (const [k, a] of Object.entries(cfg.assign)) {
-          if (+k === n || a?.[sel.dataset.kind] !== val) continue;
-          a[sel.dataset.kind] = prev;
-          if (!a.driverId && !a.carId) delete cfg.assign[k];
-        }
-      }
-      if (sel.dataset.kind === 'driverId' && val != null && !cfg.assign[n].carId) {
-        // Fahrzeug vorschlagen: das, mit dem der Fahrer zuletzt auf diesem Regler oder überhaupt gefahren ist
-        const last = cfg.lastCar?.[val];
-        if (last && !Object.values(cfg.assign).some(a => a?.carId === last)) cfg.assign[n].carId = last;
-      }
-      if (cfg.assign[n].driverId && cfg.assign[n].carId) { cfg.lastCar = { ...(cfg.lastCar || {}), [cfg.assign[n].driverId]: cfg.assign[n].carId }; }
-      if (!cfg.assign[n].driverId && !cfg.assign[n].carId) delete cfg.assign[n];
-      delete cfg.hint;
-      saveCfg(); renderSetup();
+      assignSlot(+sel.dataset.ctrl, sel.dataset.kind, sel.value ? (isNaN(+sel.value) ? sel.value : +sel.value) : null);
       return;
     }
     const inp = e.target.closest('[data-cfg]');

@@ -571,3 +571,40 @@ html.lc-open .modal { z-index: 6000; }
   .has-fuel .lc-row .lc-fuelcell { grid-row: 2; grid-column: 4 / -1; padding: 0 10px 10px; }
   .has-fuel .lc-row .lc-fuelcell .lc-fuel { height: 24px; }
 }
+
+/* Vorbereitung: Zuweisung als Kacheln je Regler, zweispaltig (Tristan 21.11.) */
+.lc-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.lc-tile { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 10px 10px 12px; border-radius: 12px; background: var(--lc-bg); border: 3px solid var(--cc); box-shadow: 0 0 0 1px rgba(255,255,255,.18); opacity: .7; min-width: 0; }
+.lc-tile.used { opacity: 1; }
+.lc-tile-clear { position: absolute; top: 4px; right: 4px; z-index: 1; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
+.lc-tile-gal { display: grid; grid-template-columns: 30px minmax(0, 1fr) 30px; align-items: center; gap: 4px; }
+.lc-tile-arrow { height: 100%; min-height: 44px; border: 0; background: none; color: var(--cc); font-size: 40px; font-weight: 300; line-height: 1; cursor: pointer; padding: 0; text-shadow: 0 0 1px rgba(255,255,255,.6); }
+.lc-tile-arrow:disabled { opacity: .3; }
+.lc-tile-car { aspect-ratio: 16 / 9; width: 100%; border-radius: 8px; border: 0; padding: 6px; background: var(--cc); color: var(--ct); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; touch-action: pan-y; }
+.lc-tile-car img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; user-select: none; }
+.lc-tile-car span { font-weight: 600; font-size: 15px; text-align: center; }
+.lc-tile-name { font-weight: 700; font-size: 16px; line-height: 1.2; min-height: 2.4em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: center; }
+.lc-tile select { font: inherit; font-size: 16px; min-height: 44px; width: 100%; min-width: 0; border-radius: 8px; border: 1px solid var(--lc-line); background: var(--lc-panel-2); color: var(--lc-text); padding: 0 8px; }
+
+/* Fahrzeug-Galerie (Tippen aufs Autobild) */
+.lc-pick-back { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 40; }
+.lc-pick { position: fixed; z-index: 41; inset: 4vh 4vw; display: flex; flex-direction: column; background: var(--lc-panel); border: 3px solid var(--cc); border-radius: 14px; overflow: hidden; }
+.lc-pick-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--lc-line); }
+.lc-pick-head b { flex: 1; font-size: 18px; }
+.lc-pick-grid { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; padding: 14px 16px; align-content: start; }
+.lc-pick-car { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 10px; border: 2px solid var(--lc-line); background: var(--lc-bg); color: var(--lc-text); font: inherit; text-align: left; cursor: pointer; }
+.lc-pick-car.on { border-color: var(--lc-accent); box-shadow: 0 0 0 2px var(--lc-accent); }
+.lc-pick-car.taken { border-color: var(--cc); }
+.lc-pick-img { aspect-ratio: 16 / 9; display: flex; align-items: center; justify-content: center; }
+.lc-pick-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.lc-pick-name { font-size: 14px; font-weight: 600; line-height: 1.2; }
+.lc-pick-owner { position: absolute; top: 6px; left: 6px; padding: 2px 8px; border-radius: 6px; background: var(--cc); color: var(--ct); font-size: 12px; font-weight: 700; box-shadow: 0 0 0 1px rgba(255,255,255,.35); }
+@media (max-width: 560px) {
+  .lc-tiles { gap: 8px; }
+  .lc-tile { padding: 8px 6px 10px; }
+  .lc-tile-gal { grid-template-columns: 22px minmax(0, 1fr) 22px; gap: 2px; }
+  .lc-tile-arrow { font-size: 30px; }
+  .lc-tile-name { font-size: 14px; }
+  .lc-pick { inset: 2vh 2vw; }
+  .lc-pick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px; }
+}
