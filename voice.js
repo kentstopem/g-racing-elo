@@ -261,7 +261,9 @@
     sources = sources.filter(Boolean);
     if (!sources.length) return;
     const c = audioCtx();
-    if (c && c.state === 'running') {
+    // Countdown (5 4 3 2 1 Los) wie bisher direkt über <audio>: Er hängt an den CU-Lampen und ist darauf abgestimmt
+    const countdown = sources.every(src => typeof src === 'string' && /\/phrases\/count_[^/]*\.mp3$/.test(src));
+    if (c && c.state === 'running' && !countdown) {
       try { if (await playWebAudio(sources, my)) return; } catch (e) { console.warn('Web Audio', e); }
       if (my !== token) return;
     }
