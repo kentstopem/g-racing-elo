@@ -265,22 +265,26 @@
     const t = track();
     const entries = entriesFromCfg();
     const usedD = Object.values(cfg.assign).map(a => a?.driverId).filter(Boolean);
-    const usedC = Object.values(cfg.assign).map(a => a?.carId).filter(Boolean);
     const rows = MD.CONTROLLERS.map(c => {
       const a = cfg.assign[c.n] || {};
-      // Nur verfügbare: aktiv und noch nicht auf einem anderen Regler
-      const dOpts = dAll.filter(d => d.id === a.driverId || !usedD.includes(d.id));
-      const cOpts = cAll.filter(x => x.id === a.carId || !usedC.includes(x.id));
+      // Freie zuerst, dann die schon auf einem anderen Regler vergebenen: Auswahl tauscht die Plätze (Tristan 21.11.)
+      const owner = (kind, id) => MD.CONTROLLERS.find(o => o.n !== c.n && cfg.assign[o.n]?.[kind] === id);
+      const opts = (list, kind, cur) => {
+        const free = list.filter(x => x.id === cur || !owner(kind, x.id));
+        const taken = list.filter(x => x.id !== cur && owner(kind, x.id));
+        const o = x => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`;
+        return free.map(o).join('') + (taken.length ? `<optgroup label="Vergeben – tauscht die Plätze">${taken.map(x => `<option value="${x.id}">${esc(x.name)} · ${owner(kind, x.id).name}</option>`).join('')}</optgroup>` : '');
+      };
       return `<div class="lc-slot ${a.driverId ? 'used' : ''}" style="${ctrlStyle(c.n)}">
         <span class="lc-swatch" title="${c.name}"></span>
         <span class="lc-slot-name">${c.name}</span>
         <select data-ctrl="${c.n}" data-kind="driverId" aria-label="Fahrer ${c.name}">
           <option value="">– Fahrer –</option>
-          ${dOpts.map(d => `<option value="${d.id}" ${d.id === a.driverId ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
+          ${opts(dAll, 'driverId', a.driverId)}
         </select>
         <select data-ctrl="${c.n}" data-kind="carId" aria-label="Fahrzeug ${c.name}">
           <option value="">– Fahrzeug –</option>
-          ${cOpts.map(x => `<option value="${x.id}" ${x.id === a.carId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}
+          ${opts(cAll, 'carId', a.carId)}
         </select>
         <button class="lc-icon-btn" data-act="clear" data-ctrl="${c.n}" aria-label="${c.name} leeren" ${a.driverId || a.carId ? '' : 'disabled'}>×</button>
       </div>`;
@@ -1498,12 +1502,13 @@
     if (sel) {
       const n = +sel.dataset.ctrl;
       const val = sel.value ? (isNaN(+sel.value) ? sel.value : +sel.value) : null;
+      const prev = cfg.assign[n]?.[sel.dataset.kind] ?? null;
       cfg.assign[n] = { ...(cfg.assign[n] || {}), [sel.dataset.kind]: val };
-      // Derselbe Fahrer / dasselbe Fahrzeug auf einem anderen Regler → dort herausnehmen (Regler tauschen)
+      // Derselbe Fahrer / dasselbe Fahrzeug auf einem anderen Regler → Plätze tauschen (der andere bekommt den bisherigen)
       if (val != null) {
         for (const [k, a] of Object.entries(cfg.assign)) {
           if (+k === n || a?.[sel.dataset.kind] !== val) continue;
-          a[sel.dataset.kind] = null;
+          a[sel.dataset.kind] = prev;
           if (!a.driverId && !a.carId) delete cfg.assign[k];
         }
       }
