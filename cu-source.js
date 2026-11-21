@@ -302,5 +302,5 @@
 
   window.LiveCU = { hub, CuSource };
   // Nach Neuladen automatisch wieder mit der CU verbinden (Tristan 20.11.2026)
-  setTimeout(() => hub.autoConnect(), 300);
+  if (typeof setTimeout === "function") setTimeout(() => hub.autoConnect(), 300);   // fehlt in den Tests
 })();
