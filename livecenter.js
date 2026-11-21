@@ -390,23 +390,19 @@
       ? `<label class="lc-field lc-field-laps">Runden<input type="number" inputmode="numeric" min="1" max="999" data-cfg="raceLaps" value="${cfg.raceLaps}"></label>`
       : cfg.mode === 'quali'
         ? `<label class="lc-field lc-field-laps">Quali-Runden je Fahrer<input type="number" inputmode="numeric" min="1" max="50" data-cfg="qualiLaps" value="${cfg.qualiLaps}"></label>`
-        : '<p class="lc-note">Keine Startampel – die Strecke ist sofort frei</p>';
+        : '';
     // Qualifying startet ebenfalls ohne Ampel (Tristan 2026-11-17)
     const raceOpts = cfg.mode === 'race' ? `
       <label class="lc-field lc-field-end">Rennende<select data-cfg="finishCount">
         <option value="0" ${!cfg.finishCount ? 'selected' : ''}>alle im Ziel</option>
         ${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${cfg.finishCount === n ? 'selected' : ''}>${n} im Ziel</option>`).join('')}
       </select></label></div>
-      <label class="lc-check"><input type="checkbox" data-cfg="dqOpen" ${cfg.dqOpen ? 'checked' : ''}> Offene Strafen bei Rennende: disqualifizieren<small>Sonst wird die offene Zeit auf die Gesamtzeit addiert.</small></label>
-      <label class="lc-check"><input type="checkbox" data-cfg="fullDistance" ${cfg.fullDistance ? 'checked' : ''}> Alle fahren volle Distanz<small>Überrundete fahren nach dem Sieg weiter, bis sie alle Runden haben.</small></label>` : '';
+      <label class="lc-check"><input type="checkbox" data-cfg="dqOpen" ${cfg.dqOpen ? 'checked' : ''}> Offene Strafen bei Rennende: disqualifizieren</label>
+      <label class="lc-check"><input type="checkbox" data-cfg="fullDistance" ${cfg.fullDistance ? 'checked' : ''}> Alle fahren volle Distanz</label>` : '';
     // Tanken im Training/Quali per Checkbox (Tristan 2026-11-19), im Rennen immer an
     const fuelKey = cfg.mode === 'practice' ? 'fuelPractice' : cfg.mode === 'quali' ? 'fuelQuali' : null;
-    const fuelCheck = fuelKey ? `<label class="lc-check"><input type="checkbox" data-cfg="${fuelKey}" ${cfg[fuelKey] ? 'checked' : ''}> Mit Tanken<small>Spritverbrauch und Tanken in der Box wie im Rennen.</small></label>` : '';
-    const fuelNote = fuelOnFor(cfg.mode) ? (() => {
-      const ref = MD.trackSetup(t).refLapMs;
-      const plan = MD.raceFuelPlan(cfg.mode === 'race' ? cfg.raceLaps : cfg.mode === 'quali' ? cfg.qualiLaps : 0, ref, t, settings());
-      return `<p class="lc-note">Voller Tank reicht ca. ${Math.round(plan.lapsPerTank)} Runden bei ${ref} ms Rundenzeit${cfg.mode !== 'practice' && plan.stops ? ` · ${plan.stops} Boxenstopp${plan.stops > 1 ? 's' : ''} nötig` : ''}</p>`;
-    })() : '';
+    const fuelCheck = fuelKey ? `<label class="lc-check"><input type="checkbox" data-cfg="${fuelKey}" ${cfg[fuelKey] ? 'checked' : ''}> Tank</label>` : '';
+    const fuelNote = '';   // Hinweise in „Was wird gefahren?“ entfernt (Tristan 21.11.)
 
     const saved = readSnap();
     const resumeBar = !saved ? '' : (() => {
@@ -444,13 +440,12 @@
               <button data-act="src" data-src="cu" class="${cfg.source === 'cu' ? 'on' : ''}">Control Unit</button>
               <button data-act="src" data-src="sim" class="${cfg.source === 'sim' ? 'on' : ''}">Simulator</button>
             </div>` : ''}
-            ${cfg.source === 'cu' ? cuBox() : '<p class="lc-note">Der Simulator fährt mit den echten Fahrern, Fahrzeugen und Rekorden.</p>'}
+            ${cfg.source === 'cu' ? cuBox() : ''}
             <h3>Zuschauer</h3>
             <div class="lc-cast-row">
               <button class="lc-btn ${cfg.broadcast ? 'on' : ''}" data-act="cast" aria-pressed="${cfg.broadcast}">Live übertragen: ${cfg.broadcast ? 'an' : 'aus'}</button>
               <button class="lc-btn lc-ghost" data-act="watch">Selbst zuschauen</button>
             </div>
-            <p class="lc-note">Wenn an, sehen alle in der App unter „Live“ das laufende Rennen mit (nur lesen).</p>
           </section>
           <section class="lc-card">
             <div class="lc-card-head">
@@ -462,7 +457,7 @@
               </div>` : ''}
             </div>
             <div class="lc-tiles">${rows}</div>
-            <p class="lc-hint ${problems.length ? 'warn' : ''}" id="lcHint">${problems.length ? problems.map(esc).join(' · ') : cfg.hint ? esc(cfg.hint) : 'Leere Regler fahren nicht mit.'}</p>
+            ${problems.length || cfg.hint ? `<p class="lc-hint ${problems.length ? 'warn' : ''}" id="lcHint">${esc(problems.length ? problems.join(' · ') : cfg.hint)}</p>` : ''}
           </section>
           <section id="lcTune" class="lc-card lc-tune-card">${tuneCardHtml()}</section>
         </div>
@@ -733,7 +728,7 @@
     }).join('');
     return `<h3>Tuning</h3>
       <div class="lc-tune-tiles">${tiles}</div>
-      <p class="lc-note">${cfg.source !== 'cu' ? 'Wird am Fahrzeug gespeichert.' : on ? 'Jeder Tipp ist eine Stufe. Autos codiert auf die Bahn stellen, gesendet wird kurz nach dem letzten Tipp und am Fahrzeug gespeichert.' : 'Wird am Fahrzeug gespeichert. An die Autos geht es erst, wenn die CU verbunden ist (dann „Senden“).'}</p>`;
+`;
   }
 
   /** Simulator: Grundtempo einer Paarung aus ihrem Rekord, sonst aus der Referenzrunde */

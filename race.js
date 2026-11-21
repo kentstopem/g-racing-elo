@@ -417,7 +417,7 @@
   let prevSelectedDrivers=[];
   let setupDone=null;   // Livecenter: fertige Paarungen an einen Callback statt ins Formular
   let autoMethod=null;  // Livecenter: 'wheel' | 'slot' | 'memory' startet nach „Weiter“ direkt die Auslosung
-  let autoMode=null;    // Livecenter: Modus der Sitzung ('practice' | 'quali' | 'race'); „Nur Training“-Autos nur bei 'practice'
+  let autoMode=null;    // Livecenter: Modus der Sitzung ('practice' | 'quali' | 'race')
 
   /** Auto-Setup für das Livecenter: Fahrer (vorausgewählt) → Fahrzeuge → onDone([{driverId, carId}]) */
   function openAutoSetup({ drivers, onDone, method, mode }={}){
@@ -472,7 +472,7 @@
     // Build car checklist (alphabetisch, nur aktive)
     carListDiv.classList.remove('hidden');
     // nur aktive und nicht wegen Schaden gesperrte (offener Motor-/Sensorschaden) – davon ziehen auch Glücksrad, Slotmachine, Memorykarten und Zufall
-    carListDiv.innerHTML=[...window.appData.cars].filter(c=>window.Elo.isActive(c)&&!window.Damage?.isLocked(c)&&window.MasterData.carAllowedIn(c,autoMode))
+    carListDiv.innerHTML=[...window.appData.cars].filter(c=>window.Elo.isActive(c)&&!window.Damage?.isLocked(c)&&!c.practiceOnly)   /* Auslosen nie mit „Nur Training“-Autos, auch nicht im Training (Tristan 21.11.) – die gibt es nur in der Zuweisung von Hand */
       .sort((a,b)=>a.name.localeCompare(b.name))
       .map(c=>`<label class='pick-row'><input type='checkbox' value='${c.id}'><span class='pick-check' aria-hidden='true'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></span><span class='pick-name'>${esc(c.name)}</span></label>`)
       .join('');
