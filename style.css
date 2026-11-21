@@ -819,6 +819,7 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
 .form-group .dmg-crit-check { display: inline-flex; }
 .dmg-types input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 0; padding: 0; }
 .dmg-lock-hint { font-size: 12px; font-weight: 600; color: var(--status-error); white-space: nowrap; }
+.practice-only-hint { font-size: 12px; font-weight: 600; color: var(--iu-accent); white-space: nowrap; }
 
 /* ---------- Werkstatt (Hauptmenü) ---------- */
 .ws-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 10px; }

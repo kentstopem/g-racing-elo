@@ -228,9 +228,8 @@ function renderDetails(){
     if(currentEntityType==='car'){
         const car=appData.cars.find(c=>c.id==currentEntityId);
         if(car){
-           const num=/^\((\d+)\)/.exec(car.name||'')?.[1];
-           if(num){
-               const src=`assets/cars/${String(num).padStart(2,'0')}.png`;
+           const src=window.MasterData.carAssetSrc(car);
+           if(src){
                imgHTML=`<div style="flex:0 0 200px;text-align:center;"><img src="${src}" alt="${car.name}" class="stats-img"></div>`;
            }
         }
@@ -771,7 +770,8 @@ function updateCarsList() {
         }).join(' ');
     };
     // „aktiv“ bleibt unabhängig von der Sperre (nur Verlosung/Rangliste) – Hinweis, wenn das Auto wegen Schaden gesperrt ist
-    const lockHint = car => D?.isLocked(car) ? '<span class="dmg-lock-hint" title="Offener kritischer Schaden – im Livecenter und bei der Auslosung nicht wählbar, bis repariert">gesperrt wegen Schaden</span>' : '';
+    const lockHint = car => (D?.isLocked(car) ? '<span class="dmg-lock-hint" title="Offener kritischer Schaden – im Livecenter und bei der Auslosung nicht wählbar, bis repariert">gesperrt wegen Schaden</span>' : '')
+        + (car.practiceOnly ? '<span class="practice-only-hint" title="Im Livecenter nur im Freien Training wählbar, nicht in Qualifying, Rennen und Auslosung fürs Rennen">nur Training</span>' : '');
     const sortedCars=[...shownCars].sort((a,b)=>(!!a.archived-!!b.archived)||a.name.localeCompare(b.name,'de',{sensitivity:'base'}));
     list.innerHTML = sortedCars.map(car => `
         <div class="list-item${car.archived?' archived':''}" data-id="${car.id}">

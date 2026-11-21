@@ -89,3 +89,20 @@ test('Sprit-Plan fürs Rennen: Stopps und Tankzeit', () => {
   assert.equal(M.raceFuelPlan(75, 6175, track).stops, 3);   // 5 % schneller → ein Stopp mehr
   assert.equal(M.raceFuelPlan(20, 6500, track).stops, 0);
 });
+
+test('Fahrzeugbild: Startnummer, sonst nach Name (Rover)', () => {
+  assert.equal(M.carAssetSrc({ name: '(7) Porsche 911' }), 'assets/cars/07.png');
+  assert.equal(M.carAssetSrc({ name: '(46) BMW M1' }), 'assets/cars/46.png');
+  assert.equal(M.carAssetSrc({ name: 'Rover Mini Cooper S' }), 'assets/cars/rover.png');
+  assert.equal(M.carAssetSrc({ name: 'Ohne Nummer' }), null);
+  assert.equal(M.carAssetSrc(null), null);
+});
+
+test('„Nur Training“-Fahrzeuge nur im Freien Training', () => {
+  const mini = { name: 'Rover Mini Cooper S', practiceOnly: true }, bmw = { name: '(46) BMW' };
+  assert.equal(M.carAllowedIn(mini, 'practice'), true);
+  assert.equal(M.carAllowedIn(mini, 'quali'), false);
+  assert.equal(M.carAllowedIn(mini, 'race'), false);
+  assert.equal(M.carAllowedIn(mini, null), false);
+  assert.equal(M.carAllowedIn(bmw, 'race'), true);
+});

@@ -5,7 +5,8 @@
 //   drivers/{id}   + preferredController (1–6 | null), pronunciation (Aussprache-Schreibweise für die Sprachausgabe),
 //                    voiceRev (Zeitstempel, wenn ein Namens-Ton hinterlegt ist)
 //   cars/{id}      + tuning { speed: 0–15, brake: 0–15 } (CU-Stufen; fehlt = nicht festgelegt),
-//                    imageRev (eigenes Bild hochgeladen), practiceLaps (Runden außerhalb gewerteter Rennen)
+//                    imageRev (eigenes Bild hochgeladen), practiceLaps (Runden außerhalb gewerteter Rennen),
+//                    practiceOnly (true = nur im Training wählbar, z. B. anderer Decoder, der im Rennen stört)
 //   tracks/{id}    + lengthOuterM, lengthInnerM, refLapMs, minLapMs (kürzere Runden werden ignoriert), imageRev
 //   settings/race  { fullTankLaps, refuelPctPerSec, falseStartPenaltySec, penaltyOptionsSec[], pitCallFuelPct, fuelCritPct, fuelSpeedFactor, emptyTankSpeed, pitDriveMs, noSignalSec }
 //   media/{key}    { data (Data-URL), type, bytes, updatedAt } – Bilder/Töne getrennt von den Stammdaten,
@@ -187,10 +188,25 @@
   }
   const formatLapTime = ms => (ms > 0 ? (ms / 1000).toFixed(3).replace('.', ',') : '');
 
+  // ---------- Fahrzeugbilder und „nur Training“ ----------
+  // Standardbild: assets/cars/<Startnummer>.png aus „(NN) Name“; Fahrzeuge ohne Nummer über den Namen
+  const CAR_ASSETS_BY_NAME = [
+    [/\brover\b|\bmini cooper\b/i, 'rover.png']
+  ];
+  const carNumber = car => /^\((\d+)\)/.exec(car?.name || '')?.[1] ?? null;
+  function carAssetSrc (car) {
+    const n = carNumber(car);
+    if (n) return `assets/cars/${String(n).padStart(2, '0')}.png`;
+    const hit = CAR_ASSETS_BY_NAME.find(([re]) => re.test(car?.name || ''));
+    return hit ? `assets/cars/${hit[1]}` : null;
+  }
+  /** Darf das Fahrzeug in diesem Modus fahren? „Nur Training“-Fahrzeuge nicht in Quali und Rennen (mode fehlt = Rennen) */
+  const carAllowedIn = (car, mode) => mode === 'practice' || !car?.practiceOnly;
+
   window.MasterData = {
     CONTROLLERS, controller, MAX_LEVEL, clampLevel, levelToPct,
     RACE_DEFAULTS, TRACK_DEFAULTS, raceSettings, trackSetup,
     fuelPerLap, lapsPerTank, raceFuelPlan, isValidLap, suggestControllers, carTotals, raceCarLaps,
-    parseLapTime, formatLapTime
+    parseLapTime, formatLapTime, carNumber, carAssetSrc, carAllowedIn
   };
 })();

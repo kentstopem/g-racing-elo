@@ -53,7 +53,9 @@
   const drivers = (keep = []) => [...(appData().drivers || [])].filter(d => isActive(d) || keep.includes(d.id)).sort((a, b) => a.name.localeCompare(b.name));
   // Gesperrt (offener Motor-/Sensorschaden, siehe damage.js) – unabhängig von „aktiv“, wird nie angeboten
   const isLocked = c => !!window.Damage?.isLocked(c);
-  const cars = (keep = []) => [...(appData().cars || [])].filter(c => (isActive(c) && !isLocked(c)) || keep.includes(c.id)).sort((a, b) => a.name.localeCompare(b.name));
+  // „Nur Training“ (z. B. anderer Decoder, stört im Rennen): nur im Freien Training wählbar
+  const allowedIn = (c, mode) => MD.carAllowedIn(c, mode);
+  const cars = (keep = [], mode = cfg.mode) => [...(appData().cars || [])].filter(c => (isActive(c) && !isLocked(c) && allowedIn(c, mode)) || keep.includes(c.id)).sort((a, b) => a.name.localeCompare(b.name));
   const driverName = id => (appData().drivers || []).find(d => d.id === id)?.name ?? '?';
   const carName = id => (appData().cars || []).find(c => c.id === id)?.name ?? '';
   const trackId = () => window.Seasons?.current?.()?.trackId ?? null;
@@ -261,6 +263,13 @@
       if (car && isLocked(car)) { lockedOut.push(car.name); a.carId = null; }
     }
     if (lockedOut.length) { cfg.hint = `Gesperrt wegen Schaden: ${lockedOut.join(', ')} – bitte anderes Fahrzeug wählen.`; saveCfg(); }
+    // „Nur Training“-Fahrzeuge raus, sobald Qualifying oder Rennen gewählt ist
+    const practiceOut = [];
+    for (const a of Object.values(cfg.assign)) {
+      const car = a?.carId != null && (appData().cars || []).find(x => x.id === a.carId);
+      if (car && !allowedIn(car, cfg.mode)) { practiceOut.push(car.name); a.carId = null; }
+    }
+    if (practiceOut.length) { cfg.hint = `Nur im Training: ${practiceOut.join(', ')} – bitte anderes Fahrzeug wählen.`; saveCfg(); }
     const dAll = drivers(Object.values(cfg.assign).map(a => a?.driverId)), cAll = cars(Object.values(cfg.assign).map(a => a?.carId));
     const t = track();
     const entries = entriesFromCfg();
@@ -438,7 +447,7 @@
   const DRAW_METHODS = [['wheel', 'wheel', 'Glücksrad'], ['slot', 'slot', 'Slotmachine'], ['memory', 'cards', 'Memorykarten']];
   function openAutoSetup (driverIds = entriesFromCfg().map(e => e.driverId), method = null) {
     if (!window.RaceUI?.openAutoSetup) { window.Helpers.showToast?.('Auto-Setup nicht geladen'); return; }
-    window.RaceUI.openAutoSetup({ drivers: driverIds, onDone: applyPairs, method });
+    window.RaceUI.openAutoSetup({ drivers: driverIds, onDone: applyPairs, method, mode: cfg.mode });
   }
 
   /** Fahrer bleiben auf ihrem Regler, die Autos rücken einen belegten Regler weiter */
@@ -465,6 +474,8 @@
   // ---------- Start ----------
   function startSession ({ mode = cfg.mode, entries = entriesFromCfg(), fromQuali = false } = {}) {
     if (!entries.length) return;
+    const notAllowed = entries.map(e => (appData().cars || []).find(c => c.id === e.carId)).filter(c => c && !allowedIn(c, mode));
+    if (notAllowed.length) { window.Helpers.showToast?.(`Nur im Training: ${notAllowed.map(c => c.name).join(', ')}`); return; }
     if (!fromQuali) qualiBests = {};
     stopSession();
     delete cfg.hint; saveCfg();
@@ -1163,7 +1174,7 @@
       if (race) return `<div class="lc-menu-label">Autotausch im Rennen nur über „Schaden“${locked ? ' bei Roter Flagge' : ''} (kritisch → Ersatzauto). Tuning: vor dem Rennen in der Vorbereitung oder nach der Quali.</div>`;
       if (locked) return '<div class="lc-menu-label">Fahrzeug tauschen: bei Roter Flagge.</div>';
       const used = [...session.cars.values()].filter(x => x.ctrl !== c.ctrl).map(x => x.carId);
-      const opts = cars([c.carId]).filter(x => !used.includes(x.id));
+      const opts = cars([c.carId], session.mode).filter(x => !used.includes(x.id));
       const tu = tuningOf(c.carId);
       const st = tuneState(c.ctrl);
       const slider = (k, label) => `<div class="lc-tune"><span>${label}</span>${stepperHtml(c.ctrl, k, label, tu[k])}</div>`;
@@ -1199,7 +1210,7 @@
     if (addPanel && !freeCtrls.includes(addPanel.ctrl)) addPanel.ctrl = freeCtrls[0];
     const addHtml = !addPanel || !canEdit() ? '' : (() => {
       const onD = [...session.cars.values()].map(c => c.driverId), onC = [...session.cars.values()].map(c => c.carId);
-      const dOpts = drivers().filter(d => !onD.includes(d.id)), cOpts = cars().filter(x => !onC.includes(x.id));
+      const dOpts = drivers().filter(d => !onD.includes(d.id)), cOpts = cars([], session.mode).filter(x => !onC.includes(x.id));
       const ok = addPanel.driverId != null && addPanel.carId != null;
       return `<div class="lc-menu lc-add" style="${ctrlStyle(addPanel.ctrl)}">
         <div class="lc-menu-head"><span class="lc-swatch"></span><b>Fahrer dazunehmen</b><button class="lc-icon-btn" data-act="addClose" aria-label="Schließen">×</button></div>
@@ -1226,7 +1237,7 @@
         // Genau EIN Vorschlag: freies, nicht gesperrtes, aktives Auto mit der G!RP am nächsten am beschädigten (damage.js)
         const used = [...session.cars.values()].filter(x => x.ctrl !== c.ctrl).map(x => x.carId);
         const damaged = (appData().cars || []).find(x => x.id === dmgPanel.carId);
-        const sug = D.suggestReplacement(damaged, appData().cars || [], { exclude: [...used, c.carId], isActive });
+        const sug = D.suggestReplacement(damaged, appData().cars || [], { exclude: [...used, c.carId], isActive: x => isActive(x) && allowedIn(x, session.mode) });
         const girp = x => Math.round(x?.elo ?? 1000);
         const alt = race || session.mode === 'quali' ? '<button class="lc-btn lc-danger" data-act="dmgDnf">Ohne Ersatz: DNF</button>'
           : session.mode === 'practice' && session.cars.size > 1 ? `<button class="lc-btn lc-danger" data-act="removeCar" data-ctrl="${c.ctrl}">Entfernen</button>` : '';

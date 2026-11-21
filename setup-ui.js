@@ -43,10 +43,9 @@
     return out;
   }
 
-  const carNumber = car => /^\((\d+)\)/.exec(car?.name || '')?.[1] ?? null;
-  const carAssetSrc = car => { const n = carNumber(car); return n ? `assets/cars/${String(n).padStart(2, '0')}.png` : null; };
+  const carAssetSrc = car => M.carAssetSrc(car);
 
-  /** Bild eines Fahrzeugs: eigenes hochgeladenes Bild, sonst assets/cars/<Nummer>.png */
+  /** Bild eines Fahrzeugs: eigenes hochgeladenes Bild, sonst assets/cars/<Nummer>.png (bzw. nach Name, z. B. rover.png) */
   async function carImageSrc (car) {
     if (car?.imageRev) {
       try { const m = await window.Storage.getMedia(`car_${car.id}`); if (m?.data) return m.data; } catch (e) { console.warn(e); }
@@ -247,6 +246,9 @@
           </div>
         </div>
         <div class="form-group" style="margin-top:12px;">
+          <label class="check-label"><input type="checkbox" name="practiceOnly" ${c.practiceOnly ? 'checked' : ''}> Nur im Training (nicht in Qualifying und Rennen, z. B. anderer Decoder)</label>
+        </div>
+        <div class="form-group">
           <label class="check-label"><input type="checkbox" name="hasTuning" ${c.tuning ? 'checked' : ''}> Tuning festlegen (wird beim Rennen an die CU übertragen)</label>
         </div>
         <div id="tuningFields" class="${c.tuning ? '' : 'hidden'}">
@@ -311,6 +313,7 @@
         // Startwerte wie bisher beim Hinzufügen; Bild zuerst speichern, damit imageRev nie ins Leere zeigt
         const car = { id, name, elo: 1000, races: 0, wins: 0, totalRounds: 0, hideFromRanking: false };
         if (form.hasTuning.checked) car.tuning = tuning;
+        if (form.practiceOnly.checked) car.practiceOnly = true;
         const img = newImage;
         const save = (async () => {
           if (img) {
@@ -326,7 +329,8 @@
       // Angekreuzt, aber nicht „Eintragen“ gedrückt: Schaden mit speichern statt verlieren
       const dmgBox = body.querySelector('#dmgBox');
       if (dmgBox?._addPendingDamage && !dmgBox._addPendingDamage({ silentIfEmpty: true })) return;
-      persist(window.Storage.updateCarFields(id, { tuning }), 'Fahrzeug gespeichert');
+      const practiceOnly = form.practiceOnly.checked ? true : del();
+      persist(window.Storage.updateCarFields(id, { tuning, practiceOnly }), 'Fahrzeug gespeichert');
       closeModal();
     };
   }

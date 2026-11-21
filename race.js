@@ -91,7 +91,7 @@
         <label>Fahrzeug:</label>
         <select class="car-select">
           <option value="">Fahrzeug wählen...</option>
-          ${[...window.appData.cars].filter(c=>!c.archived).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+          ${[...window.appData.cars].filter(c=>!c.archived&&!c.practiceOnly).sort((a,b)=>a.name.localeCompare(b.name)).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
         </select>
         <div class="pred car-pred"></div>
       </div>
@@ -417,19 +417,21 @@
   let prevSelectedDrivers=[];
   let setupDone=null;   // Livecenter: fertige Paarungen an einen Callback statt ins Formular
   let autoMethod=null;  // Livecenter: 'wheel' | 'slot' | 'memory' startet nach „Weiter“ direkt die Auslosung
+  let autoMode=null;    // Livecenter: Modus der Sitzung ('practice' | 'quali' | 'race'); „Nur Training“-Autos nur bei 'practice'
 
   /** Auto-Setup für das Livecenter: Fahrer (vorausgewählt) → Fahrzeuge → onDone([{driverId, carId}]) */
-  function openAutoSetup({ drivers, onDone, method }={}){
+  function openAutoSetup({ drivers, onDone, method, mode }={}){
     // vorausgewählt sind genau die Fahrer, die schon auf einem Regler sitzen (keiner → keiner)
     if(Array.isArray(drivers)) prevSelectedDrivers=drivers.map(Number);
     openSetupModal();
     setupDone=typeof onDone==='function'?onDone:null;
     autoMethod=['wheel','slot','memory'].includes(method)?method:null;
+    autoMode=mode||null;
   }
 
   function openSetupModal(){
     if(!setupModal)return;
-    setupDone=null;autoMethod=null;
+    setupDone=null;autoMethod=null;autoMode=null;
     selectedCars=[];
     // zuletzt gewählte (noch vorhandene) Fahrer sind vorausgewählt
     selectedDrivers=prevSelectedDrivers.filter(id=>window.appData.drivers.some(d=>d.id===id&&window.Elo.isActive(d)));
@@ -470,7 +472,7 @@
     // Build car checklist (alphabetisch, nur aktive)
     carListDiv.classList.remove('hidden');
     // nur aktive und nicht wegen Schaden gesperrte (offener Motor-/Sensorschaden) – davon ziehen auch Glücksrad, Slotmachine, Memorykarten und Zufall
-    carListDiv.innerHTML=[...window.appData.cars].filter(c=>window.Elo.isActive(c)&&!window.Damage?.isLocked(c))
+    carListDiv.innerHTML=[...window.appData.cars].filter(c=>window.Elo.isActive(c)&&!window.Damage?.isLocked(c)&&window.MasterData.carAllowedIn(c,autoMode))
       .sort((a,b)=>a.name.localeCompare(b.name))
       .map(c=>`<label class='pick-row'><input type='checkbox' value='${c.id}'><span class='pick-check' aria-hidden='true'><svg viewBox='0 0 24 24'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg></span><span class='pick-name'>${esc(c.name)}</span></label>`)
       .join('');

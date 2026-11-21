@@ -9,7 +9,7 @@
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let callback=null, need=0, picked=[];
 
-  const imgSrc=car=>{const num=/^\((\d+)\)/.exec(car?.name||'')?.[1];return num?`assets/cars/${String(num).padStart(2,'0')}.png`:null;};
+  const imgSrc=car=>window.MasterData.carAssetSrc(car);
 
   function updateStatus(){
     const left=need-picked.length;
