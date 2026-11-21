@@ -181,6 +181,15 @@
     return { races: racesCount, raceLaps: laps, practiceLaps: car.practiceLaps || 0, laps: laps + (car.practiceLaps || 0) };
   }
 
+  /** Runden und Rennen eines Fahrers über alle Saisons (gewertete Rennen mit Renndistanz + Training) */
+  function driverTotals (driverId, races = [], driver = {}) {
+    let racesCount = 0, laps = 0;
+    for (const r of races) {
+      if ((r?.results || []).some(x => x.driverId != null && String(x.driverId) === String(driverId))) { racesCount++; laps += r.rounds || 0; }
+    }
+    return { races: racesCount, raceLaps: laps, practiceLaps: driver.practiceLaps || 0, laps: laps + (driver.practiceLaps || 0) };
+  }
+
   // Rundenzeit „17,345“ / „17.345“ (Sekunden) → Millisekunden
   function parseLapTime (text) {
     const v = parseFloat(String(text ?? '').trim().replace(',', '.'));
@@ -206,7 +215,7 @@
   window.MasterData = {
     CONTROLLERS, controller, MAX_LEVEL, clampLevel, levelToPct,
     RACE_DEFAULTS, TRACK_DEFAULTS, raceSettings, trackSetup,
-    fuelPerLap, lapsPerTank, raceFuelPlan, isValidLap, suggestControllers, carTotals, raceCarLaps,
+    fuelPerLap, lapsPerTank, raceFuelPlan, isValidLap, suggestControllers, carTotals, driverTotals, raceCarLaps,
     parseLapTime, formatLapTime, carNumber, carAssetSrc, carAllowedIn
   };
 })();

@@ -608,3 +608,11 @@ html.lc-open .modal { z-index: 6000; }
   .lc-pick { inset: 2vh 2vw; }
   .lc-pick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px; }
 }
+
+/* Fahrer in der Kachel und Fahrerauswahl (Tristan 21.11.) */
+.lc-tile-driver { font: inherit; font-size: 17px; font-weight: 700; min-height: 44px; width: 100%; border-radius: 8px; border: 1px solid var(--lc-line); background: var(--lc-panel-2); color: var(--lc-muted); padding: 0 10px; cursor: pointer; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-tile-driver.on { color: var(--lc-text); }
+.lc-pick-grid-drv { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.lc-pick-drv { justify-content: center; min-height: 96px; padding: 30px 12px 12px; text-align: center; align-items: center; }
+.lc-pick-drv .lc-pick-name { font-size: 19px; font-weight: 700; }
+.lc-pick-stats { font-size: 13px; line-height: 1.35; color: var(--lc-muted); font-variant-numeric: tabular-nums; }

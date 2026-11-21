@@ -24,6 +24,7 @@
   let overlay = null;          // { kind: 'go' | 'resume', until }
   let simOpen = false;
   let carPick = null;
+  let drvPick = null;          // Vorbereitung: Regler, für den die Fahrerauswahl offen ist
   let lastSwipe = 0;           // nach einem Wisch kein „Klick“ aufs Autobild auswerten         // Vorbereitung: Regler, für den die Fahrzeugauswahl (Galerie) offen ist
   let addPanel = null;         // Training: { ctrl, driverId, carId } – Fahrer dazunehmen
   let menuCtrl = null;         // Regler, dessen Strafen-Menü offen ist
@@ -286,6 +287,31 @@
       </div>`;
   }
 
+  /** Fahrerauswahl wie die Fahrzeug-Galerie: Kacheln mit PB (aktuelle Strecke), Runden und Rennen gesamt */
+  function drvPickHtml (n, dAll) {
+    const c = MD.controller(n), cur = cfg.assign[n]?.driverId ?? null;
+    const owner = id => MD.CONTROLLERS.find(o => o.n !== n && cfg.assign[o.n]?.driverId === id);
+    const recs = trackRecords(), races = appData().allRaces || appData().races || [];
+    const nf = v => Number(v || 0).toLocaleString('de-DE');
+    const tile = d => {
+      const o = owner(d.id);
+      const pb = recs.filter(r => String(r.driverId) === String(d.id)).reduce((m, r) => (m == null || r.ms < m ? r.ms : m), null);
+      const tot = MD.driverTotals ? MD.driverTotals(d.id, races, d) : { laps: d.totalRounds || 0, races: d.races || 0 };
+      return `<button class="lc-pick-car lc-pick-drv ${d.id === cur ? 'on' : ''} ${o ? 'taken' : ''}" data-act="drvSet" data-ctrl="${n}" data-driver="${d.id}" ${o ? `style="${ctrlStyle(o.n)}"` : ''}>
+        ${o ? `<span class="lc-pick-owner" title="Vergeben – tauscht die Plätze">${esc(cfg.assign[o.n]?.carId != null ? carName(cfg.assign[o.n].carId).replace(/^\(\d+\)\s*/, '') : o.name)} ⇄</span>` : ''}
+        <span class="lc-pick-name">${esc(d.name)}</span>
+        <span class="lc-pick-stats">PB ${pb != null ? fmt(pb) : '–'}<br>${nf(tot.laps)} Runden · ${nf(tot.races)} Rennen</span>
+      </button>`;
+    };
+    return `<div class="lc-pick-back" data-act="pickClose"></div>
+      <div class="lc-pick" style="${ctrlStyle(n)}" role="dialog" aria-label="Fahrer für Regler ${c.name}">
+        <div class="lc-pick-head"><span class="lc-swatch"></span><b>Fahrer wählen${cfg.assign[n]?.carId != null ? ` für ${esc(carName(cfg.assign[n].carId))}` : ''}</b>
+          ${cur != null ? `<button class="lc-btn lc-ghost" data-act="drvSet" data-ctrl="${n}" data-driver="">Kein Fahrer</button>` : ''}
+          <button class="lc-btn lc-ghost" data-act="pickClose">Schließen</button></div>
+        <div class="lc-pick-grid lc-pick-grid-drv">${dAll.map(tile).join('')}</div>
+      </div>`;
+  }
+
   /** Fahrer/Fahrzeug auf Regler n setzen; steht es schon auf einem anderen Regler, tauschen die beiden die Plätze */
   function assignSlot (n, kind, val) {
     const prev = cfg.assign[n]?.[kind] ?? null;
@@ -340,14 +366,6 @@
     const usedD = Object.values(cfg.assign).map(a => a?.driverId).filter(Boolean);
     const rows = MD.CONTROLLERS.map(c => {
       const a = cfg.assign[c.n] || {};
-      // Freie zuerst, dann die schon auf einem anderen Regler vergebenen: Auswahl tauscht die Plätze (Tristan 21.11.)
-      const owner = (kind, id) => MD.CONTROLLERS.find(o => o.n !== c.n && cfg.assign[o.n]?.[kind] === id);
-      const opts = (list, kind, cur) => {
-        const free = list.filter(x => x.id === cur || !owner(kind, x.id));
-        const taken = list.filter(x => x.id !== cur && owner(kind, x.id));
-        const o = x => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`;
-        return free.map(o).join('') + (taken.length ? `<optgroup label="Vergeben – tauscht die Plätze">${taken.map(x => `<option value="${x.id}">${esc(x.name)} · ${owner(kind, x.id).name}</option>`).join('')}</optgroup>` : '');
-      };
       // Kachel je Regler (Rahmen in Reglerfarbe, ohne Farbnamen): Autobild mit ‹ › bzw. Wischen, Tippen = alle Autos (Tristan 21.11.)
       const img = a.carId != null ? carImg(a.carId) : null;
       const can = canEdit();
@@ -359,10 +377,7 @@
           <button class="lc-tile-arrow" data-act="carStep" data-ctrl="${c.n}" data-dir="1" aria-label="Nächstes Auto" ${can ? '' : 'disabled'}>›</button>
         </div>
         <div class="lc-tile-name">${a.carId != null ? esc(carName(a.carId)) : '&nbsp;'}</div>
-        <select data-ctrl="${c.n}" data-kind="driverId" aria-label="Fahrer ${c.name}" ${can ? '' : 'disabled'}>
-          <option value="">– Fahrer –</option>
-          ${opts(dAll, 'driverId', a.driverId)}
-        </select>
+        <button class="lc-tile-driver ${a.driverId != null ? 'on' : ''}" data-act="drvPick" data-ctrl="${c.n}" aria-label="Fahrer wählen" ${can ? '' : 'disabled'}>${a.driverId != null ? esc(driverName(a.driverId)) : '– Fahrer –'}</button>
       </div>`;
     }).join('');
     const incomplete = MD.CONTROLLERS.filter(c => { const a = cfg.assign[c.n] || {}; return !!a.driverId !== !!a.carId; });
@@ -457,6 +472,7 @@
           <button class="lc-btn lc-primary lc-big" data-act="start" ${entries.length && !problems.length && canEdit() && (cfg.source === 'sim' || cuHub()?.state === 'connected') ? '' : 'disabled'}>${cfg.mode === 'race' ? 'Zur Startaufstellung' : 'Strecke freigeben'}</button>
         </footer>
         ${carPick != null && canEdit() ? carPickHtml(carPick, cAll) : ''}
+        ${drvPick != null && canEdit() ? drvPickHtml(drvPick, dAll) : ''}
       </div>`;
   }
 
@@ -1414,7 +1430,9 @@
       case 'clear': delete cfg.assign[ctrl]; saveCfg(); renderSetup(); break;
       case 'carStep': stepCar(ctrl, +b.dataset.dir); break;
       case 'carPick': if (performance.now() - lastSwipe > 400) { carPick = ctrl; renderSetup(); } break;
-      case 'carPickClose': carPick = null; renderSetup(); break;
+      case 'carPickClose': case 'pickClose': carPick = null; drvPick = null; renderSetup(); break;
+      case 'drvPick': drvPick = ctrl; carPick = null; renderSetup(); break;
+      case 'drvSet': drvPick = null; assignSlot(ctrl, 'driverId', b.dataset.driver === '' ? null : (isNaN(+b.dataset.driver) ? b.dataset.driver : +b.dataset.driver)); break;
       case 'carSet': carPick = null; assignSlot(ctrl, 'carId', b.dataset.car === '' ? null : (isNaN(+b.dataset.car) ? b.dataset.car : +b.dataset.car)); break;
       case 'autoSetup': openAutoSetup(undefined, b.dataset.method || null); break;
       case 'rotateCars': rotateCars(); break;
