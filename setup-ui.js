@@ -168,7 +168,7 @@
       }
       const src = await window.Voice.nameSrc(cur);
       if (src) window.Voice.playSources([src]);
-      showToast(src ? 'Gespeicherter Ton – für neue Schreibweise Sprach-Schlüssel eintragen' : 'Kein Ton – Sprach-Schlüssel fehlt (Setup → Renneinstellungen)', { icon: src ? undefined : 'alert' });
+      showToast(src ? 'Gespeicherter Ton – für neue Schreibweise Sprach-Schlüssel eintragen' : 'Kein Ton – Sprach-Schlüssel fehlt (Setup → Settings)', { icon: src ? undefined : 'alert' });
     };
     body.querySelector('[data-act="cancel"]').onclick = closeModal;
     form.onsubmit = e => {
@@ -192,7 +192,7 @@
           try { pending = { data: await readAsDataUrl(await window.Voice.synthesize(text)), text }; }
           catch (err) { console.warn(err); showToast(`Name nicht neu erzeugt: ${err.message || 'Fehler'} – es bleibt der alte Ton`, { icon: 'alert' }); }
         } else if (changed && window.Voice.savedText(cur)) {
-          showToast('Name nicht neu erzeugt: Auf diesem Gerät fehlt der Sprach-Schlüssel (Setup → Renneinstellungen → Sprachausgabe). Es bleibt der alte Ton.', { icon: 'alert' });
+          showToast('Name nicht neu erzeugt: Auf diesem Gerät fehlt der Sprach-Schlüssel (Setup → Settings → Sprachausgabe). Es bleibt der alte Ton.', { icon: 'alert' });
         }
         if (pending?.text !== text) return;
         const v = window.Voice.voice();   // gespeichert wird in der gerade aktiven Stimme
@@ -831,7 +831,7 @@
     // Formular nicht überschreiben, während jemand tippt
     if (el.contains(document.activeElement) && document.activeElement.matches('input, select')) return;
     const title = document.getElementById('setupTitle');
-    if (title) title.textContent = tab === 'race' ? 'Renneinstellungen' : 'Strecken';
+    if (title) title.textContent = tab === 'race' ? 'Settings' : 'Strecken';
     document.getElementById('setupIcon')?.setAttribute('href', tab === 'race' ? '#i-timer' : '#i-flag');
     tab === 'race' ? renderRace(el) : renderTracks(el);
   }

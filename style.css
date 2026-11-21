@@ -862,6 +862,13 @@ label[for="drvPron"] .ic { width: 17px; height: 17px; vertical-align: -0.2em; ma
   .nav-btn.nav-live { margin: 4px 1px 6px; padding: 6px 1px 5px; }
 }
 @media (max-width: 360px) { .nav-btn { font-size: 10px; letter-spacing: -.02em; } }
+/* Handy: Unterreiter wie das Hauptmenü – großes Icon, Text klein darunter, alle nebeneinander */
+@media (max-width: 600px) {
+  .sub-nav { gap: 2px; overflow-x: visible; }
+  .sub-tab { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 1px 5px; font-size: 11.5px; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; }
+  .sub-tab .ic { margin: 0; width: 20px; height: 20px; }
+}
+@media (max-width: 360px) { .sub-tab { font-size: 10px; letter-spacing: -.02em; } }
 
 /* G!RP > Fahrzeuge: Bilder direkt in der Rangliste */
 .podium-car-img { display: block; height: 44px; max-width: 100%; object-fit: contain; margin: 6px auto 2px; filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); }

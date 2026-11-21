@@ -53,7 +53,7 @@
   async function synthesize (text, key) {
     const v = voice(key);
     const cfg = azureConfig();
-    if (!cfg) throw new Error('Sprach-Schlüssel fehlt (Setup → Renneinstellungen → Sprachausgabe)');
+    if (!cfg) throw new Error('Sprach-Schlüssel fehlt (Setup → Settings → Sprachausgabe)');
     const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${v.lang}">` +
       `<voice name="${v.id}"><prosody rate="${RATE}">${xml(text)}</prosody></voice></speak>`;
     let res;
