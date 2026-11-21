@@ -582,7 +582,7 @@ html.lc-open .modal { z-index: 6000; }
 .lc-tile-arrow:disabled { opacity: .3; }
 .lc-tile-car { aspect-ratio: 16 / 9; width: 100%; border-radius: 8px; border: 0; padding: 6px; background: var(--cc); color: var(--ct); display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; touch-action: pan-y; }
 .lc-tile-car img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; user-select: none; }
-.lc-tile-car span { font-weight: 600; font-size: 15px; text-align: center; }
+.lc-tile-car span { font-weight: 600; font-size: 14px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
 .lc-tile-name { font-weight: 700; font-size: 16px; line-height: 1.2; min-height: 2.4em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: center; }
 .lc-tile select { font: inherit; font-size: 16px; min-height: 44px; width: 100%; min-width: 0; border-radius: 8px; border: 1px solid var(--lc-line); background: var(--lc-panel-2); color: var(--lc-text); padding: 0 8px; }
 
@@ -616,3 +616,26 @@ html.lc-open .modal { z-index: 6000; }
 .lc-pick-drv { justify-content: center; min-height: 96px; padding: 30px 12px 12px; text-align: center; align-items: center; }
 .lc-pick-drv .lc-pick-name { font-size: 19px; font-weight: 700; }
 .lc-pick-stats { font-size: 13px; line-height: 1.35; color: var(--lc-muted); font-variant-numeric: tabular-nums; }
+
+/* Tuning als Kacheln, gleiche Anordnung der Reglerfarben wie die Zuweisung (Tristan 21.11.) */
+.lc-tune-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.lc-tune-tile { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 10px; border-radius: 12px; background: var(--lc-bg); border: 3px solid var(--cc); box-shadow: 0 0 0 1px rgba(255,255,255,.18); min-width: 0; }
+.lc-tune-tile.empty { opacity: .3; min-height: 60px; }
+.lc-tune-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.lc-tune-top b { flex: 1; min-width: 0; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-tune-car { color: var(--lc-muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: -4px; }
+.lc-tune-line { display: flex; flex-direction: column; gap: 2px; }
+.lc-tune-line > span { color: var(--lc-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+.lc-tune-tile .lc-step { grid-template-columns: minmax(38px, 52px) minmax(0, 1fr) minmax(38px, 52px); gap: 3px; }
+.lc-tune-tile .lc-step-btn { width: 100%; height: 44px; font-size: 26px; }
+.lc-tune-tile .lc-step-val { font-size: 15px; }
+.lc-tune-tile .lc-tune-send { min-height: 32px; padding: 0 8px; font-size: 12px; }
+.lc-tune-st { font-style: normal; font-size: 12px; font-weight: 600; line-height: 1.25; }
+/* Vorbereitung auf dem iPad quer: drei Spalten – Was wird gefahren · Zuweisung · Tuning */
+@media (min-width: 1000px) and (orientation: landscape) {
+  .lc-setup-grid { grid-template-columns: minmax(240px, .7fr) minmax(0, 1.05fr) minmax(0, 1.1fr); align-items: start; }
+  .lc-setup-grid:has(> .lc-tune-card:empty) { grid-template-columns: minmax(240px, .7fr) minmax(0, 2fr); }
+  .lc-setup-grid > .lc-tune-card { grid-column: auto; }
+  .lc-setup-grid .lc-seg button { padding-left: 6px; padding-right: 6px; }
+  .lc-setup-grid .lc-card-head { flex-wrap: wrap; row-gap: 8px; }
+}

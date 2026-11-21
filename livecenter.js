@@ -708,23 +708,31 @@
     if (box) box.innerHTML = tuneCardHtml();
   }
   /** Vorbereitung: Tuning aller eingeteilten Fahrer auf einen Blick */
+  /**
+   * Tuning als Kacheln, zweispaltig in derselben Anordnung der Reglerfarben wie die Zuweisung (Tristan 21.11.).
+   * In der Vorbereitung bleiben leere Regler als Platzhalter stehen, damit die Farben an derselben Stelle sind.
+   */
   function tuneCardHtml () {
     const list = session ? [...session.cars.values()].map(c => ({ ctrl: c.ctrl, driverId: c.driverId, carId: c.carId })) : entriesFromCfg();
     if (!list.length || !canEdit()) return '';
     const h = cuHub(), on = cfg.source === 'cu' && h?.state === 'connected';
-    const rows = list.map(e => {
+    const byCtrl = Object.fromEntries(list.map(e => [e.ctrl, e]));
+    const slots = session ? MD.CONTROLLERS.filter(c => byCtrl[c.n]) : MD.CONTROLLERS;
+    const tiles = slots.map(c => {
+      const e = byCtrl[c.n];
+      if (!e) return `<div class="lc-tune-tile empty" style="${ctrlStyle(c.n)}"></div>`;
       const t = tuningOf(e.carId), st = tuneState(e.ctrl);
-      return `<div class="lc-tune-row" style="${ctrlStyle(e.ctrl)}">
-        <span class="lc-swatch"></span>
-        <span class="lc-tune-who"><b>${esc(driverName(e.driverId))}</b><small>${esc(carName(e.carId))}</small>${st ? `<em class="${st.cls}">${esc(st.txt)}</em>` : ''}</span>
-        ${stepperHtml(e.ctrl, 'speed', 'Gas', t.speed)}
-        ${stepperHtml(e.ctrl, 'brake', 'Bremse', t.brake)}
-        <button class="lc-btn lc-ghost lc-tune-send" data-act="tuneSend" data-ctrl="${e.ctrl}" ${on && !tuneTimers[e.ctrl] ? '' : 'disabled'} title="Werte noch einmal an das Auto senden">Senden</button>
+      return `<div class="lc-tune-tile" style="${ctrlStyle(e.ctrl)}">
+        <div class="lc-tune-top"><b>${esc(driverName(e.driverId))}</b>
+          <button class="lc-btn lc-ghost lc-tune-send" data-act="tuneSend" data-ctrl="${e.ctrl}" ${on && !tuneTimers[e.ctrl] ? '' : 'disabled'} title="Werte noch einmal an das Auto senden">Senden</button></div>
+        <small class="lc-tune-car">${esc(carName(e.carId))}</small>
+        <div class="lc-tune-line"><span>Gas</span>${stepperHtml(e.ctrl, 'speed', 'Gas', t.speed)}</div>
+        <div class="lc-tune-line"><span>Bremse</span>${stepperHtml(e.ctrl, 'brake', 'Bremse', t.brake)}</div>
+        ${st ? `<em class="lc-tune-st ${st.cls}">${esc(st.txt)}</em>` : ''}
       </div>`;
     }).join('');
     return `<h3>Tuning</h3>
-      <div class="lc-tune-head"><span></span><span>Gas</span><span>Bremse</span><span></span></div>
-      <div class="lc-tune-list">${rows}</div>
+      <div class="lc-tune-tiles">${tiles}</div>
       <p class="lc-note">${cfg.source !== 'cu' ? 'Wird am Fahrzeug gespeichert.' : on ? 'Jeder Tipp ist eine Stufe. Autos codiert auf die Bahn stellen, gesendet wird kurz nach dem letzten Tipp und am Fahrzeug gespeichert.' : 'Wird am Fahrzeug gespeichert. An die Autos geht es erst, wenn die CU verbunden ist (dann „Senden“).'}</p>`;
   }
 
