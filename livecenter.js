@@ -437,7 +437,6 @@
         <div class="lc-setup-grid">
           <section class="lc-card lc-mode-card">
             <div class="lc-mode-row">
-              <h3>Modus</h3>
               <div class="lc-seg lc-mode-seg" role="tablist">
                 ${Object.entries(MODE_LABEL).map(([k, l]) => `<button role="tab" data-act="mode" data-mode="${k}" class="${cfg.mode === k ? 'on' : ''}">${k === 'quali' ? 'Quali' : l}</button>`).join('')}
               </div>
@@ -451,7 +450,6 @@
             </div>
           </section>
           <section class="lc-card">
-            <h3>Zuweisung</h3>
             <div class="lc-tiles">${rows}</div>
             ${problems.length || cfg.hint ? `<p class="lc-hint ${problems.length ? 'warn' : ''}" id="lcHint">${esc(problems.length ? problems.join(' · ') : cfg.hint)}</p>` : ''}
           </section>
@@ -722,8 +720,7 @@
         ${st ? `<em class="lc-tune-st ${st.cls}">${esc(st.txt)}</em>` : ''}
       </div>`;
     }).join('');
-    return `<h3>Tuning</h3>
-      <div class="lc-tune-tiles">${tiles}</div>
+    return `<div class="lc-tune-tiles">${tiles}</div>
 `;
   }
 
