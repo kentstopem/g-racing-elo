@@ -633,6 +633,7 @@
           <div class="form-group"><label for="rsEmpty">Tempo bei leerem Tank (Stufe 0–15)</label><input id="rsEmpty" name="emptyTank" type="number" min="0" max="15" value="${s.emptyTankSpeed}"><small class="muted">${M.levelToPct(s.emptyTankSpeed)} % · bis wieder getankt ist</small></div>
           <div class="form-group"><label for="rsManualLap">Startzeit nach „+1 Rd.“ (ms)</label><input id="rsManualLap" name="manualLap" type="number" min="0" max="10000" step="1" inputmode="numeric" value="${s.manualLapStartMs}"><small class="muted">Rote Flagge genau an Start/Ziel und die CU hat die Runde nicht mehr gezählt: Mit „+1 Rd.“ zählt sie nachträglich. Die neue Runde beginnt nach „Weiter geht's“ dann bei dieser Zeit statt bei 0 (das Auto stand schon hinter der Linie).</small></div>
           <div class="form-group"><label for="rsPitDrive">Boxendurchfahrt (ms)</label><input id="rsPitDrive" name="pitDrive" type="number" min="0" max="30000" step="1" inputmode="numeric" value="${s.pitDriveMs}"><small class="muted">Fahrzeit vom Losfahren in der Box bis zum nächsten Sensor (Weiche nach der Ausfahrt). Zählt live mit und wird beim Rausfahren von Tanken und Strafe wieder abgezogen</small></div>
+          <div class="form-group"><label for="rsNoSignal">Warnung ohne Rundensignal (Sekunden)</label><input id="rsNoSignal" name="noSignal" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.noSignalSec}"><small class="muted">Rennen: Kommt so lange keine Durchfahrt (Diode kaputt?), blinkt die Rundenzahl und es gibt eine Ansage. Box und Rote Flagge zählen nicht mit. 0 = aus</small></div>
         </div>
         <div class="form-group"><label for="rsFactor">Einfluss des Tempos auf den Verbrauch <strong id="rsFactorVal">${fPct} %</strong></label>
           <div class="tick-range" style="--pct:${fPct / 2}%">
@@ -648,7 +649,6 @@
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
           <div class="form-group"><label for="rsFalse">Fehlstart (Sekunden)</label><input id="rsFalse" name="falseStart" inputmode="decimal" value="${fmtNum(s.falseStartPenaltySec, 1)}"></div>
           <div class="form-group"><label for="rsOpts">Zeitstrafen zur Auswahl (Sekunden)</label><input id="rsOpts" name="opts" value="${s.penaltyOptionsSec.map(v => fmtNum(v, 1)).join('; ')}" placeholder="2; 5; 7; 10"></div>
-          <div class="form-group"><label for="rsNoSignal">Warnung ohne Rundensignal (Sekunden)</label><input id="rsNoSignal" name="noSignal" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.noSignalSec}"><small class="muted">Rennen: Kommt so lange keine Durchfahrt (Diode kaputt?), blinkt die Rundenzahl und es gibt eine Ansage. Box und Rote Flagge zählen nicht mit. 0 = aus</small></div>
         </div>
         </details>
         <details class="bal-details rs-sec" data-rssec="grp">

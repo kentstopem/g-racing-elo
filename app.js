@@ -422,7 +422,7 @@ function initNavigation() {
     });
 }
 
-let lastSetupTab = 'drivers';
+let lastSetupTab = 'race-settings';
 let lastSeasonTab = 'history';
 const SEASON_TABS = ['history', 'records', 'stats'];
 function showSection(sectionName) {
