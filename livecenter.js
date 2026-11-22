@@ -872,7 +872,14 @@
       return;
     }
     lastSay = { prio, type, at: now, until: now + (HOLD[type] || 2200) };
-    try { window.Voice.announce(key, driverId)?.catch?.(() => {}); } catch (e) {}
+    // Ergebnis prüfen: Wichtige Ansagen, die ein neuerer Ton abgewürgt hat, werden nachgeholt.
+    // Kann ein Ton gar nicht gespielt werden, steht das im Laufband (Fehlersuche am iPad).
+    const done = r => {
+      if (r == null || r === 'ok') return;
+      if (r === 'unterbrochen') { if (WAIT.has(type) && tries < 4) setTimeout(() => say(type, key, driverId, tries + 1), 400); return; }
+      note(null, `Ansage „${key}“ nicht abgespielt: ${r}`, 'warn');
+    };
+    try { Promise.resolve(window.Voice.announce(key, driverId)).then(done, e => done(e?.message || String(e))); } catch (e) { done(e?.message || String(e)); }
   }
   function note (ctrl, text, kind = '') {
     ticker.unshift({ ctrl, text, kind, at: Date.now() });

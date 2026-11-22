@@ -262,36 +262,42 @@
     if (current) { current.pause(); current.src = ''; current = null; }
   }
 
+  /** → 'ok' | 'unterbrochen' | Fehlertext */
   function playClip (a, my) {
     return new Promise(resolve => {
-      if (my !== token) return resolve();
+      if (my !== token) return resolve('unterbrochen');
       current = a;
-      a.onended = a.onerror = () => resolve();
-      a.play().catch(() => resolve());
+      a.onended = () => resolve(my === token ? 'ok' : 'unterbrochen');
+      a.onerror = () => resolve('Ton nicht ladbar');
+      a.play().catch(e => resolve(`Abspielen blockiert (${e?.name || e})`));
     });
   }
 
-  /** Spielt eine Folge von Quellen (URLs/Data-URLs) nacheinander; unterbricht Laufendes. */
+  /** Spielt eine Folge von Quellen (URLs/Data-URLs) nacheinander; unterbricht Laufendes.
+   *  Ergebnis: 'ok', 'unterbrochen' (ein neuerer Ton kam dazwischen) oder ein Fehlertext. */
   async function playSources (sources) {
     stop();
     const my = token;
     sources = sources.filter(Boolean);
-    if (!sources.length) return;
+    if (!sources.length) return 'kein Ton';
     // Countdown (5 4 3 2 1 Los) direkt: Er hängt an den CU-Lampen und ist darauf abgestimmt
     const countdown = sources.every(src => typeof src === 'string' && /\/phrases\/count_[^/]*\.mp3$/.test(src));
     if (!countdown && decodeCtx()) {
       let url = null;
       try { url = await joinedUrl(sources); } catch (e) { console.warn('Ansage zusammenfügen', e); }
-      if (my !== token) return;
-      if (url) { await playClip(new Audio(url), my); if (my === token) current = null; return; }
+      if (my !== token) return 'unterbrochen';
+      if (url) { const r = await playClip(new Audio(url), my); if (my === token) current = null; return r; }
     }
     // Rückfall: alle Teile vorab laden, damit zwischen [Name] und Ansage keine Lade-Pause entsteht
     const clips = sources.map(src => { const a = new Audio(src); a.preload = 'auto'; try { a.load(); } catch (e) {} return a; });
+    let r = 'ok';
     for (const a of clips) {
-      if (my !== token) return;
-      await playClip(a, my);
+      if (my !== token) return 'unterbrochen';
+      const x = await playClip(a, my);
+      if (x !== 'ok') r = x;
     }
     if (my === token) current = null;
+    return r;
   }
 
   /**
@@ -301,7 +307,7 @@
   async function say (...parts) {
     const my = ++token;   // sofort reservieren, damit ein späterer Aufruf diesen verdrängt
     const sources = await Promise.all(parts.map(p => (typeof p === 'string' ? phraseSrc(p) : nameSrc(p.driver))));
-    if (my !== token) return;
+    if (my !== token) return 'unterbrochen';
     return playSources(sources);
   }
 
