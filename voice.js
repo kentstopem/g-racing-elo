@@ -179,6 +179,24 @@
   let current = null;   // laufendes <audio>
   let token = 0;
 
+  // iOS (Bluefy): Ein Ton darf nur kurz nach einer Berührung neu starten. Der Countdown direkt nach
+  // „Rennen starten“ klappte deshalb, eine Warnung 20 s später ohne Berührung blieb stumm.
+  // Lösung: EIN festes <audio>-Element, das bei der ersten Berührung mit einem stillen Ton freigeschaltet
+  // wird. Danach darf es jederzeit neue Töne spielen.
+  const player = new Audio();
+  player.preload = 'auto';
+  let unlocked = false;
+  const SILENT = 'data:audio/wav;base64,UklGRgQCAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YeABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';   // 10 ms Stille
+  const unlock = () => {
+    if (unlocked || current) return;
+    try {
+      player.src = SILENT;
+      const p = player.play();
+      if (p?.then) p.then(() => { unlocked = true; }, () => {}); else unlocked = true;
+    } catch (e) {}
+  };
+  ['pointerdown', 'touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlock, { capture: true, passive: true }));
+
   function decodeCtx () {
     if (ctx) return ctx;
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
@@ -259,13 +277,15 @@
 
   function stop () {
     token++;
-    if (current) { current.pause(); current.src = ''; current = null; }
+    if (current) { try { current.pause(); } catch (e) {} current.onended = current.onerror = null; current = null; }
   }
 
   /** → 'ok' | 'unterbrochen' | Fehlertext */
-  function playClip (a, my) {
+  function playClip (src, my) {
     return new Promise(resolve => {
       if (my !== token) return resolve('unterbrochen');
+      const a = player;
+      a.src = src;
       current = a;
       a.onended = () => resolve(my === token ? 'ok' : 'unterbrochen');
       a.onerror = () => resolve('Ton nicht ladbar');
@@ -286,12 +306,11 @@
       let url = null;
       try { url = await joinedUrl(sources); } catch (e) { console.warn('Ansage zusammenfügen', e); }
       if (my !== token) return 'unterbrochen';
-      if (url) { const r = await playClip(new Audio(url), my); if (my === token) current = null; return r; }
+      if (url) { const r = await playClip(url, my); if (my === token) current = null; return r; }
     }
-    // Rückfall: alle Teile vorab laden, damit zwischen [Name] und Ansage keine Lade-Pause entsteht
-    const clips = sources.map(src => { const a = new Audio(src); a.preload = 'auto'; try { a.load(); } catch (e) {} return a; });
+    // Countdown und Rückfall: Teile nacheinander über dasselbe Element
     let r = 'ok';
-    for (const a of clips) {
+    for (const a of sources) {
       if (my !== token) return 'unterbrochen';
       const x = await playClip(a, my);
       if (x !== 'ok') r = x;
