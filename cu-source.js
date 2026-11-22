@@ -20,7 +20,6 @@
     stateSubs: new Set(),
     progSubs: new Set(),
     pending: {},              // ctrl → Zeitpunkt, seit dem Gas/Bremse gesendet, aber noch kein Sensor gemeldet ist
-    programmedAt: 0,
     // Wegen leerem Tank gedrosselte Autos: ctrl → eigenes Tuning { speed, brake }. Das Tempo bleibt im Auto
     // gespeichert, deshalb gemerkt (auch über Neuladen), bis es wieder zurückgesetzt ist.
     throttled: (() => { try { return JSON.parse(localStorage.getItem('cuThrottled') || '{}') || {}; } catch (e) { return {}; } })(),
@@ -98,7 +97,7 @@
     program (ctrl, { speed, brake } = {}, { release = false } = {}) {
       if (this.state !== 'connected') return false;
       const C = window.CU.Commands;
-      this.programmedAt = this.pending[ctrl] = performance.now();
+      this.pending[ctrl] = performance.now();
       this.progSubs.forEach(fn => { try { fn(ctrl); } catch (e) {} });
       const go = () => { this.send(C.speed(ctrl, speed ?? 15)); this.send(C.brake(ctrl, brake ?? 15)); };
       const free = () => [0, undefined, null].includes(this.lastStatus?.start);
@@ -119,7 +118,7 @@
       if (this.state !== 'connected') return false;
       this.throttled[ctrl] = { speed: own?.speed ?? 15, brake: own?.brake ?? 15 };
       this.saveThrottled();
-      this.programmedAt = this.pending[ctrl] = performance.now();
+      this.pending[ctrl] = performance.now();
       this.send(window.CU.Commands.speed(ctrl, level));
       return true;
     },
@@ -128,7 +127,7 @@
       const own = this.throttled[ctrl];
       if (!own || this.state !== 'connected') return false;
       if (!release) {
-        this.programmedAt = this.pending[ctrl] = performance.now();
+        this.pending[ctrl] = performance.now();
         this.send(window.CU.Commands.speed(ctrl, own.speed));
       } else if (!this.program(ctrl, own, { release: true })) return false;
       delete this.throttled[ctrl];
@@ -240,11 +239,6 @@
       } else if (this.want === 'release') {
         if (st === 0) this.want = null;
         else if (!countdown) this.press(B().ESC);                              // 1 → 0
-      } else if (this.want === null && st === 1 && performance.now() - (hub.programmedAt || 0) > 15000) {
-        // Rot, das in den 15 s nach dem Programmieren (z. B. Drosselung bei leerem Tank) nicht als Buzzer
-        // gewertet wurde, aber stehen bleibt: dann war es echt → Rote Flagge nachholen
-        this.want = 'hold';
-        this.emit({ type: 'stop' });
       } else if (this.want === 'hold') {
         if (st === 0 || st === 9) this.press(B().START);                       // → 1 (Rot)
         else if (countdown && !this.counting) this.press(B().ESC);             // fremder Countdown → abbrechen
@@ -280,7 +274,7 @@
           this.emit({ type: 'go' });
         } else if (st === 9 || st === 8) {
           if (prev !== 8 && prev !== 9) { this.counting = false; this.want = 'hold'; this.emit({ type: 'falseStart' }); }
-        } else if (st === 1 && prev === 0 && this.want !== 'start' && this.want !== 'hold' && !(performance.now() - (hub.programmedAt || 0) < 15000)) {
+        } else if (st === 1 && prev === 0 && this.want !== 'start' && this.want !== 'hold') {
           this.want = 'hold';
           this.emit({ type: 'stop' });                                          // Start-Taste oder Buzzer
         }
