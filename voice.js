@@ -289,7 +289,8 @@
       current = a;
       a.onended = () => resolve(my === token ? 'ok' : 'unterbrochen');
       a.onerror = () => resolve('Ton nicht ladbar');
-      a.play().catch(e => resolve(`Abspielen blockiert (${e?.name || e})`));
+      // AbortError = ein neuer Ton (oder die Freischaltung beim ersten Tippen) kam dazwischen: kein echter Ausfall
+      a.play().catch(e => resolve(e?.name === 'AbortError' || my !== token ? 'unterbrochen' : `Abspielen blockiert (${e?.name || e})`));
     });
   }
 
