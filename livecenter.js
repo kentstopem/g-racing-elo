@@ -453,7 +453,10 @@
             <div class="lc-tiles">${rows}</div>
             ${problems.length || cfg.hint ? `<p class="lc-hint ${problems.length ? 'warn' : ''}" id="lcHint">${esc(problems.length ? problems.join(' · ') : cfg.hint)}</p>` : ''}
           </section>
-          <section id="lcTune" class="lc-card lc-tune-card">${tuneCardHtml()}</section>
+          <div class="lc-side">
+            <section id="lcTune" class="lc-card lc-tune-card">${tuneCardHtml()}</section>
+            ${recordTileHtml()}
+          </div>
         </div>
         <footer class="lc-setup-foot">
           <div>${entries.length} ${entries.length === 1 ? 'Fahrer' : 'Fahrer'} · ${MODE_LABEL[cfg.mode]}${cfg.mode === 'race' ? ` über ${cfg.raceLaps} Runden` : cfg.mode === 'quali' ? ` · ${cfg.qualiLaps} Runden je Fahrer` : ''}</div>
@@ -699,14 +702,13 @@
   /** Vorbereitung: Tuning aller eingeteilten Fahrer auf einen Blick */
   /**
    * Tuning als Kacheln, zweispaltig in derselben Anordnung der Reglerfarben wie die Zuweisung (Tristan 21.11.).
-   * In der Vorbereitung bleiben leere Regler als Platzhalter stehen, damit die Farben an derselben Stelle sind.
    */
   function tuneCardHtml () {
     const list = session ? [...session.cars.values()].map(c => ({ ctrl: c.ctrl, driverId: c.driverId, carId: c.carId })) : entriesFromCfg();
     if (!list.length || !canEdit()) return '';
     const h = cuHub(), on = cfg.source === 'cu' && h?.state === 'connected';
     const byCtrl = Object.fromEntries(list.map(e => [e.ctrl, e]));
-    const slots = session ? MD.CONTROLLERS.filter(c => byCtrl[c.n]) : MD.CONTROLLERS;
+    const slots = MD.CONTROLLERS.filter(c => byCtrl[c.n]); // nur belegte Regler, keine Platzhalter (Tristan 22.11.)
     const tiles = slots.map(c => {
       const e = byCtrl[c.n];
       if (!e) return `<div class="lc-tune-tile empty" style="${ctrlStyle(c.n)}"></div>`;
@@ -722,6 +724,21 @@
     }).join('');
     return `<div class="lc-tune-tiles">${tiles}</div>
 `;
+  }
+
+  /** Vorbereitung: eigenes Panel mit dem Streckenrekord (Halter und Auto) unter dem Tuning (Tristan 22.11.) */
+  function recordTileHtml () {
+    const best = trackRecords().reduce((b, r) => (!b || r.ms < b.ms ? r : b), null);
+    if (!best) return '';
+    const img = best.carId != null ? carImg(best.carId) : null;
+    return `<section class="lc-card lc-rec-card">
+      <div class="lc-rec-img">${img ? `<img src="${img}" alt="">` : ''}</div>
+      <div class="lc-rec-txt">
+        <small>Streckenrekord</small>
+        <div><b class="lc-rec-time">${fmt(best.ms)} s</b> <span class="lc-rec-who">${esc(driverName(best.driverId))}</span></div>
+        <small class="lc-rec-car">${esc(carName(best.carId))}</small>
+      </div>
+    </section>`;
   }
 
   /** Simulator: Grundtempo einer Paarung aus ihrem Rekord, sonst aus der Referenzrunde */

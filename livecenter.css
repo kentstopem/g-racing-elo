@@ -634,8 +634,10 @@ html.lc-open .modal { z-index: 6000; }
 /* Vorbereitung (Tristan 21.11.): „Modus“ als Streifen oben über die volle Breite, darunter Zuweisung | Tuning;
    Verbindung (CU) und Zuschauer in der Kopfzeile */
 .lc-setup-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
-.lc-setup-grid:has(> .lc-tune-card:empty) > .lc-card:not(.lc-tune-card) { grid-column: 1 / -1; }
-.lc-setup-grid > .lc-tune-card { grid-column: auto; }
+.lc-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.lc-side .lc-tune-card { grid-column: auto; }
+.lc-setup-grid:has(> .lc-side > .lc-tune-card:empty):not(:has(.lc-rec-card)) > .lc-card:not(.lc-mode-card) { grid-column: 1 / -1; }
+.lc-side:not(:has(.lc-rec-card)):has(> .lc-tune-card:empty) { display: none; }
 .lc-mode-card { grid-column: 1 / -1; padding: 8px 14px; }
 .lc-mode-row h3 { margin: 0; }
 .lc-mode-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px; }
@@ -660,3 +662,11 @@ html.lc-open .modal { z-index: 6000; }
 
 .lc-mode-row .lc-mode-btns { margin-left: auto; align-items: center; }
 .lc-mode-row .lc-mode-btns .lc-btn { min-height: 40px; }
+/* Streckenrekord-Kachel unter dem Tuning (Vorbereitung) */
+.lc-rec-card { display: flex; align-items: center; gap: 14px; padding: 10px 16px; min-width: 0; }
+.lc-rec-img img { display: block; width: 96px; height: 52px; object-fit: contain; }
+.lc-rec-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lc-rec-txt > small:first-child { text-transform: uppercase; letter-spacing: .08em; color: var(--lc-muted); font-size: 12px; }
+.lc-rec-time { font-size: 20px; font-variant-numeric: tabular-nums; }
+.lc-rec-who { font-weight: 700; font-size: 18px; margin-left: 6px; }
+.lc-rec-car { color: var(--lc-muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
