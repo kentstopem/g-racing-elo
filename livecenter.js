@@ -1429,6 +1429,9 @@
       return;
     }
     shellKey = key;
+    // Beim Neuaufbau Scrollstand von Ergebnis und Rote-Flagge-Dialog behalten (sonst springt z. B. Tuning-+/− nach oben, Tristan 23.11.)
+    const SCROLLERS = ['.lc-result', '.lc-red'];
+    const scrolled = SCROLLERS.map(sel => root.querySelector(sel)?.scrollTop || 0);
     const head = race
       ? '<span>Pos</span><span>Auto</span><span>Fahrer</span><span>Rd.</span><span>Letzte</span><span>Beste</span><span>Abstand</span><span>Tank</span><span>Box</span><span>Strafe</span>'
       : `<span>Pos</span><span>Auto</span><span>Fahrer</span><span>Rd.</span><span>Letzte</span><span>Beste</span><span>Abstand</span>${session.fuelOn ? '<span>Tank</span>' : ''}<span>Rekord</span><span></span>`;
@@ -1458,6 +1461,7 @@
         <footer class="lc-ticker">${tickHtml}</footer>
         ${simHtml}${menuHtml}${addHtml}${dmgHtml}${lightsHtml}${redHtml}${resultHtml}${endHtml}
       </div>`;
+    SCROLLERS.forEach((sel, i) => { const el = scrolled[i] && root.querySelector(sel); if (el) el.scrollTop = scrolled[i]; });
   }
 
   // ---------- Bedienung ----------

@@ -510,7 +510,7 @@ html.lc-open .modal { z-index: 6000; }
   .lc-tune-row .lc-step { grid-template-columns: 72px 52px 72px 52px; }
   .lc-tune-row .lc-step-btn { width: 52px; }
 }
-.lc-res-tune { margin: 12px 0 4px; padding: 12px 14px; border-radius: 12px; background: var(--lc-panel); border: 1px solid var(--lc-line); }
+.lc-res-tune { align-self: stretch; width: 100%; margin: 12px 0 4px; padding: 12px 14px; border-radius: 12px; background: var(--lc-panel); border: 1px solid var(--lc-line); }
 
 /* Schaden melden (Werkstatttagebuch) */
 .lc-dmg { width: 420px; max-height: calc(100% - 150px); overflow: auto; }
@@ -747,3 +747,9 @@ html.lc-open .modal { z-index: 6000; }
   .lc-sg-img { padding: 24px 0 0; }
   .lc-sg-head .lc-btn, .lc-sg-head .lc-note { border-radius: 8px; }
 }
+
+/* Quali-Ergebnis: Tuning-Kacheln alle nebeneinander (Tristan 23.11.) */
+.lc-res-tune .lc-tune-tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.lc-res-tune .lc-tune-tile { flex: 1 1 130px; max-width: 240px; padding: 8px 8px 10px; }
+.lc-res-tune .lc-tune-tile .lc-step { grid-template-columns: 38px minmax(0, 1fr) 38px; gap: 2px; }
+.lc-res-tune .lc-tune-tile .lc-step-val { font-size: 14px; white-space: nowrap; text-align: center; }
