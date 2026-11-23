@@ -670,3 +670,80 @@ html.lc-open .modal { z-index: 6000; }
 .lc-rec-time { font-size: 20px; font-variant-numeric: tabular-nums; }
 .lc-rec-who { font-weight: 700; font-size: 18px; margin-left: 6px; }
 .lc-rec-car { color: var(--lc-muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Startaufstellung vor dem Start: Karofahnen, Startplätze versetzt (ungerade links, gerade rechts eine halbe Box tiefer) */
+.lc-lights.lc-startgrid { justify-content: stretch; align-items: center; padding: 2vh 2vw; gap: 0; }
+.lc-sg-box { flex: 1; min-height: 0; width: min(100%, 1100px); display: flex; flex-direction: column; background: #000; border-radius: 6px; overflow: hidden; }
+.lc-sg-head { display: flex; align-items: center; gap: 4%; padding: 2vh 0; }
+.lc-sg-head .lc-btn { flex: none; }
+.lc-sg-head .lc-note { flex: none; margin: 0; font-size: 22px; font-weight: 700; }
+.lc-sg-flag { flex: 1; height: min(9vh, 72px); background: repeating-conic-gradient(#000 0 25%, #fff 0 50%) 0 0 / min(4.5vh, 36px) min(4.5vh, 36px); }
+.lc-sg-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 5%; padding: 0 0 1vh; }
+.lc-sg-slot { grid-column: 1; min-height: 0; display: flex; flex-direction: column; border: 5px solid #fff; border-bottom: 0; padding: 10px 14px 6px; margin-bottom: 1.2vh; color: #fff; }
+.lc-sg-slot.r { grid-column: 2; }
+.lc-sg-top { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.lc-sg-top .lc-sg-fuel { justify-self: end; }
+.lc-sg-pos { font-size: 26px; font-weight: 800; }
+.lc-sg-drv { background: var(--cc); color: var(--ct); font-size: 26px; font-weight: 800; padding: 2px 12px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 0 0 1px rgba(255,255,255,.35); }
+.lc-sg-top .lc-sg-fuel { width: 72px; height: 24px; flex: none; }
+.lc-sg-top .lc-sg-fuel span { font-size: 13px; }
+.lc-sg-img { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 2px 0 6px; }
+.lc-sg-img img { max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,.6)); }
+.lc-sg-car { text-align: center; font-size: 20px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: 4px; }
+@media (max-width: 820px) {
+  .lc-lights.lc-startgrid { padding: 8px; }
+  .lc-sg-head { padding: 10px 0; gap: 10px; }
+  .lc-sg-head .lc-btn.lc-big { font-size: 15px; padding: 10px 14px; }
+  .lc-sg-flag { height: 40px; background-size: 20px 20px; }
+  .lc-sg-grid { column-gap: 10px; }
+  .lc-sg-slot { border-width: 3px; padding: 6px 7px 4px; }
+  .lc-sg-pos { font-size: 16px; }
+  .lc-sg-drv { font-size: 16px; padding: 1px 7px; }
+  .lc-sg-top { gap: 5px; }
+  .lc-sg-top .lc-sg-fuel { width: 44px; height: 18px; }
+  .lc-sg-top .lc-sg-fuel span { font-size: 10px; }
+  .lc-sg-car { font-size: 12px; }
+}
+.lc-sg-fuel { display: block; }
+@media (max-height: 520px) {
+  .lc-sg-head { padding: 6px 0; }
+  .lc-sg-head .lc-btn.lc-big { font-size: 15px; padding: 8px 14px; }
+  .lc-sg-flag { height: 28px; background-size: 14px 14px; }
+  .lc-sg-slot { border-width: 3px; padding: 4px 8px 2px; margin-bottom: 4px; }
+  .lc-sg-pos, .lc-sg-drv { font-size: 15px; }
+  .lc-sg-top .lc-sg-fuel { width: 44px; height: 18px; }
+  .lc-sg-top .lc-sg-fuel span { font-size: 10px; }
+  .lc-sg-img { padding: 0; }
+  .lc-sg-car { font-size: 12px; padding-bottom: 2px; }
+}
+@media (max-width: 560px) {
+  .lc-sg-top { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .lc-sg-drv { justify-self: start; max-width: 100%; }
+  .lc-sg-car { white-space: normal; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
+/* Startknopf als grünes Schild auf dem durchgehenden Karoband */
+.lc-sg-head { position: relative; display: block; padding: 2vh 0; }
+.lc-sg-flag { display: none; }
+.lc-sg-head::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: min(8vh, 64px); transform: translateY(-50%); background: repeating-conic-gradient(#000 0 25%, #fff 0 50%) 0 0 / min(4vh, 32px) min(4vh, 32px); }
+.lc-sg-head .lc-btn, .lc-sg-head .lc-note { position: relative; display: block; margin: 0 auto; width: fit-content; background: #22E05F; color: #00150A; border: 5px solid #fff; border-radius: 0; min-height: min(11vh, 88px); padding: 0 48px; font-size: 30px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.lc-sg-head .lc-note { display: flex; align-items: center; background: #000; color: #fff; }
+.lc-sg-head .lc-btn:active { filter: brightness(.9); }
+@media (max-width: 820px), (max-height: 520px) {
+  .lc-sg-head::before { height: 32px; background-size: 16px 16px; }
+  .lc-sg-head .lc-btn, .lc-sg-head .lc-note { min-height: 48px; padding: 0 18px; font-size: 16px; border-width: 3px; }
+}
+/* Kachel: #Platz und Fahrer als Zeile oben links, Autobild füllt die Kachel */
+.lc-sg-slot { position: relative; flex-direction: column; padding: 8px 12px 4px; }
+.lc-sg-top { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; position: absolute; top: 10px; left: 14px; right: 14px; z-index: 1; }
+.lc-sg-top .lc-sg-fuel { margin-left: auto; width: 84px; height: 24px; }
+.lc-sg-pos { font-size: 30px; line-height: 1; }
+.lc-sg-drv { max-width: 60%; }
+.lc-sg-img { padding: 6px 0 2px 24%; justify-content: flex-end; }
+.lc-sg-head .lc-btn, .lc-sg-head .lc-note { border-radius: 14px; }
+@media (max-width: 820px), (max-height: 520px) {
+  .lc-sg-top { top: 5px; left: 7px; right: 7px; gap: 6px; }
+  .lc-sg-pos { font-size: 16px; }
+  .lc-sg-top .lc-sg-fuel { width: 44px; height: 18px; }
+  .lc-sg-img { padding: 24px 0 0; }
+  .lc-sg-head .lc-btn, .lc-sg-head .lc-note { border-radius: 8px; }
+}

@@ -937,7 +937,9 @@
       case 'penalty': note(d.ctrl, `${name}: ${d.reason} +${d.sec} s`, 'warn'); break;
       case 'penaltyServed': say(type, 'penalty_served', d.driverId); note(d.ctrl, `${name}: Strafe abgesessen`); break;
       case 'falseStart': say(type, 'false_start', d.driverId); break;
-      case 'redFlag': say(type, 'red_flag'); source?.stopCars(); session.lightsRunning = false; redReason = d.reason; redPen = {}; menuCtrl = null; note(null, { short: 'Rote Flagge – Kurzschluss', falseStart: 'Rote Flagge – Fehlstart', buzzer: 'Rote Flagge – Buzzer' }[d.reason] || 'Rote Flagge', 'red'); break;
+      case 'redFlag': say(type, 'red_flag'); source?.stopCars(); session.lightsRunning = false;
+        // Buzzer während der Startampel (vor dem ersten Los): zurück in die Startaufstellung mit „Rennen starten“ statt hängen zu bleiben
+        if (d.beforeStart) session.start(source.now()); redReason = d.reason; redPen = {}; menuCtrl = null; note(null, { short: 'Rote Flagge – Kurzschluss', falseStart: 'Rote Flagge – Fehlstart', buzzer: 'Rote Flagge – Buzzer' }[d.reason] || 'Rote Flagge', 'red'); break;
       case 'resume':
         say(type, 'race_resume');
         overlay = { kind: 'resume', until: performance.now() + 1800 };
@@ -1125,6 +1127,27 @@
       if (phase !== 'lights') return '';
       const lit = session.lights;
       const ready = !session.lightsRunning;
+      // Vor dem Start (und vor „Weiter geht's“): Startaufstellung mit Karofahnen, Startplätze versetzt wie in der Startbox.
+      // Erst nach „Rennen starten“ kommt die Startampel.
+      if (ready) {
+        const n = st.length;
+        const tiles = st.map((s, i) => {
+          const p = i + 1, img = carImg(s.carId);
+          const fuel = session.fuelOn && session.restarts && !s.status ? `<span class="lc-fuel lc-sg-fuel ${fuelClass(s)}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></span>` : '';
+          return `<div class="lc-sg-slot ${p % 2 ? 'l' : 'r'}" style="grid-row:${p} / span 2;${ctrlStyle(s.ctrl)}">
+            <div class="lc-sg-top"><b class="lc-sg-pos">#${p}</b><span class="lc-sg-drv">${who(s.driverId)}</span>${fuel}</div>
+            <div class="lc-sg-img">${img ? `<img src="${img}" alt="${esc(carName(s.carId))}">` : `<span class="lc-sg-car">${esc(carName(s.carId))}</span>`}</div>
+          </div>`;
+        }).join('');
+        return `<div class="lc-lights lc-startgrid">
+          <div class="lc-sg-box">
+            <div class="lc-sg-head">${canEdit()
+              ? `<button class="lc-btn lc-primary lc-big" data-act="lights">${session.restarts ? 'Weiter geht\'s' : 'Rennen starten'}</button>`
+              : `<p class="lc-note">${session.restarts ? 'Gleich geht es weiter' : 'Startaufstellung'}</p>`}</div>
+            <div class="lc-sg-grid" style="grid-template-rows:repeat(${n + 1}, minmax(0, 1fr))">${tiles}</div>
+          </div>
+        </div>`;
+      }
       return `<div class="lc-lights">
         <div class="lc-lamps">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= lit ? 'on' : ''}"></i>`).join('')}</div>
         ${ready && !canEdit() ? '<p class="lc-note">Start nur mit Admin-Anmeldung</p>' : ''}
