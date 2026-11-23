@@ -24,6 +24,7 @@
   let overlay = null;          // { kind: 'go' | 'resume', until }
   let simOpen = false;
   let carPick = null;
+  let recView = false;         // Rekord-Übersicht in der Vorbereitung offen
   let drvPick = null;          // Vorbereitung: Regler, für den die Fahrerauswahl offen ist
   let lastSwipe = 0;           // nach einem Wisch kein „Klick“ aufs Autobild auswerten         // Vorbereitung: Regler, für den die Fahrzeugauswahl (Galerie) offen ist
   let addPanel = null;         // Training: { ctrl, driverId, carId } – Fahrer dazunehmen
@@ -465,6 +466,7 @@
         </footer>
         ${carPick != null && canEdit() ? carPickHtml(carPick, cAll) : ''}
         ${drvPick != null && canEdit() ? drvPickHtml(drvPick, dAll) : ''}
+        ${recView ? recordsHtml() : ''}
       </div>`;
   }
 
@@ -731,7 +733,7 @@
     const best = trackRecords().reduce((b, r) => (!b || r.ms < b.ms ? r : b), null);
     if (!best) return '';
     const img = best.carId != null ? carImg(best.carId) : null;
-    return `<section class="lc-card lc-rec-card">
+    return `<section class="lc-card lc-rec-card" data-act="recOpen" role="button" tabindex="0" aria-label="Alle Rekorde anzeigen">
       <div class="lc-rec-img">${img ? `<img src="${img}" alt="">` : ''}</div>
       <div class="lc-rec-txt">
         <small>Streckenrekord</small>
@@ -740,6 +742,41 @@
       </div>
     </section>`;
   }
+  /**
+   * Rekord-Übersicht als Overlay in der Vorbereitung (Tristan 23.11.): alle Paarungen Fahrer × Fahrzeug dieser Strecke
+   * (ein Rekord je Paarung), nach Zeit sortiert, Kacheln versetzt wie in der Startaufstellung, höchstens 100 Einträge.
+   */
+  function recordsHtml () {
+    const tid = trackId();
+    const all = (appData().lapRecords || []).filter(r => !tid || window.Seasons?.trackOfRecord?.(r) === tid);
+    const best = new Map();
+    for (const r of all) { const k = `${r.driverId}|${r.carId}`, b = best.get(k); if (!b || r.time < b.time) best.set(k, r); }
+    const list = [...best.values()].sort((a, b) => a.time - b.time).slice(0, 100);
+    const when = r => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(r.date || '');
+      const ts = r.createdAt, d = ts?.toDate ? ts.toDate() : ts?.seconds ? new Date(ts.seconds * 1000) : null;
+      const hm = d && m && isoDate(d) === m[0] ? ` · ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : '';
+      return m ? `${m[3]}.${m[2]}.${m[1]}${hm}` : '';
+    };
+    const tile = (r, i) => {
+      const img = r.carId != null ? carImg(r.carId) : null;
+      const main = driverName(r.driverId), sub = carName(r.carId);
+      return `<div class="lc-rl-slot ${i % 2 ? 'r' : ''} ${i < 3 ? `p${i + 1}` : ''}">
+        <div class="lc-rl-top"><span class="lc-rl-pos">${i + 1}</span><b class="lc-rl-main">${esc(main)}</b></div>
+        <div class="lc-rl-img">${img ? `<img src="${img}" alt="">` : ''}</div>
+        <div class="lc-rl-sub">${esc(sub)}</div>
+        <div class="lc-rl-foot"><b class="lc-rl-time">${fmt(Math.round(r.time * 1000))} s</b><small>${when(r)}</small></div>
+      </div>`;
+    };
+    const t = track();
+    return `<div class="lc-pick-back" data-act="recClose"></div>
+      <div class="lc-pick lc-recs" role="dialog" aria-label="Rekorde">
+        <div class="lc-pick-head"><b>Rekorde${t?.name ? ` · ${esc(t.name)}` : ''}</b>
+          <button class="lc-btn lc-ghost" data-act="recClose">Schließen</button></div>
+        <div class="lc-rl-grid">${list.length ? list.map(tile).join('') : '<p class="lc-note">Noch keine Rekorde auf dieser Strecke.</p>'}</div>
+      </div>`;
+  }
+
 
   /** Simulator: Grundtempo einer Paarung aus ihrem Rekord, sonst aus der Referenzrunde */
   function simPace (driverId, carId) {
@@ -1478,6 +1515,8 @@
       case 'carStep': stepCar(ctrl, +b.dataset.dir); break;
       case 'carPick': if (performance.now() - lastSwipe > 400) { carPick = ctrl; renderSetup(); } break;
       case 'carPickClose': case 'pickClose': carPick = null; drvPick = null; renderSetup(); break;
+      case 'recOpen': recView = true; carPick = null; drvPick = null; renderSetup(); break;
+      case 'recClose': recView = false; renderSetup(); break;
       case 'drvPick': drvPick = ctrl; carPick = null; renderSetup(); break;
       case 'drvSet': drvPick = null; assignSlot(ctrl, 'driverId', b.dataset.driver === '' ? null : (isNaN(+b.dataset.driver) ? b.dataset.driver : +b.dataset.driver)); break;
       case 'carSet': carPick = null; assignSlot(ctrl, 'carId', b.dataset.car === '' ? null : (isNaN(+b.dataset.car) ? b.dataset.car : +b.dataset.car)); break;
