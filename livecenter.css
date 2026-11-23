@@ -783,3 +783,4 @@ html.lc-open .modal { z-index: 6000; }
   .lc-rl-time { font-size: 18px; }
   .lc-rl-foot small { font-size: 11px; }
 }
+.lc-setup-grid { align-content: start; }
