@@ -784,3 +784,6 @@ html.lc-open .modal { z-index: 6000; }
   .lc-rl-foot small { font-size: 11px; }
 }
 .lc-setup-grid { align-content: start; }
+/* Vergeben-Badge einzeilig, langer Name mit … (Tristan 23.11.) */
+.lc-pick-owner { display: flex; gap: 4px; max-width: calc(100% - 12px); white-space: nowrap; }
+.lc-pick-owner > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

@@ -276,7 +276,7 @@
       return `<button class="lc-pick-car ${x.id === cur ? 'on' : ''} ${o ? 'taken' : ''}" data-act="carSet" data-ctrl="${n}" data-car="${x.id}" ${o ? `style="${ctrlStyle(o.n)}"` : ''}>
         <span class="lc-pick-img">${img ? `<img src="${img}" alt="">` : ''}</span>
         <span class="lc-pick-name">${esc(x.name)}</span>
-        ${o ? `<span class="lc-pick-owner" title="Vergeben – tauscht die Plätze">${esc(cfg.assign[o.n]?.driverId != null ? driverName(cfg.assign[o.n].driverId) : o.name)} ⇄</span>` : ''}
+        ${o ? `<span class="lc-pick-owner" title="Vergeben – tauscht die Plätze"><span>${esc(cfg.assign[o.n]?.driverId != null ? driverName(cfg.assign[o.n].driverId) : o.name)}</span> ⇄</span>` : ''}
       </button>`;
     };
     return `<div class="lc-pick-back" data-act="carPickClose"></div>
@@ -299,7 +299,7 @@
       const pb = recs.filter(r => String(r.driverId) === String(d.id)).reduce((m, r) => (m == null || r.ms < m ? r.ms : m), null);
       const tot = MD.driverTotals ? MD.driverTotals(d.id, races, d) : { laps: d.totalRounds || 0, races: d.races || 0 };
       return `<button class="lc-pick-car lc-pick-drv ${d.id === cur ? 'on' : ''} ${o ? 'taken' : ''}" data-act="drvSet" data-ctrl="${n}" data-driver="${d.id}" ${o ? `style="${ctrlStyle(o.n)}"` : ''}>
-        ${o ? `<span class="lc-pick-owner" title="Vergeben – tauscht die Plätze">${esc(cfg.assign[o.n]?.carId != null ? carName(cfg.assign[o.n].carId).replace(/^\(\d+\)\s*/, '') : o.name)} ⇄</span>` : ''}
+        ${o ? `<span class="lc-pick-owner" title="Vergeben – tauscht die Plätze"><span>${esc(cfg.assign[o.n]?.carId != null ? carName(cfg.assign[o.n].carId) : o.name)}</span> ⇄</span>` : ''}
         <span class="lc-pick-name">${esc(d.name)}</span>
         <span class="lc-pick-stats">PB ${pb != null ? fmt(pb) : '–'}<br>${nf(tot.laps)} Runden · ${nf(tot.races)} Rennen</span>
       </button>`;
