@@ -27,11 +27,8 @@
       ctx.arc(radius,radius,radius,start,end);
       ctx.fillStyle=idx%2?'#F6F6F6':'#FFFFFF';
       ctx.fill();
-      // Ring: abwechselnd Schwarz / Grau (Designvorgabe: keine Farbcodierung)
-      ctx.lineWidth=radius*0.10;
-      ctx.strokeStyle=idx%2?'#E1E1E1':'#1D1D1F';
-      ctx.stroke();
-      ctx.lineWidth=1; // reset
+      // dünne Trennlinie zwischen den Segmenten
+      ctx.lineWidth=1;
       ctx.strokeStyle='#E1E1E1';
       ctx.stroke();
       const img=imgMap[seg.id];
