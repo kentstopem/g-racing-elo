@@ -1434,7 +1434,7 @@
     const scrolled = SCROLLERS.map(sel => root.querySelector(sel)?.scrollTop || 0);
     const head = race
       ? '<span>Pos</span><span>Auto</span><span>Fahrer</span><span>Rd.</span><span>Letzte</span><span>Beste</span><span>Abstand</span><span>Tank</span><span>Box</span><span>Strafe</span>'
-      : `<span>Pos</span><span>Auto</span><span>Fahrer</span><span>Rd.</span><span>Letzte</span><span>Beste</span><span>Abstand</span>${session.fuelOn ? '<span>Tank</span>' : ''}<span>Rekord</span><span></span>`;
+      : `<span>Pos</span><span>Auto</span><span>Fahrer</span><span>Rd.</span><span>Letzte</span><span>Beste</span><span>Abstand</span>${session.fuelOn ? '<span>Tank</span>' : ''}<span title="Persönliche Bestzeit auf dieser Strecke">PB</span><span></span>`;
     root.innerHTML = `
       <div class="lc-live ${race ? 'is-race' : 'is-free'}${!race && session.fuelOn ? ' has-fuel' : ''} phase-${phase} rows-${st.length}">
         <header class="lc-top">
