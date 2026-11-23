@@ -183,7 +183,7 @@ html.lc-open, html.lc-open body { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .lc-fuel.empty { animation: none; } }
 .lc-fuel span { white-space: nowrap; position: relative; display: flex; height: 100%; align-items: center; justify-content: center; font-weight: 700; font-size: min(24cqh, 1.8vw); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.9); font-variant-numeric: tabular-nums; }
 
-.lc-badge { font-size: 22cqh; font-weight: 700; padding: 4cqh 10px; border-radius: 6px; white-space: nowrap; }
+.lc-badge { font-size: min(22cqh, 1.7vw); font-weight: 700; padding: min(4cqh, .4vw) min(10px, .7vw); border-radius: 6px; white-space: nowrap; }
 .lc-badge.pit { background: var(--lc-pit); color: #241500; }
 .lc-badge.pen { background: var(--lc-red); color: #fff; }
 .lc-badge.chk { background: #fff; color: #111; }
