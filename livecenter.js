@@ -1103,7 +1103,8 @@
         <div class="lc-num lc-last ${s.lastInterrupted ? 'int' : ''}">${fmt(s.last)}</div>
         <div class="lc-num lc-best ${bestCls}">${fmt(s.best)}</div>
         <div class="lc-num lc-gap">${out ? '' : fmtGap(s)}</div>`;
-      const fuel = `<div class="lc-fuel ${fuelClass(s)} ${s.inPit && !s.servingPenalty ? 'filling' : ''}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></div>`;
+      // Ohne Tanken (Training/Quali ohne „Tank“) ist s.fuel null – dann keinen Tankbalken bauen, sonst bricht die Anzeige ab
+      const fuel = s.fuel == null ? '' : `<div class="lc-fuel ${fuelClass(s)} ${s.inPit && !s.servingPenalty ? 'filling' : ''}"><i style="width:${s.fuel.toFixed(1)}%"></i><span>${s.fuelEmpty ? 'leer' : Math.round(s.fuel) + ' %'}</span></div>`;
       if (!race) {
         const status = s.done ? '<span class="lc-badge chk">Fertig</span>' : s.inPit ? '<span class="lc-badge pit">Box</span>' : '';
         return `<div class="${cls}" style="${ctrlStyle(s.ctrl)}" data-ctrl="${s.ctrl}">${common}
