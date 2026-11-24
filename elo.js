@@ -1,5 +1,8 @@
 (function(){
   const BASE_K = 32;
+  // Ab dieser Rundenzahl bzw. Fahrerzahl zählt ein Rennen voll (Gewicht 1.0); einstellbar im Setup, pro Rennen gespeichert
+  const BASE_ROUNDS = 75;
+  const BASE_DRIVERS = 4;
   const START_ELO = 1000;
   const MIN_ELO = 100;
   // Ab Version 2.1 zählt jeder ab dem ersten Rennen der Saison (Ausdünnen per Filter in der Rangliste)
@@ -14,11 +17,13 @@
     return (totalPlayers - position) / (totalPlayers - 1);
   }
 
-  function calculateKFactor(totalPlayers, rounds = 50, baseK = BASE_K) {
-    // Rundengewichtung: 20 → 0.5  |  75 → 1.0 (max.)
-    const roundWeight = Math.min(1, Math.max(0.5, 0.5 + ((rounds - 20) / 55) * 0.5));
-    // Spielergewichtung: 2 → 0.5  |  6 → 1.0 (max.)
-    const playerWeight = Math.min(1, Math.max(0.5, (totalPlayers - 2) / 4 + 0.5));
+  function calculateKFactor(totalPlayers, rounds = 50, baseK = BASE_K, baseRounds = BASE_ROUNDS, baseDrivers = BASE_DRIVERS) {
+    const br = Number(baseRounds) > 20 ? Number(baseRounds) : BASE_ROUNDS;
+    const bd = Number(baseDrivers) > 2 ? Number(baseDrivers) : BASE_DRIVERS;
+    // Rundengewichtung: 20 → 0.5  |  Basis-Rundenzahl (Standard 75) → 1.0 (max.)
+    const roundWeight = Math.min(1, Math.max(0.5, 0.5 + ((rounds - 20) / (br - 20)) * 0.5));
+    // Fahrergewichtung: 2 → 0.5  |  Basis-Fahrerzahl (Standard 4) → 1.0 (max.)
+    const playerWeight = Math.min(1, Math.max(0.5, 0.5 + ((totalPlayers - 2) / (bd - 2)) * 0.5));
     return Math.round((Number(baseK) > 0 ? Number(baseK) : BASE_K) * roundWeight * playerWeight);
   }
 
@@ -44,7 +49,7 @@
     const results = race.results || [];
     results.sort((a, b) => a.position - b.position);
     const total = results.length;
-    const k = calculateKFactor(total, race.rounds, race.baseK);   // baseK: beim Speichern aus dem Setup übernommen, ältere Rennen ohne → 32
+    const k = calculateKFactor(total, race.rounds, race.baseK, race.baseRounds, race.baseDrivers);   // beim Speichern aus dem Setup übernommen, ältere Rennen ohne → 32 / 75 / 4
 
     const driverOf = res => drivers.find(d => d.id === res.driverId);
     const carOf    = res => cars.find(c => c.id === res.carId);
@@ -147,7 +152,7 @@
 
   window.Elo = {
     START_ELO, MIN_RACES_FOR_RANK, MIN_RACES_FOR_CAR_RANK,
-    BASE_K, calculateExpectedScore, calculateActualScore, calculateKFactor,
+    BASE_K, BASE_ROUNDS, BASE_DRIVERS, calculateExpectedScore, calculateActualScore, calculateKFactor,
     sortChronologically, applyRace, storeOverallPositions, recomputeSeasons, recomputeAll, isActive
   };
 })();

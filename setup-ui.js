@@ -654,8 +654,11 @@
         <details class="bal-details rs-sec" data-rssec="grp">
         <summary class="setup-h">G!RP-Wertung</summary>
         <div class="race-meta-grid" style="grid-template-columns:1fr 1fr;">
-          <div class="form-group"><label for="rsBaseK">K-Faktor (maximal)</label><input id="rsBaseK" name="baseK" type="number" min="1" max="200" step="1" inputmode="numeric" value="${s.baseK}"><small class="muted">So viel kann ein Rennen mit 6 Fahrern über 75 Runden oder mehr höchstens bewegen. Weniger Fahrer oder Runden verringern ihn, im Extremfall auf ein Viertel. Gilt nur für neue Rennen, gewertete Rennen behalten ihren Wert.</small></div>
+          <div class="form-group"><label for="rsBaseK">K-Faktor (maximal)</label><input id="rsBaseK" name="baseK" type="number" min="1" max="200" step="1" inputmode="numeric" value="${s.baseK}"><small class="muted">So viel kann ein Rennen höchstens bewegen, wenn es die Basis-Rundenzahl und die Basis-Fahrerzahl erreicht. Weniger Runden oder Fahrer verringern ihn, im Extremfall (20 Runden, 2 Fahrer) auf ein Viertel.</small></div>
+          <div class="form-group"><label for="rsBaseRounds">Basis-Rundenzahl</label><input id="rsBaseRounds" name="baseRounds" type="number" min="21" max="500" step="1" inputmode="numeric" value="${s.baseRounds}"><small class="muted">Ab so vielen Runden zählt ein Rennen voll. 20 Runden oder weniger zählen halb, dazwischen steigt es gleichmäßig.</small></div>
+          <div class="form-group"><label for="rsBaseDrivers">Basis-Fahrerzahl</label><input id="rsBaseDrivers" name="baseDrivers" type="number" min="3" max="20" step="1" inputmode="numeric" value="${s.baseDrivers}"><small class="muted">Ab so vielen Fahrern zählt ein Rennen voll. 2 Fahrer zählen halb, dazwischen steigt es gleichmäßig.</small></div>
         </div>
+        <p class="muted edit-note">Alle drei Werte gelten nur für neue Rennen. Gewertete Rennen behalten ihre Werte, auch bei der Neuberechnung.</p>
         </details>
         <div class="edit-foot rs-foot"><button type="button" class="btn" id="rsReset">Standardwerte</button><span style="flex:1"></span><span class="muted edit-note" id="rsSaved">Änderungen werden sofort gespeichert</span></div>
       </form>
@@ -815,6 +818,8 @@
         falseStartPenaltySec: parseNum(form.falseStart.value),
         penaltyOptionsSec: opts,
         baseK: parseNum(form.baseK.value),
+        baseRounds: parseNum(form.baseRounds.value),
+        baseDrivers: parseNum(form.baseDrivers.value),
         voice: window.appData.raceSettings?.voice,
         voiceTailMs: window.appData.raceSettings?.voiceTailMs,
         voiceGapMs: window.appData.raceSettings?.voiceGapMs

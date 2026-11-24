@@ -43,6 +43,8 @@
     noSignalSec: 20,            // Rennen: Warnung, wenn von einem Fahrzeug so lange keine Durchfahrt kam (0 = aus)
     fuelSpeedFactor: 1,         // 0 = Verbrauch unabhängig vom Tempo, 1 = proportional zum Tempo
     baseK: 32,                  // G!RP: maximaler K-Faktor (volles Feld, lange Distanz); gilt nur für neu gespeicherte Rennen
+    baseRounds: 75,             // G!RP: ab so vielen Runden zählt ein Rennen voll (20 Runden = halb)
+    baseDrivers: 4,             // G!RP: ab so vielen Fahrern zählt ein Rennen voll (2 Fahrer = halb)
     voice: 'ingrid'             // Sprachausgabe: 'ingrid' | 'leni' (siehe voice.js)
   });
 
@@ -75,6 +77,8 @@
       // früher kurz in Sekunden gespeichert (manualLapStartSec) → in ms übernehmen
       manualLapStartMs:     Math.max(0, Math.min(10000, Math.round(num(d.manualLapStartMs, d.manualLapStartSec != null ? num(d.manualLapStartSec, 0.25) * 1000 : RACE_DEFAULTS.manualLapStartMs)))),
       baseK:                Math.max(1, Math.min(200, Math.round(num(d.baseK, RACE_DEFAULTS.baseK)))),
+      baseRounds:           Math.max(21, Math.min(500, Math.round(num(d.baseRounds, RACE_DEFAULTS.baseRounds)))),
+      baseDrivers:          Math.max(3, Math.min(20, Math.round(num(d.baseDrivers, RACE_DEFAULTS.baseDrivers)))),
       voiceTailMs:          Math.max(0, Math.min(1000, Math.round(num(d.voiceTailMs, RACE_DEFAULTS.voiceTailMs)))),
       voiceGapMs:           Math.max(0, Math.min(2000, Math.round(num(d.voiceGapMs, RACE_DEFAULTS.voiceGapMs)))),
       voice:                ['ingrid', 'leni'].includes(d.voice) ? d.voice : RACE_DEFAULTS.voice
