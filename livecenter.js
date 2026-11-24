@@ -517,7 +517,7 @@
     assignments.forEach(a => { if (a.controller) cfg.assign[a.controller] = { driverId: a.driverId, carId: a.carId }; });
     cfg.hint = conflicts.length
       ? conflicts.map(c => `${MD.controller(c.controller).name} wollten ${c.driverIds.map(driverName).join(' und ')} – ${driverName(c.driverIds[0])} hat ihn`).join(' · ')
-      : 'Regler nach Wunsch der Fahrer verteilt. Du kannst alles ändern.';
+      : ''; // kein Hinweis, wenn alles passt (Tristan 24.11.)
     saveCfg(); renderSetup();
   }
 
@@ -728,20 +728,34 @@
 `;
   }
 
-  /** Vorbereitung: eigenes Panel mit dem Streckenrekord (Halter und Auto) unter dem Tuning (Tristan 22.11.) */
+  /** Datum (TT.MM.JJJJ) eines Rekords, mit Uhrzeit aus createdAt, wenn die auf denselben Tag fällt */
+  function recWhen (r) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(r.date || '');
+    const ts = r.createdAt, d = ts?.toDate ? ts.toDate() : ts?.seconds ? new Date(ts.seconds * 1000) : null;
+    const hm = d && m && isoDate(d) === m[0] ? ` · ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : '';
+    return m ? `${m[3]}.${m[2]}.${m[1]}${hm}` : '';
+  }
+
+  /** Vorbereitung: quadratisches Panel (halbe Spalte) mit dem Streckenrekord unter dem Tuning, Tipp öffnet die Rekord-Übersicht (Tristan 24.11.).
+   *  Zeilen: Zeit · Autobild · Autoname · Fahrer + Datum */
   function recordTileHtml () {
-    const best = trackRecords().reduce((b, r) => (!b || r.ms < b.ms ? r : b), null);
+    const tid = trackId();
+    const best = (appData().lapRecords || []).filter(r => !tid || window.Seasons?.trackOfRecord?.(r) === tid)
+      .reduce((b, r) => (!b || r.time < b.time ? r : b), null);
     if (!best) return '';
     const img = best.carId != null ? carImg(best.carId) : null;
+    const when = recWhen(best);
     return `<section class="lc-card lc-rec-card" data-act="recOpen" role="button" tabindex="0" aria-label="Alle Rekorde anzeigen">
+      <small class="lc-rec-label">Streckenrekord ›</small>
+      <b class="lc-rec-time">${fmt(Math.round(best.time * 1000))} s</b>
       <div class="lc-rec-img">${img ? `<img src="${img}" alt="">` : ''}</div>
-      <div class="lc-rec-txt">
-        <small>Streckenrekord</small>
-        <div><b class="lc-rec-time">${fmt(best.ms)} s</b> <span class="lc-rec-who">${esc(driverName(best.driverId))}</span></div>
-        <small class="lc-rec-car">${esc(carName(best.carId))}</small>
-      </div>
+      <small class="lc-rec-car">${esc(carName(best.carId))}</small>
+      <div class="lc-rec-line"><span class="lc-rec-who">${esc(driverName(best.driverId))}</span>${when ? ` · <span class="lc-rec-date">${when}</span>` : ''}</div>
     </section>`;
   }
+
+
+
   /**
    * Rekord-Übersicht als Overlay in der Vorbereitung (Tristan 23.11.): alle Paarungen Fahrer × Fahrzeug dieser Strecke
    * (ein Rekord je Paarung), nach Zeit sortiert, Kacheln versetzt wie in der Startaufstellung, höchstens 100 Einträge.
@@ -752,12 +766,7 @@
     const best = new Map();
     for (const r of all) { const k = `${r.driverId}|${r.carId}`, b = best.get(k); if (!b || r.time < b.time) best.set(k, r); }
     const list = [...best.values()].sort((a, b) => a.time - b.time).slice(0, 100);
-    const when = r => {
-      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(r.date || '');
-      const ts = r.createdAt, d = ts?.toDate ? ts.toDate() : ts?.seconds ? new Date(ts.seconds * 1000) : null;
-      const hm = d && m && isoDate(d) === m[0] ? ` · ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : '';
-      return m ? `${m[3]}.${m[2]}.${m[1]}${hm}` : '';
-    };
+    const when = recWhen;
     const tile = (r, i) => {
       const img = r.carId != null ? carImg(r.carId) : null;
       const main = driverName(r.driverId), sub = carName(r.carId);

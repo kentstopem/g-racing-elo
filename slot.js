@@ -73,16 +73,31 @@
       this.wrap.appendChild(this.result);
       reelsDiv.appendChild(this.wrap);
 
-      // Einträge vervielfachen, bis die Walze nahtlos laufen kann (begrenzt)
-      const viewH=360;
-      for(let r=0;r<5 && this.track.scrollHeight<viewH*4;r++){
-        const clones=[...this.track.children].map(n=>n.cloneNode(true));
-        clones.forEach(cl=>this.track.appendChild(cl));
-      }
-      this.totalHeight=this.track.scrollHeight;
+      this.fill();
       this.offset=Math.random()*this.totalHeight;
       this.startBtn.addEventListener('click',()=>this.start());
       this.stopBtn.addEventListener('click',()=>this.stop());
+    }
+    /**
+     * Walze nahtlos füllen: Grundsatz der Autos so oft wiederholen, dass nach einer vollen Periode noch
+     * mindestens eine Fensterhöhe Autos folgt. totalHeight = Höhe einer Periode (danach wiederholt sich das Bild
+     * exakt, auch die Schwarz/Weiß-Abfolge). Vorher lief offset bis zur Gesamthöhe der Spur, unter deren Ende
+     * kam bis zu einer Fensterhöhe lang nur schwarzer Hintergrund (Tristan 24.11.).
+     */
+    fill(){
+      const seen=new Set(), base=[];
+      for(const el of [...this.track.children]){ if(seen.has(el.dataset.carId)) break; seen.add(el.dataset.carId); base.push(el); }
+      this.track.replaceChildren(...base);
+      if(!base.length){ this.totalHeight=0; return; }
+      const period=base.length%2 ? base.length*2 : base.length; // gerade Anzahl, damit die Farbfolge passt
+      const add=()=>base.forEach(n=>this.track.appendChild(n.cloneNode(true)));
+      while(this.track.children.length<period) add();
+      const kids=[...this.track.children];
+      const cycle=kids.slice(0,period).reduce((h,el)=>h+el.offsetHeight,0);
+      const viewH=this.reel.clientHeight||360;
+      for(let r=0;cycle>0 && r<50 && this.track.scrollHeight<cycle+viewH;r++){ for(let i=0;i<period;i++) this.track.appendChild(kids[i].cloneNode(true)); }
+      this.totalHeight=cycle;
+      if(this.totalHeight>0) this.offset=((this.offset%this.totalHeight)+this.totalHeight)%this.totalHeight;
     }
     loopFrame(){
       if(this.stopped){cancelAnimationFrame(this.animId);return;}
@@ -93,8 +108,7 @@
     start(){
       if(this.speed>0) return;
       if(this.totalHeight===0){
-         this.totalHeight=this.track.scrollHeight;
-         if(this.totalHeight===0) this.totalHeight=[...this.track.children].reduce((s,e)=>s+e.offsetHeight,0);
+         this.fill();
          this.offset=Math.random()*this.totalHeight;
       }
       this.speed=8+Math.random()*8; // px per frame
@@ -166,17 +180,7 @@
       // mindestens ein Fahrzeug muss auf der Walze bleiben
       if(items.length>=this.track.children.length) return;
       items.forEach(el=>el.remove());
-      this.totalHeight=this.track.scrollHeight;
-      this.offset=this.offset%this.totalHeight;
-      // refill to maintain seamless scroll
-      const viewH=360;
-      let attempts=0;
-      while(this.track.scrollHeight<viewH*2 && attempts<3){
-        const clones=[...this.track.children].map(n=>n.cloneNode(true));
-        clones.forEach(cl=>this.track.appendChild(cl));
-        attempts++;
-      }
-      this.totalHeight=this.track.scrollHeight;
+      this.fill(); // nahtlos neu füllen
     }
   }
 
