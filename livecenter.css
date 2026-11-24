@@ -804,3 +804,7 @@ html.lc-open .modal { z-index: 6000; }
 .lc-rec-line { font-size: 15px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lc-rec-date { color: var(--lc-muted); font-variant-numeric: tabular-nums; }
 .lc-side .lc-rec-card .lc-rec-time { font-size: 24px; }
+
+/* ?diag: Diagnosezeile umbrechen statt aus dem Bild laufen (Bahn 24.11.) */
+.lc-ticker:has(.diag) { height: auto; min-height: 52px; flex-wrap: wrap; padding-top: 6px; padding-bottom: 6px; }
+.lc-tick.diag { white-space: normal; flex: 1 1 100%; font-size: 14px; font-weight: 500; }

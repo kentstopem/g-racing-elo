@@ -174,6 +174,7 @@
       this.limit = {};           // ctrl → Stufe bei leerem Tank
       this.offset = null;        // performance.now() − CU-Zeitstempel (kleinster gesehener Wert)
       this.lastTs = {};
+      this.maxTs = null;         // größter CU-Zeitstempel (Neustart erkennen)
       this.pit = {};
       this.prevStart = null;
       this.counting = false;     // Countdown der CU läuft
@@ -253,8 +254,12 @@
         if (this.lastTs[ev.address] === ev.timestamp) return;
         this.lastTs[ev.address] = ev.timestamp;
         const diff = performance.now() - ev.timestamp;
-        // CU-Uhr → Uhr der App; springt die CU-Uhr (Neustart), neu ausrichten
-        if (this.offset == null || diff < this.offset || diff - this.offset > 3000) this.offset = diff;
+        // CU-Uhr → Uhr der App: kleinste gesehene Verzögerung. Neu ausrichten nur, wenn die CU-Uhr
+        // zurückspringt (CU neu gestartet). Früher auch bei > 3 s Verspätung einer Meldung – dann wurde
+        // die nächste Runde zu kurz gerechnet und als Fehlimpuls verworfen (Bahn 24.11.).
+        const restarted = this.maxTs != null && ev.timestamp < this.maxTs - 1000;
+        if (this.offset == null || restarted || diff < this.offset) this.offset = diff;
+        this.maxTs = restarted || this.maxTs == null ? ev.timestamp : Math.max(this.maxTs, ev.timestamp);
         if (this.ctrls.size && !this.ctrls.has(ev.address)) return;
         this.diag.used++;
         this.emit({ type: 'lap', ctrl: ev.address, t: ev.timestamp + this.offset });
