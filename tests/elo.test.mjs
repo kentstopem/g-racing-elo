@@ -139,3 +139,14 @@ test('baseK: Rennen nutzt den gespeicherten K-Faktor, ältere ohne Feld 32', () 
   const a = mk(); assert.equal(Elo.applyRace(race(undefined), a.drivers, a.cars), 16);
   const b = mk(); assert.equal(Elo.applyRace(race(64), b.drivers, b.cars), 32);
 });
+
+test('Basis-Runden/-Fahrer: Standard 75/4 wie bisher, pro Rennen gespeichert', () => {
+  assert.equal(Elo.calculateKFactor(4, 75), 32);              // bisher schon ab 4 Fahrern volle Gewichtung
+  assert.equal(Elo.calculateKFactor(4, 75, 32, 75, 6), 24);   // Basis 6 Fahrer → 4 Fahrer = 0.75
+  assert.equal(Elo.calculateKFactor(6, 50, 32, 50, 6), 32);   // Basis 50 Runden → 50 Runden voll
+  assert.equal(Elo.calculateKFactor(6, 50, 32, 0, 0), Elo.calculateKFactor(6, 50)); // ungültig → Standard
+  const mk = () => ({ drivers: [1, 2, 3, 4].map(id => ({ id, elo: 1000 })), cars: [1, 2, 3, 4].map(id => ({ id, elo: 1000 })) });
+  const race = extra => ({ rounds: 75, baseK: 32, ...extra, results: [1, 2, 3, 4].map(p => ({ position: p, driverId: p, carId: p })) });
+  const a = mk(); assert.equal(Elo.applyRace(race({}), a.drivers, a.cars), 32);
+  const b = mk(); assert.equal(Elo.applyRace(race({ baseDrivers: 6 }), b.drivers, b.cars), 24);
+});

@@ -21,7 +21,7 @@ test('CU-Stufen 0–15 als Prozent', () => {
 });
 
 test('Renneinstellungen: Standardwerte und Bereinigung', () => {
-  assert.deepEqual(plain(M.raceSettings()), { fullTankLaps: 25, refuelPctPerSec: 10, falseStartPenaltySec: 5, penaltyOptionsSec: [2, 5, 7, 10], pitCallFuelPct: 20, fuelCritPct: 5, fuelSpeedFactor: 1, emptyTankSpeed: 4, pitDriveMs: 2000, noSignalSec: 20, manualLapStartMs: 250, baseK: 32, voiceTailMs: 40, voiceGapMs: 250, voice: 'ingrid' });
+  assert.deepEqual(plain(M.raceSettings()), { fullTankLaps: 25, refuelPctPerSec: 10, falseStartPenaltySec: 5, penaltyOptionsSec: [2, 5, 7, 10], pitCallFuelPct: 20, fuelCritPct: 5, fuelSpeedFactor: 1, emptyTankSpeed: 4, pitDriveMs: 2000, noSignalSec: 20, manualLapStartMs: 250, baseK: 32, baseRounds: 75, baseDrivers: 4, voiceTailMs: 40, voiceGapMs: 250, voice: 'ingrid' });
   const s = M.raceSettings({ refuelPctPerSec: 12.5, penaltyOptionsSec: [10, 3, 3, 0], pitCallFuelPct: 150, falseStartPenaltySec: '' });
   assert.equal(s.refuelPctPerSec, 12.5);
   assert.deepEqual(plain(s.penaltyOptionsSec), [3, 10]);
@@ -29,6 +29,9 @@ test('Renneinstellungen: Standardwerte und Bereinigung', () => {
   assert.equal(s.falseStartPenaltySec, 5);
   assert.equal(M.raceSettings({ baseK: '40' }).baseK, 40);
   assert.equal(M.raceSettings({ baseK: 0 }).baseK, 1);
+  assert.equal(M.raceSettings({ baseRounds: 10 }).baseRounds, 21);
+  assert.equal(M.raceSettings({ baseDrivers: '6' }).baseDrivers, 6);
+  assert.equal(M.raceSettings({ baseDrivers: 1 }).baseDrivers, 3);
 });
 
 test('Spritverbrauch: schneller als Referenz = mehr Verbrauch', () => {
