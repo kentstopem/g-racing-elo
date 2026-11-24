@@ -217,6 +217,11 @@
       c.status = ['dnf', 'dq'].includes(status) ? status : null;
       this.emit('status', { ctrl: c.ctrl, driverId: c.driverId, status: c.status });
       if (this.mode === 'race' && this.phase === 'green') this.checkRaceEnd(this.lastT ?? 0);
+      // Rote Flagge: Sind alle übrigen schon im Ziel (z. B. der Letzte wird DNF/DQ), ist das Rennen sofort vorbei
+      else if (this.mode === 'race' && this.phase === 'red') {
+        this.checkRaceEnd(this.redAt ?? this.lastT ?? 0);
+        if (this.phase === 'finished') this.flushDeferred();
+      }
       this.emit('change');
     }
 

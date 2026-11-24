@@ -7,7 +7,7 @@
 // • Bibliotheken von CDNs (Firebase, Chart.js, Schrift): aus dem Cache, im Hintergrund aktualisieren.
 // • Firestore-/Login-Anfragen werden NICHT angefasst (die Daten puffert Firestore selbst).
 
-const CACHE = 'grp-v71';
+const CACHE = 'grp-v72';
 
 const APP_SHELL = [
   './',

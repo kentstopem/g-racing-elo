@@ -821,3 +821,25 @@ test('Tank: fällt der Tank in einer Runde unter beide Schwellen, kommt nur „j
   assert.equal(events.filter(e => e[0] === 'pitCall').length, 0);
   assert.equal(events.filter(e => e[0] === 'fuelCritical').length, 1);
 });
+
+test('Rote Flagge: Letzter Fahrer DNF/DQ, alle anderen im Ziel → Rennen sofort beendet', () => {
+  const n = entries.length;
+  const { s, events } = race(2);
+  for (let i = 1; i <= n; i++) lap(s, i, 6500 + i * 100);                  // Zeitnahme beginnt
+  for (let i = 1; i <= n; i++) lap(s, i, 13500 + i * 100);                 // Runde 1
+  for (let i = 1; i < n; i++) lap(s, i, 20500 + i * 100);                  // alle außer dem Letzten im Ziel
+  assert.ok(s.leaderFinished);
+  assert.notEqual(s.phase, 'finished');
+  s.redFlag(22000, 'buzzer');
+  s.setStatus(n, 'dnf');
+  assert.equal(s.phase, 'finished', 'kein „Weiter geht\'s“ nötig');
+  assert.ok(events.some(([t]) => t === 'end'));
+});
+
+test('Rote Flagge: DNF eines Fahrers beendet das Rennen nicht, solange andere noch fahren', () => {
+  const { s } = race(2);
+  for (let i = 1; i <= entries.length; i++) lap(s, i, 6500 + i * 100);
+  s.redFlag(9000, 'buzzer');
+  s.setStatus(1, 'dq');
+  assert.equal(s.phase, 'red');
+});
