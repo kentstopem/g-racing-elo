@@ -121,13 +121,20 @@
    *    Wunsch der zuerst genannte. 2. Alle anderen werden mit den freien Controllern (1, 2, 3 …) aufgefüllt.
    * Liefert [{ ...entry, controller, preferred: true|false }] in Eingabereihenfolge
    * und conflicts: [{ controller, driverIds }] für die Anzeige.
+   * fixed: { driverId: controller } – Fahrer, die schon von Hand auf einem Regler sitzen, behalten ihn,
+   * auch wenn ihr Wunschregler ein anderer ist (Tristan 27.11.). Wünsche anderer zählen nur für freie Regler.
    */
-  function suggestControllers (entries = [], drivers = []) {
+  function suggestControllers (entries = [], drivers = [], fixed = {}) {
     const pref = new Map(drivers.map(d => [d.id, controller(d.preferredController)?.n ?? null]));
     const taken = new Map();
     const out = entries.map(e => ({ ...e, controller: null, preferred: false }));
+    out.forEach(e => {
+      const f = fixed[e.driverId] != null ? Number(fixed[e.driverId]) : null;
+      if (f && controller(f) && !taken.has(f)) { taken.set(f, e.driverId); e.controller = f; e.kept = true; }
+    });
     const wanted = new Map();
     out.forEach(e => {
+      if (e.controller != null) return;
       const p = pref.get(e.driverId);
       if (!p) return;
       if (!wanted.has(p)) wanted.set(p, []);

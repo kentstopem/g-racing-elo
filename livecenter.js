@@ -520,7 +520,10 @@
   /** Paarungen (Fahrer + Auto) auf die Regler verteilen, nach Wunschregler der Fahrer */
   function applyPairs (pairs) {
     if (!pairs?.length) return;
-    const { assignments, conflicts } = MD.suggestControllers(pairs.slice(0, 6), appData().drivers || []);
+    // Fahrer, die schon von Hand auf einem Regler sitzen, behalten ihn (Tristan 27.11.)
+    const fixed = {};
+    Object.entries(cfg.assign || {}).forEach(([n, a]) => { if (a?.driverId != null) fixed[a.driverId] = +n; });
+    const { assignments, conflicts } = MD.suggestControllers(pairs.slice(0, 6), appData().drivers || [], fixed);
     cfg.assign = {};
     assignments.forEach(a => { if (a.controller) cfg.assign[a.controller] = { driverId: a.driverId, carId: a.carId }; });
     cfg.hint = conflicts.length

@@ -59,6 +59,20 @@ test('Controller-Vorschlag nach bevorzugtem Controller, Rest auffüllen', () => 
   assert.deepEqual(plain(conflicts), [{ controller: 2, driverIds: [1, 2] }]);
 });
 
+test('Controller-Vorschlag: von Hand gesetzte Regler bleiben, auch gegen den Wunsch', () => {
+  const drivers = [
+    { id: 1, preferredController: 2 },
+    { id: 2, preferredController: 1 },
+    { id: 3, preferredController: 1 }
+  ];
+  const entries = [1, 2, 3].map(d => ({ driverId: d, carId: 10 + d }));
+  // Fahrer 1 sitzt von Hand auf Regler 1, Fahrer 2 auf Regler 4
+  const { assignments, conflicts } = M.suggestControllers(entries, drivers, { 1: 1, 2: 4 });
+  assert.deepEqual(plain(assignments.map(a => a.controller)), [1, 4, 2]);
+  assert.deepEqual(plain(assignments.map(a => a.carId)), [11, 12, 13]);
+  assert.deepEqual(plain(conflicts), []);
+});
+
 test('Fahrzeug-Runden über alle Rennen plus Training', () => {
   const races = [
     { rounds: 40, results: [{ carId: 5 }, { carId: 6 }] },
