@@ -387,6 +387,14 @@
       ...incomplete.map(c => `${MD.controller(c.n).name}: Fahrer und Fahrzeug wählen`),
       ...[...new Set(dupD)].map(d => `${driverName(d)} ist zweimal eingeteilt`)
     ];
+    // Warum „Strecke freigeben“ noch nicht geht – steht links neben dem Knopf (Tristan 27.11.)
+    const cuState = cuHub()?.state;
+    const startBlock = [
+      ...(canEdit() ? [] : ['Starten nur mit Admin-Anmeldung']),
+      ...(entries.length ? [] : ['Noch kein Fahrer mit Fahrzeug eingeteilt']),
+      ...problems,
+      ...(cfg.source === 'sim' || cuState === 'connected' ? [] : [cuState === 'connecting' ? 'Control Unit verbindet …' : 'Control Unit nicht verbunden'])
+    ];
     const lapsField = cfg.mode === 'race'
       ? `<label class="lc-field lc-field-laps">Runden<input type="number" inputmode="numeric" min="1" max="999" data-cfg="raceLaps" value="${cfg.raceLaps}"></label>`
       : cfg.mode === 'quali'
@@ -461,8 +469,8 @@
         </div>
         <footer class="lc-setup-foot">
           <div>${entries.length} ${entries.length === 1 ? 'Fahrer' : 'Fahrer'} · ${MODE_LABEL[cfg.mode]}${cfg.mode === 'race' ? ` über ${cfg.raceLaps} Runden` : cfg.mode === 'quali' ? ` · ${cfg.qualiLaps} Runden je Fahrer` : ''}</div>
-          ${canEdit() ? '' : '<span class="lc-note">Starten nur mit Admin-Anmeldung</span>'}
-          <button class="lc-btn lc-primary lc-big" data-act="start" ${entries.length && !problems.length && canEdit() && (cfg.source === 'sim' || cuHub()?.state === 'connected') ? '' : 'disabled'}>${cfg.mode === 'race' ? 'Zur Startaufstellung' : 'Strecke freigeben'}</button>
+          ${startBlock.length ? `<span class="lc-start-why">${esc(startBlock.join(' · '))}</span>` : ''}
+          <button class="lc-btn lc-primary lc-big" data-act="start" ${startBlock.length ? 'disabled' : ''}>${cfg.mode === 'race' ? 'Zur Startaufstellung' : 'Strecke freigeben'}</button>
         </footer>
         ${carPick != null && canEdit() ? carPickHtml(carPick, cAll) : ''}
         ${drvPick != null && canEdit() ? drvPickHtml(drvPick, dAll) : ''}
