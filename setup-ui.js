@@ -230,10 +230,10 @@
 
     const body = openModal(isNew ? 'Neues Fahrzeug' : c.name, `
       <form id="carForm">
-        ${isNew ? `<div class="form-group">
+        <div class="form-group">
           <label for="carName">Name</label>
-          <input id="carName" name="cname" placeholder="(Startnummer) Fahrzeugname" required>
-        </div>` : ''}
+          <input id="carName" name="cname" value="${esc(c.name || '')}" placeholder="(Startnummer) Fahrzeugname" required>
+        </div>
         <div class="car-edit-top">
           <div class="media-preview" id="carImgBox"><span class="muted">Kein Bild</span></div>
           <div>
@@ -266,11 +266,9 @@
       body.querySelector('#carImgBox').innerHTML = src ? `<img src="${src}" alt="">` : '<span class="muted">Kein Bild</span>';
     };
     showImg(c);
-    if (isNew) {
-      setTimeout(() => form.cname.focus(), 50);
-      // Standardbild zur Startnummer schon beim Tippen zeigen
-      form.cname.addEventListener('input', () => { if (!newImage) showImg({ id, name: form.cname.value.trim() }); });
-    }
+    if (isNew) setTimeout(() => form.cname.focus(), 50);
+    // Standardbild zur Startnummer schon beim Tippen zeigen (ein eigenes Bild bleibt)
+    form.cname.addEventListener('input', () => { if (!newImage && !c.imageRev) showImg({ id, name: form.cname.value.trim() }); });
     form.hasTuning.onchange = () => body.querySelector('#tuningFields').classList.toggle('hidden', !form.hasTuning.checked);
     body.querySelectorAll('.level-step-btn').forEach(btn => {
       btn.onclick = () => {
@@ -329,8 +327,11 @@
       // Angekreuzt, aber nicht „Eintragen“ gedrückt: Schaden mit speichern statt verlieren
       const dmgBox = body.querySelector('#dmgBox');
       if (dmgBox?._addPendingDamage && !dmgBox._addPendingDamage({ silentIfEmpty: true })) return;
+      const name = form.cname.value.trim();
+      if (!name) { showToast('Bitte einen Namen eingeben!'); return; }
+      if (window.appData.cars.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) { showToast('Fahrzeug existiert bereits!'); return; }
       const practiceOnly = form.practiceOnly.checked ? true : del();
-      persist(window.Storage.updateCarFields(id, { tuning, practiceOnly }), 'Fahrzeug gespeichert');
+      persist(window.Storage.updateCarFields(id, { name, tuning, practiceOnly }), 'Fahrzeug gespeichert');
       closeModal();
     };
   }

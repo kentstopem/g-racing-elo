@@ -53,7 +53,7 @@ function renderChart(mode){
         posArr.push(res.position);
         totalArr.push(r.results.length);
         raceNrArr.push(numMap.get(r.id));
-        partnerArr.push(res.carName);
+        partnerArr.push(appData.cars.find(c=>c.id===res.carId)?.name??res.carName);
       }
     });
   }else{

@@ -55,7 +55,7 @@
                         <td class="pts"><span class="old">${res.oldDriverElo} → </span><span class="${drvColor}">${res.newDriverElo} (${drvChange>=0?'+':''}${drvChange})</span></td>
                       </tr>
                       <tr class="pair-car">
-                        <td class="who">${esc(res.carName)}</td>
+                        <td class="who">${esc((window.appData.cars.find(c=>c.id===res.carId)?.name)??res.carName)}</td>
                         <td class="pts"><span class="old">${res.oldCarElo} → </span><span class="${carColor}">${res.newCarElo} (${carChange>=0?'+':''}${carChange})</span></td>
                       </tr>
                     </tbody>`;
