@@ -1,4 +1,102 @@
 {
+ "cars": {
+  "1753130692888": {
+   "name": "(06) Lamborghini Huracán GT3 EVO2",
+   "text": "Nummer 6"
+  },
+  "1753130982041": {
+   "name": "(47) Mercedes AMG GT3 „Mamba“",
+   "text": "Nummer 47"
+  },
+  "1753131003655": {
+   "name": "(26) Chevrolet Corvette C7 GT3-R",
+   "text": "Nummer 26"
+  },
+  "1753131022738": {
+   "name": "(52) Ferrari 488 GTE AF Corse",
+   "text": "Nummer 52"
+  },
+  "1753219264079": {
+   "name": "(98) Lamborghini Huracán GT3",
+   "text": "Nummer 98"
+  },
+  "1753220911326": {
+   "name": "(07) BMW M4 DTM „Black Beast“",
+   "text": "Nummer 7"
+  },
+  "1753223321330": {
+   "name": "(46) BMW M4 GT3",
+   "text": "Nummer 46"
+  },
+  "1753223401074": {
+   "name": "(03) Mercedes AMG C 63 DTM „me“",
+   "text": "Nummer 3"
+  },
+  "1753223438513": {
+   "name": "(04) Mercedes AMG C 63 DTM „The Brit“",
+   "text": "Nummer 4"
+  },
+  "1753223458313": {
+   "name": "(02) Porsche 911 GT3 Cup (992)",
+   "text": "Nummer 2"
+  },
+  "1753223512412": {
+   "name": "(05) Audi RS5 DTM „Red Bull“",
+   "text": "Nummer 5"
+  },
+  "1753223547834": {
+   "name": "(08) BMW M3 DTM „Aral Ultimate“",
+   "text": "Nummer 8"
+  },
+  "1753223633782": {
+   "name": "(11) BMW M4 DTM „Schaeffler“",
+   "text": "Nummer 11"
+  },
+  "1753223678256": {
+   "name": "(17) Audi RS5 DTM „Teufel“",
+   "text": "Nummer 17"
+  },
+  "1753223720808": {
+   "name": "(33) Audi RS5 DTM",
+   "text": "Nummer 33"
+  },
+  "1753224133334": {
+   "name": "(93) Porsche 911 GT3 Cup (997) „Der Toaster“",
+   "text": "Nummer 93"
+  },
+  "1753972563759": {
+   "name": "(44) Porsche 911 GT3 RS „Die Orange“",
+   "text": "Nummer 44"
+  },
+  "1753973019636": {
+   "name": "Rover Mini Cooper S",
+   "text": "Rover Mini Cooper S"
+  },
+  "1755287337403": {
+   "name": "(01) BMW M3 DTM „White Tiger“",
+   "text": "Nummer 1"
+  },
+  "1755287445049": {
+   "name": "(16) Mercedes AMG GT3 „Sharknado“",
+   "text": "Nummer 16"
+  },
+  "1755287488828": {
+   "name": "(20) Audi A5 DTM",
+   "text": "Nummer 20"
+  },
+  "1761563597042": {
+   "name": "(12) Audi A5 DTM „Red Bull“",
+   "text": "Nummer 12"
+  },
+  "1761563998268": {
+   "name": "(09) Audi A4 DTM „TV Movie“",
+   "text": "Nummer 9"
+  },
+  "1761564363455": {
+   "name": "(10) Mercedes AMG C-Coupé DTM „Chrome Cox“",
+   "text": "Nummer 10"
+  }
+ },
  "drivers": {
   "1753130526417": {
    "name": "Tris",
@@ -50,7 +148,7 @@
   },
   "1753224101066": {
    "name": "DBet",
-   "text": "DBet"
+   "text": "diii bett"
   },
   "1753224305872": {
    "name": "Alekz",
