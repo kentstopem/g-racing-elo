@@ -190,8 +190,8 @@
         if (changed && window.Voice.azureConfig()) {
           try { pending = { data: await readAsDataUrl(await window.Voice.synthesize(text)), text }; }
           catch (err) { console.warn(err); showToast(`Name nicht neu erzeugt: ${err.message || 'Fehler'} – es bleibt der alte Ton`, { icon: 'alert' }); }
-        } else if (changed && window.Voice.savedText(cur)) {
-          showToast('Name nicht neu erzeugt: Auf diesem Gerät fehlt der Sprach-Schlüssel (Setup → Settings → Sprachausgabe). Es bleibt der alte Ton.', { icon: 'alert' });
+        } else if (changed) {   // ohne Schlüssel auf diesem Gerät: immer sagen, dass kein Ton gespeichert wurde
+          showToast(`Gesprochener Name nicht gespeichert: Auf diesem Gerät fehlt der Sprach-Schlüssel (Setup → Settings → Sprachausgabe).${window.Voice.savedText(cur) ? ' Es bleibt der alte Ton.' : ''}`, { icon: 'alert' });
         }
         if (pending?.text !== text) return;
         const v = window.Voice.voice();   // gespeichert wird in der gerade aktiven Stimme
