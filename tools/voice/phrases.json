@@ -29,5 +29,11 @@
   "halfway": "Halbzeit!",
   "five_to_go": "Noch fünf Runden!",
   "quali_done": "hat das Qualifying beendet.",
-  "no_signal": "keine Runde mehr gezählt! Bitte das Auto prüfen."
+  "no_signal": "keine Runde mehr gezählt! Bitte das Auto prüfen.",
+  "win_with": "gewinnt mit",
+  "win_rest": "das Rennen! Herzlichen Glückwunsch!",
+  "pole_with": "holt sich mit",
+  "pole_rest": "die Pole-Position. Glückwunsch!",
+  "record_with": "mit",
+  "record_rest": "neuer Streckenrekord! Krass!"
 }

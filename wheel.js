@@ -71,6 +71,7 @@
     if(pickedId==null) return;
     const pickedName=window.appData.cars.find(c=>c.id===pickedId)?.name;
     window.Helpers.showToast(`Gewählt: ${pickedName}`);
+    window.Voice?.sayCar?.(pickedId);   // gezogenes Auto ansagen
     // 1s Verzögerung, damit Segment sichtbar bleibt
     setTimeout(()=>{
        totalWeight-=segments[pickedIdx].weight;

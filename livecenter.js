@@ -930,17 +930,17 @@
   // ---------- Meldungen der Engine → Sprache + Laufschrift ----------
   const PRIO = { lights: 9, go: 9, redFlag: 10, resume: 9, win: 8, pole: 8, trackRecord: 7, finishPlace: 7, falseStart: 7, lastLap: 6, fiveToGo: 6, halfway: 6, status: 6, carRecord: 6, personalRecord: 5, pitCall: 5, fuelCritical: 6, noSignal: 6, leadChange: 5, fastestLap: 4, penaltyServed: 4, refueled: 3, qualiDone: 3, pitIn: 2 };
   // So lange darf nichts Unwichtigeres dazwischenreden (ms, sonst 2,2 s) – z. B. der Glückwunsch zum Sieg / zur Pole
-  const HOLD = { win: 4500, pole: 4000, trackRecord: 3500 };
+  const HOLD = { win: 5500, pole: 5000, trackRecord: 4500 };   // mit Fahrzeugname etwas länger
   // Diese Ansagen werden nicht verworfen, sondern nachgeholt, wenn gerade Wichtigeres läuft
   // (und unterbrechen sich nicht gegenseitig: Platz 2 und Platz 3 kurz hintereinander)
   const WAIT = new Set(['finishPlace', 'status', 'qualiDone', 'noSignal', 'fuelCritical']);
-  function say (type, key, driverId, tries = 0) {
+  function say (type, key, driverId, tries = 0, carId = null) {
     if (!voiceOn || !window.Voice) return;
     if (type === 'qualiDone' && (session?.phase === 'finished' || tries && session?.mode !== 'quali')) return;   // nach der Pole nicht mehr nachholen
     const now = performance.now();
     const prio = PRIO[type] || 1;
     if (now < lastSay.until && (prio < lastSay.prio || (WAIT.has(type) && WAIT.has(lastSay.type)))) {   // Wichtiges nicht abwürgen
-      if (WAIT.has(type) && tries < 4) setTimeout(() => say(type, key, driverId, tries + 1), lastSay.until - now + 150);
+      if (WAIT.has(type) && tries < 4) setTimeout(() => say(type, key, driverId, tries + 1, carId), lastSay.until - now + 150);
       return;
     }
     lastSay = { prio, type, at: now, until: now + (HOLD[type] || 2200) };
@@ -950,7 +950,8 @@
       if (r == null || r === 'ok' || r === 'unterbrochen') return;
       note(null, `Ansage „${key}“ nicht abgespielt: ${r}`, 'warn');
     };
-    try { Promise.resolve(window.Voice.announce(key, driverId)).then(done, e => done(e?.message || String(e))); } catch (e) { done(e?.message || String(e)); }
+    const run = () => (carId != null && window.Voice.announceCar ? window.Voice.announceCar(key, driverId, carId) : window.Voice.announce(key, driverId));
+    try { Promise.resolve(run()).then(done, e => done(e?.message || String(e))); } catch (e) { done(e?.message || String(e)); }
   }
   function note (ctrl, text, kind = '') {
     ticker.unshift({ ctrl, text, kind, at: Date.now() });
@@ -969,7 +970,7 @@
         session.lightsRunning = false;
         break;
       case 'lap': lapFlash[d.ctrl] = performance.now(); break;
-      case 'trackRecord': say(type, 'track_record', d.driverId); note(d.ctrl, `${name}: Streckenrekord ${fmt(d.ms)} s`, 'rec'); break;
+      case 'trackRecord': say(type, 'track_record', d.driverId, 0, d.carId ?? session.cars.get(d.ctrl)?.carId); note(d.ctrl, `${name}: Streckenrekord ${fmt(d.ms)} s`, 'rec'); break;
       case 'personalRecord': say(type, 'personal_record', d.driverId); note(d.ctrl, `${name}: persönlicher Rekord ${fmt(d.ms)} s`, 'pb'); break;
       case 'fastestLap':
         if (session.mode === 'race' && (session.cars.get(d.ctrl)?.laps ?? 0) >= 2) { say(type, 'fastest_lap', d.driverId); note(d.ctrl, `${name}: schnellste Runde ${fmt(d.ms)} s`, 'fl'); }
@@ -1004,9 +1005,9 @@
         if (d.lights) setTimeout(() => lightsGo(), 1800); else source?.release();
         break;
       case 'lastLap': say(type, 'last_lap'); note(null, 'Letzte Runde!'); break;
-      case 'win': say(type, 'race_win', d.driverId); note(d.ctrl, `${name} gewinnt!`, 'win'); break;
+      case 'win': say(type, 'race_win', d.driverId, 0, session.cars.get(d.ctrl)?.carId); note(d.ctrl, `${name} gewinnt!`, 'win'); break;
       case 'qualiDone': say(type, 'quali_done', d.driverId); note(d.ctrl, `${name}: Quali beendet`); break;
-      case 'pole': say(type, 'pole', d.driverId); break;
+      case 'pole': say(type, 'pole', d.driverId, 0, session.cars.get(d.ctrl)?.carId); break;
       case 'end': if (session.mode === 'practice') source?.release(); else source?.stopCars();   // Training: Strecke gleich wieder frei (Tristan 20.11.)
         try { countLaps(); } catch (e) { console.error(e); } recPick = new Set(recordCandidates().map(r => r.key)); break;
     }

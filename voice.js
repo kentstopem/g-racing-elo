@@ -14,9 +14,9 @@
   // Jede Stimme hat eigene Ansagen-Dateien und eigene gespeicherte Fahrernamen.
   const VOICES = {
     ingrid: { key: 'ingrid', label: 'Ingrid (Österreich)', id: 'de-AT-IngridNeural', lang: 'de-AT', base: 'assets/voice/ingrid',
-      media: id => `driver_voice_${id}`, rev: 'voiceRev', text: 'voiceText' },
+      media: id => `driver_voice_${id}`, carMedia: id => `car_voice_${id}`, rev: 'voiceRev', text: 'voiceText' },
     leni:   { key: 'leni', label: 'Leni (Schweiz)', id: 'de-CH-LeniNeural', lang: 'de-CH', base: 'assets/voice/leni',
-      media: id => `driver_voice_leni_${id}`, rev: 'voiceRevLeni', text: 'voiceTextLeni' }
+      media: id => `driver_voice_leni_${id}`, carMedia: id => `car_voice_leni_${id}`, rev: 'voiceRevLeni', text: 'voiceTextLeni' }
   };
   // Reihenfolge der festen Ansagen und wo der Fahrername gesprochen wird:
   // 'before' = [Fahrer] + Ansage, 'after' = Ansage + [Fahrer]
@@ -26,7 +26,8 @@
     ['pit_call', 'before'], ['fuel_critical', 'before'], ['in_pit', 'before'], ['refueled', 'before'], ['penalty_served', 'before'],
     ['last_lap'], ['red_flag'], ['race_resume'], ['race_win', 'before'],
     ['lead_change', 'before'], ['place_2', 'after'], ['place_3', 'after'], ['dnf', 'before'], ['dq', 'before'],
-    ['car_record', 'after'], ['halfway'], ['five_to_go'], ['quali_done', 'before'], ['no_signal', 'before']
+    ['car_record', 'after'], ['halfway'], ['five_to_go'], ['quali_done', 'before'], ['no_signal', 'before'],
+    ['win_with', 'before'], ['win_rest'], ['pole_with', 'before'], ['pole_rest'], ['record_with', 'before'], ['record_rest']
   ];
   const NAME_POS = Object.fromEntries(PHRASES.filter(p => p[1]).map(p => [p[0], p[1]]));
   const voice = key => VOICES[key] || VOICES[window.appData?.raceSettings?.voice] || VOICES.ingrid;
@@ -137,11 +138,11 @@
   }
   const phraseSrc = (k, key) => `${voice(key).base}/phrases/${k}.mp3`;
 
-  async function ownClip (d, v) {
+  async function ownClip (d, v, car = false) {
     if (!d?.[v.rev]) return null;
     try {
-      const data = (await window.Storage.getMedia(v.media(d.id)))?.data ?? null;
-      return data && trimmedSrc(data, `${v.key}|${d.id}|${d[v.rev]}`);
+      const data = (await window.Storage.getMedia((car ? v.carMedia : v.media)(d.id)))?.data ?? null;
+      return data && trimmedSrc(data, `${v.key}|${car ? 'car' : ''}${d.id}|${d[v.rev]}`);
     } catch (e) { console.warn(e); return null; }
   }
 
@@ -324,9 +325,28 @@
    * Ansage abspielen. Teile: Phrasen-Schlüssel (z. B. 'race_win') oder { driver: id }.
    * Beispiel: Voice.say({ driver: id }, 'race_win')
    */
+  // ---------- Fahrzeugnamen ----------
+  // Standard: nur die Startnummer („Nummer sechs“ aus „(06) …“). Ein eigener gesprochener Name (Fahrzeug-Dialog,
+  // Feld pronunciation) ersetzt die Nummer. Ohne Startnummer wird der Name ohne Spitznamen gesprochen.
+  const carNumber = c => { const m = /^\s*\((\d+)\)/.exec(c?.name || ''); return m ? Number(m[1]) : null; };
+  const carSpoken = c => (c?.pronunciation || '').trim() || (carNumber(c) != null ? `Nummer ${carNumber(c)}` : String(c?.name || '').replace(/[„"“].*$/, '').trim());
+  /** Ton für ein Fahrzeug: eigener Ton, sonst Workflow-Datei (assets/voice/<stimme>/cars/<id>.mp3), sonst die andere Stimme */
+  async function carSrc (carOrId, key) {
+    const c = typeof carOrId === 'object' ? carOrId : window.appData?.cars?.find(x => x.id === carOrId);
+    if (!c) return null;
+    const v = voice(key);
+    for (const o of [v, ...Object.values(VOICES).filter(o => o !== v)]) {
+      const own = await ownClip(c, o, true);
+      if (own) return own;
+      if ((await loadManifest(o.key)).cars?.[c.id]) return `${o.base}/cars/${c.id}.mp3`;
+    }
+    return null;
+  }
+
   async function say (...parts) {
     const my = ++token;   // sofort reservieren, damit ein späterer Aufruf diesen verdrängt
-    const sources = await Promise.all(parts.map(p => (typeof p === 'string' ? phraseSrc(p) : nameSrc(p.driver))));
+    const sources = await Promise.all(parts.map(p => (typeof p === 'string' ? phraseSrc(p) : p.car != null ? carSrc(p.car) : nameSrc(p.driver))));
+    if (parts.some((p, i) => p?.car != null && !sources[i])) return 'kein Ton für das Fahrzeug';   // dann lieber die Ansage ohne Auto
     if (my !== token) return 'unterbrochen';
     return playSources(sources);
   }
@@ -338,6 +358,22 @@
     return pos === 'after' ? say(key, { driver: driverId }) : say({ driver: driverId }, key);
   }
 
+  // Ansagen mit Fahrer UND Fahrzeug (Tristan 28.11.: Sieg, Streckenrekord, Pole). Fehlt der Fahrzeug-Ton,
+  // kommt die bisherige Ansage nur mit dem Fahrer.
+  const WITH_CAR = {
+    race_win: ['win_with', 'win_rest'],            // [Fahrer] gewinnt mit [Auto] das Rennen! Herzlichen Glückwunsch!
+    pole: ['pole_with', 'pole_rest'],              // [Fahrer] holt sich mit [Auto] die Pole-Position. Glückwunsch!
+    track_record: ['record_with', 'record_rest']   // [Fahrer] mit [Auto]: neuer Streckenrekord! Krass!
+  };
+  async function announceCar (key, driverId, carId) {
+    const w = WITH_CAR[key];
+    if (!w || driverId == null || carId == null) return announce(key, driverId);
+    const r = await say({ driver: driverId }, w[0], { car: carId }, w[1]);
+    return r === 'kein Ton für das Fahrzeug' ? announce(key, driverId) : r;
+  }
+  /** Nur das Fahrzeug, z. B. beim Auslosen */
+  const sayCar = carId => say({ car: carId });
+
   /** Alle festen Ansagen vorladen (landen im Offline-Cache des Service Workers). */
   async function preload () {
     const man = await loadManifest();
@@ -347,6 +383,6 @@
 
   window.Voice = {
     VOICES, PHRASES, NAME_POS, announce, RATE, voice, savedText, spokenText, listText, azureConfig, setAzureConfig, synthesize,
-    loadManifest, phraseSrc, nameSrc, say, playSources, stop, preload, trimTail
+    loadManifest, phraseSrc, nameSrc, carSrc, carNumber, carSpoken, say, sayCar, announceCar, playSources, stop, preload, trimTail
   };
 })();

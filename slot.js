@@ -162,6 +162,7 @@
       this.track.style.transform=`translateY(${-this.offset}px)`;
       // finalize selection
       selectedIds[this.idx]=chosen.id;
+      window.Voice?.sayCar?.(chosen.id);   // gezogenes Auto ansagen
       this.stopped=true;this.frozen=true;
       this.stopBtn.classList.add('hidden');
       this.result.textContent=chosen.name;

@@ -4,7 +4,7 @@
 Modi:
   samples  – je Stimme eine Hörprobe nach voice-samples/ (wird nicht eingecheckt)
   phrases  – alle festen Ansagen aus phrases.json neu erzeugen
-  drivers  – Fahrernamen erzeugen, die fehlen oder deren Aussprache sich geändert hat
+  drivers  – Fahrer- und Fahrzeugnamen erzeugen, die fehlen oder deren Aussprache sich geändert hat
   driver   – einen Fahrer neu erzeugen (--driver <id>)
   all      – phrases + alle Fahrernamen neu
 
@@ -12,7 +12,7 @@ Ausgabe je Stimme (SETS): <ordner>/phrases/<key>.mp3, <ordner>/drivers/<id>.mp3,
 (Ingrid in assets/voice/ingrid, Leni in assets/voice/leni)
 Fahrer kommen öffentlich lesbar aus Firestore; gesprochen wird `pronunciation`, sonst `name`.
 """
-import argparse, asyncio, json, os, sys, urllib.request
+import argparse, asyncio, json, os, re, sys, urllib.request
 import edge_tts
 from trim import trim   # Stille vorne/hinten abschneiden
 
@@ -45,6 +45,32 @@ def fetch_drivers():
             continue
         spoken = (f.get('pronunciation') or '').strip() or name
         out.append({'id': d['name'].rsplit('/', 1)[-1], 'name': name, 'text': spoken})
+    return out
+
+
+def car_spoken(f):
+    """Wie voice.js carSpoken: eigener gesprochener Name, sonst „Nummer N“ aus „(0N) …“, sonst der Name ohne Spitznamen."""
+    own = (f.get('pronunciation') or '').strip()
+    if own:
+        return own
+    name = (f.get('name') or '').strip()
+    m = re.match(r'\s*\((\d+)\)', name)
+    if m:
+        return f'Nummer {int(m.group(1))}'
+    return re.sub(r'[„"“].*$', '', name).strip()
+
+
+def fetch_cars():
+    url = (f'https://firestore.googleapis.com/v1/projects/{PROJECT}/databases/(default)/documents/cars'
+           f'?pageSize=300&key={API_KEY}')
+    with urllib.request.urlopen(url, timeout=30) as r:
+        docs = json.load(r).get('documents', [])
+    out = []
+    for d in docs:
+        f = {k: next(iter(v.values())) for k, v in d.get('fields', {}).items()}
+        text = car_spoken(f)
+        if text:
+            out.append({'id': d['name'].rsplit('/', 1)[-1], 'name': (f.get('name') or '').strip(), 'text': text})
     return out
 
 
@@ -92,6 +118,22 @@ async def run(a, voice, out):
         for gone in [i for i in man['drivers'] if i not in ids]:   # gelöschte Fahrer aufräumen
             man['drivers'].pop(gone)
             p = os.path.join(out, 'drivers', f'{gone}.mp3')
+            if os.path.exists(p):
+                os.remove(p)
+
+    # Fahrzeugnamen (Standard: nur die Startnummer) – nachts zusammen mit den Fahrernamen
+    if a.mode in ('drivers', 'all'):
+        man.setdefault('cars', {})
+        cars = fetch_cars()
+        ids = {c['id'] for c in cars}
+        for c in cars:
+            path = os.path.join(out, 'cars', f"{c['id']}.mp3")
+            if a.mode == 'all' or man['cars'].get(c['id'], {}).get('text') != c['text'] or not os.path.exists(path):
+                await say(c['text'], path, voice, rate, pitch)
+                man['cars'][c['id']] = {'name': c['name'], 'text': c['text']}
+        for gone in [i for i in man['cars'] if i not in ids]:
+            man['cars'].pop(gone)
+            p = os.path.join(out, 'cars', f'{gone}.mp3')
             if os.path.exists(p):
                 os.remove(p)
 

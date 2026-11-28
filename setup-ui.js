@@ -246,6 +246,14 @@
           </div>
         </div>
         <div class="form-group" style="margin-top:12px;">
+          <label for="carPron"><svg class="ic" aria-hidden="true"><use href="#i-speech"/></svg>Gesprochener Name</label>
+          <div class="media-row">
+            <input id="carPron" name="cpron" value="${esc(c.pronunciation || '')}" placeholder="${esc(window.Voice?.carSpoken({ name: c.name }) || 'Nummer')}" style="flex:1;min-width:0;">
+            <button type="button" class="btn btn-small" id="carVoicePlay" style="align-self:stretch;">Anhören</button>
+          </div>
+          <small class="muted">Leer = nur die Startnummer. Angesagt bei Sieg, Pole, Streckenrekord und beim Auslosen.</small>
+        </div>
+        <div class="form-group">
           <label class="check-label"><input type="checkbox" name="practiceOnly" ${c.practiceOnly ? 'checked' : ''}> Nur im Training (nicht in Qualifying und Rennen, z. B. anderer Decoder)</label>
         </div>
         <div class="form-group">
@@ -300,6 +308,43 @@
       showImg({ ...c, imageRev: null });
       body.querySelector('#carImgDel').disabled = true;
     };
+    // Gesprochener Name: wie beim Fahrer. Eigener Ton nur mit Schreibweise (sonst Startnummer vom Workflow).
+    let carPending = null;   // { data, text }
+    const carPronText = () => form.cpron.value.trim();
+    const carPlay = body.querySelector('#carVoicePlay');
+    carPlay.onclick = async () => {
+      const text = carPronText();
+      const cur = window.appData.cars.find(x => x.id === id) || c;
+      if (!text) {
+        const src = await window.Voice.carSrc(cur);
+        if (src) return window.Voice.playSources([src]);
+        if (!window.Voice.azureConfig()) { showToast('Startnummer wird nachts erzeugt – oder Sprach-Schlüssel eintragen', { icon: 'alert' }); return; }
+      }
+      const spoken = text || window.Voice.carSpoken({ name: form.cname?.value.trim() || cur.name });
+      if (carPending?.text === spoken) return window.Voice.playSources([carPending.data]);
+      if (text && window.Voice.savedText(cur) === text) { const src = await window.Voice.carSrc(cur); if (src) return window.Voice.playSources([src]); }
+      if (!window.Voice.azureConfig()) { showToast('Kein Ton – Sprach-Schlüssel fehlt (Setup → Settings → Sprachausgabe)', { icon: 'alert' }); return; }
+      carPlay.disabled = true;
+      try { carPending = { data: await readAsDataUrl(await window.Voice.synthesize(spoken)), text: spoken }; window.Voice.playSources([carPending.data]); }
+      catch (err) { showToast(err.message || 'Erzeugen fehlgeschlagen', { icon: 'alert' }); }
+      finally { carPlay.disabled = false; }
+    };
+    /** Felder für den gesprochenen Namen (speichert vorher den Ton) */
+    const carVoiceFields = async () => {
+      const text = carPronText();
+      const cur = window.appData.cars.find(x => x.id === id) || c;
+      const v = window.Voice.voice();
+      if (!text) return Object.values(window.Voice.VOICES).reduce((o, x) => ({ ...o, [x.rev]: del(), [x.text]: del() }), { pronunciation: del() });   // zurück zur Startnummer (alle Stimmen)
+      const out = { pronunciation: text };
+      if (window.Voice.savedText(cur) === text && carPending?.text !== text) return out;
+      if (carPending?.text !== text) {
+        if (!window.Voice.azureConfig()) { showToast('Gesprochener Name nicht als Ton gespeichert: Auf diesem Gerät fehlt der Sprach-Schlüssel. Der Ton wird nachts erzeugt.', { icon: 'alert' }); return out; }
+        try { carPending = { data: await readAsDataUrl(await window.Voice.synthesize(text)), text }; }
+        catch (err) { showToast(`Name nicht erzeugt: ${err.message || 'Fehler'}`, { icon: 'alert' }); return out; }
+      }
+      await window.Storage.setMedia(v.carMedia(id), carPending.data, 'audio/mpeg');
+      return { ...out, [v.rev]: Date.now(), [v.text]: text };
+    };
     body.querySelector('[data-act="cancel"]').onclick = closeModal;
     form.onsubmit = e => {
       e.preventDefault();
@@ -319,6 +364,8 @@
             catch (err) { console.error(err); showToast('Bild konnte nicht gespeichert werden', { icon: 'alert' }); }
           }
           await window.Storage.addCar(car);
+          const vf = await carVoiceFields();
+          if (vf.pronunciation && typeof vf.pronunciation === 'string') await window.Storage.updateCarFields(id, vf);
         })();
         persist(save, 'Fahrzeug angelegt').catch(() => {});
         closeModal();
@@ -331,7 +378,8 @@
       if (!name) { showToast('Bitte einen Namen eingeben!'); return; }
       if (window.appData.cars.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) { showToast('Fahrzeug existiert bereits!'); return; }
       const practiceOnly = form.practiceOnly.checked ? true : del();
-      persist(window.Storage.updateCarFields(id, { name, tuning, practiceOnly }), 'Fahrzeug gespeichert');
+      persist(carVoiceFields().then(vf => window.Storage.updateCarFields(id, { name, tuning, practiceOnly, ...vf })), 'Fahrzeug gespeichert');
+      window.Voice.stop();
       closeModal();
     };
   }
@@ -692,6 +740,9 @@
         <div class="form-group"><label for="phraseDriver">Probehören mit Fahrer</label>
           <select id="phraseDriver"><option value="">ohne Namen</option>${(window.appData.drivers || []).filter(d => !d.archived).sort((a, b) => String(a.name).localeCompare(String(b.name), 'de')).map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select>
         </div>
+        <div class="form-group"><label for="phraseCar">… und Fahrzeug (Sieg, Pole, Streckenrekord)</label>
+          <select id="phraseCar"><option value="">ohne Fahrzeug</option>${(window.appData.cars || []).filter(c => !c.archived).sort((a, b) => String(a.name).localeCompare(String(b.name), 'de', { numeric: true })).map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>
+        </div>
         <div id="phraseList" class="muted">Wird geladen …</div>
       </details>`;
     const form = el.querySelector('#raceSettingsForm');
@@ -776,17 +827,24 @@
     try { const v = localStorage.getItem(PROBE_KEY); if (v && [...probeSel.options].some(o => o.value === v)) probeSel.value = v; } catch (e) {}
     const probeDriver = () => window.appData.drivers?.find(d => String(d.id) === probeSel.value) || null;
     probeSel.onchange = () => { try { localStorage.setItem(PROBE_KEY, probeSel.value); } catch (e) {} renderPhrases(el.querySelector('#phraseList')); };
+    const PROBE_CAR_KEY = 'grp.voiceProbeCar';
+    const probeCarSel = el.querySelector('#phraseCar');
+    try { const v = localStorage.getItem(PROBE_CAR_KEY); if (v && [...probeCarSel.options].some(o => o.value === v)) probeCarSel.value = v; } catch (e) {}
+    const probeCar = () => window.appData.cars?.find(c => String(c.id) === probeCarSel.value) || null;
+    probeCarSel.onchange = () => { try { localStorage.setItem(PROBE_CAR_KEY, probeCarSel.value); } catch (e) {} };
+    // Teilstücke der Ansagen mit Fahrzeug nicht einzeln auflisten
+    const PART_KEYS = new Set(['win_with', 'win_rest', 'pole_with', 'pole_rest', 'record_with', 'record_rest']);
     const renderPhrases = box => window.Voice?.loadManifest().then(man => {
       if (!box) return;
       const pd = probeDriver();
       const nameTag = pd ? `<b>${esc(pd.name)}</b>` : '<span class="muted">[Fahrername]</span>';
       const order = window.Voice.PHRASES.map(p => p[0]);
       const rank = k => (order.includes(k) ? order.indexOf(k) : 999);
-      const entries = Object.entries(man.phrases || {}).sort((a, b) => rank(a[0]) - rank(b[0]));
+      const entries = Object.entries(man.phrases || {}).filter(([k]) => !PART_KEYS.has(k)).sort((a, b) => rank(a[0]) - rank(b[0]));
       box.innerHTML = entries.length
         ? entries.map(([k, t]) => `<div class="media-row" style="margin-bottom:6px;"><button type="button" class="btn btn-small" data-phrase="${esc(k)}">Anhören</button><span>${window.Voice.NAME_POS[k] === 'before' ? nameTag + ' ' : ''}${esc(t)}${window.Voice.NAME_POS[k] === 'after' ? ' ' + nameTag : ''}</span></div>`).join('')
         : 'Noch keine Ansagen erzeugt.';
-      box.querySelectorAll('[data-phrase]').forEach(b => { b.onclick = () => { const pd = probeDriver(); pd ? window.Voice.announce(b.dataset.phrase, pd.id) : window.Voice.say(b.dataset.phrase); }; });
+      box.querySelectorAll('[data-phrase]').forEach(b => { b.onclick = () => { const pd = probeDriver(), pc = probeCar(); pd ? (pc ? window.Voice.announceCar(b.dataset.phrase, pd.id, pc.id) : window.Voice.announce(b.dataset.phrase, pd.id)) : window.Voice.say(b.dataset.phrase); }; });
     });
     renderPhrases(el.querySelector('#phraseList'));
     const update = () => { note(); balance(); };

@@ -45,6 +45,7 @@
     if(!card||card.classList.contains('flipped')||picked.length>=need) return;
     card.classList.add('flipped','picked');
     picked.push(Number(card.dataset.id));
+    window.Voice?.sayCar?.(Number(card.dataset.id));   // aufgedecktes Auto ansagen
     updateStatus();
     // Fertig: die restlichen Karten zeigen, was es noch gegeben hätte
     if(picked.length>=need) setTimeout(()=>grid.querySelectorAll('.mem-card:not(.flipped)').forEach(c=>c.classList.add('flipped','rest')),700);
